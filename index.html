@@ -4,12 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JF Solar - Cloud Analytics</title>
-    <!-- Tailwind & Chart.js -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Supabase JS SDK (NUEVO) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
@@ -17,9 +14,7 @@
             darkMode: 'class',
             theme: {
                 extend: {
-                    colors: {
-                        jf: { bg: '#0B1120', card: '#1E293B', accent: '#0EA5E9', solar: '#10B981', grid: '#F43F5E', ai: '#8B5CF6' }
-                    }
+                    colors: { jf: { bg: '#0B1120', card: '#1E293B', accent: '#0EA5E9', solar: '#10B981', grid: '#F43F5E', ai: '#8B5CF6' } }
                 }
             }
         }
@@ -38,14 +33,13 @@
 </head>
 <body data-lang="es" class="text-slate-200 font-sans min-h-screen pb-10 select-none">
 
-    <!-- GLOBAL LOADER (PANTALLA DE CARGA SUPABASE) -->
+    <!-- GLOBAL LOADER -->
     <div id="global-loader" class="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-jf-bg transition-opacity duration-300">
         <div class="animate-spin rounded-full border-4 border-t-4 border-slate-700 border-t-jf-accent h-16 w-16 mb-4"></div>
-        <p class="text-slate-400 font-medium tracking-widest uppercase text-xs animate-pulse">Conectando a Supabase...</p>
+        <p class="text-slate-400 font-medium tracking-widest uppercase text-xs animate-pulse">Conectando a DB...</p>
     </div>
 
     <!-- LOGIN MODAL -->
-    <!-- Se inicia oculto (hidden) para dejar que el Loader revise la sesión primero -->
     <div id="login-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-jf-bg/95 backdrop-blur-sm hidden">
         <div class="glass-card p-8 rounded-2xl w-full max-w-md shadow-2xl border-t-4 border-jf-accent">
             <div class="text-center mb-6">
@@ -56,7 +50,7 @@
             <form id="login-form" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-400 mb-1"><span class="lang-es">Correo Electrónico</span><span class="lang-en">Email</span></label>
-                    <input type="email" id="email" placeholder="admin@jfsolar.com" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-jf-accent focus:outline-none" required>
+                    <input type="email" id="email" placeholder="usuario@correo.com" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-jf-accent focus:outline-none" required>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-400 mb-1"><span class="lang-es">Contraseña</span><span class="lang-en">Password</span></label>
@@ -76,25 +70,26 @@
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-800/30 p-4 rounded-2xl border border-slate-700/50">
             <div>
                 <h1 class="text-2xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-solar-panel text-jf-solar"></i> JF Solar</h1>
-                <p class="text-sm text-slate-400"><span class="lang-es">Conexión: </span><span class="lang-en">Status: </span><span class="text-green-400 font-bold"><i class="fa-solid fa-circle text-[8px] animate-pulse"></i> Online</span> | <span class="lang-es">Rol: </span><span class="lang-en">Role: </span><span id="user-role-badge" class="font-bold text-jf-accent"></span></p>
+                <p class="text-sm text-slate-400 flex items-center gap-2 flex-wrap mt-1">
+                    <span class="text-green-400 font-bold"><i class="fa-solid fa-circle text-[8px] animate-pulse"></i> Online</span>
+                    <span class="opacity-50">|</span>
+                    <i class="fa-solid fa-user-circle text-slate-300"></i> <span id="active-user-email" class="font-bold text-white tracking-wide"></span>
+                    <span class="opacity-50">|</span>
+                    <span class="lang-es">Rol: </span><span class="lang-en">Role: </span><span id="user-role-badge" class="font-bold text-jf-accent uppercase text-xs tracking-wider bg-jf-accent/10 px-2 py-0.5 rounded"></span>
+                </p>
             </div>
             
             <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                <!-- DROPDOWN DE IDIOMA -->
                 <div class="relative inline-block text-left group z-50">
                     <button class="flex items-center gap-2 bg-slate-800 border border-slate-600 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-colors outline-none focus:outline-none">
-                        <span id="current-flag"><img src="https://flagcdn.com/w20/co.png" alt="CO" class="w-5 rounded-sm shadow-sm"></span> 
+                        <span id="current-flag"><img src="https://flagcdn.com/w20/co.png" class="w-5 rounded-sm shadow-sm"></span> 
                         <span id="current-lang-text">ES</span> 
                         <i class="fa-solid fa-chevron-down text-xs ml-1"></i>
                     </button>
                     <div class="absolute right-0 top-full pt-2 w-36 hidden group-hover:block">
                         <div class="rounded-md bg-slate-800 border border-slate-700 shadow-2xl overflow-hidden">
-                            <button onclick="setLang('es', 'co', 'ES')" class="flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
-                                <img src="https://flagcdn.com/w20/co.png" alt="Colombia" class="w-5 rounded-sm shadow-sm"> Español
-                            </button>
-                            <button onclick="setLang('en', 'us', 'EN')" class="flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
-                                <img src="https://flagcdn.com/w20/us.png" alt="USA" class="w-5 rounded-sm shadow-sm"> English
-                            </button>
+                            <button onclick="setLang('es', 'co', 'ES')" class="flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"><img src="https://flagcdn.com/w20/co.png" class="w-5 rounded-sm shadow-sm"> Español</button>
+                            <button onclick="setLang('en', 'us', 'EN')" class="flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"><img src="https://flagcdn.com/w20/us.png" class="w-5 rounded-sm shadow-sm"> English</button>
                         </div>
                     </div>
                 </div>
@@ -108,17 +103,17 @@
                 </select>
 
                 <div class="admin-only hidden-auth">
-                    <button onclick="document.getElementById('add-record-modal').classList.remove('hidden')" class="bg-jf-solar hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-medium transition-all shadow-lg shadow-emerald-500/20">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> <span class="lang-es">Nueva Lectura</span><span class="lang-en">New Reading</span>
+                    <button onclick="openModal('new')" class="bg-jf-solar hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-medium transition-all shadow-lg shadow-emerald-500/20">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> <span class="lang-es">Nuevo</span><span class="lang-en">New</span>
                     </button>
                 </div>
-                <button id="logout-btn" class="text-red-400 hover:text-red-300 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-red-500/30 hover:bg-red-500/10">
-                    <i class="fa-solid fa-power-off"></i> <span class="lang-es">Salir</span><span class="lang-en">Logout</span>
+                <button id="logout-btn" class="text-red-400 hover:text-red-300 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-red-500/30 hover:bg-red-500/10" title="Cerrar Sesión">
+                    <i class="fa-solid fa-power-off"></i>
                 </button>
             </div>
         </header>
 
-        <!-- ROI PANEL DINÁMICO (CÁLCULO GLOBAL) -->
+        <!-- ROI PANEL -->
         <div class="glass-card p-5 rounded-2xl border-l-4 border-l-jf-accent flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden">
             <div class="absolute -right-4 -top-4 text-jf-accent opacity-5 text-7xl"><i class="fa-solid fa-chart-pie"></i></div>
             <div class="z-10">
@@ -131,25 +126,20 @@
                     <input type="number" id="investment-input" class="bg-transparent text-xl font-bold text-white text-right w-32 border-b border-slate-600 focus:outline-none focus:border-jf-accent admin-only" disabled>
                 </div>
                 <div class="bg-slate-800 p-3 rounded-lg text-center min-w-[120px] shadow-inner">
-                    <p class="text-xs text-slate-400"><span class="lang-es">Recuperación Total</span><span class="lang-en">Total Payback</span></p>
+                    <p class="text-xs text-slate-400"><span class="lang-es">Recuperación</span><span class="lang-en">Payback</span></p>
                     <p id="roi-time" class="text-lg font-bold text-jf-accent">--</p>
                 </div>
             </div>
         </div>
 
-        <!-- MÓDULO PREDICTIVO Y ANALÍTICA AVANZADA -->
+        <!-- MÓDULO PREDICTIVO -->
         <div class="glass-card p-1 rounded-2xl bg-gradient-to-r from-jf-ai/20 to-transparent">
             <div class="p-4 bg-slate-900/80 rounded-xl">
-                <h3 class="text-xs font-bold text-jf-ai tracking-widest uppercase mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-microchip"></i> JF Predictive Analytics
-                </h3>
+                <h3 class="text-xs font-bold text-jf-ai tracking-widest uppercase mb-4 flex items-center gap-2"><i class="fa-solid fa-microchip"></i> JF Predictive Analytics</h3>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="border-l border-slate-700 pl-4">
-                        <p class="text-xs text-slate-400 mb-1"><span class="lang-es">Proyección Precio kW (12 Meses)</span><span class="lang-en">kW Price Projection (12 Mo)</span></p>
-                        <p class="text-xl font-bold text-white flex items-end gap-2">
-                            <span id="ai-precio-futuro">--</span>
-                            <span id="ai-tendencia" class="text-xs mb-1"></span>
-                        </p>
+                        <p class="text-xs text-slate-400 mb-1"><span class="lang-es">Proyección Precio kW (12m)</span><span class="lang-en">kW Price Projection (12m)</span></p>
+                        <p class="text-xl font-bold text-white flex items-end gap-2"><span id="ai-precio-futuro">--</span><span id="ai-tendencia" class="text-xs mb-1"></span></p>
                     </div>
                     <div class="border-l border-slate-700 pl-4">
                         <p class="text-xs text-slate-400 mb-1"><span class="lang-es">Mes Pico de Generación</span><span class="lang-en">Peak Generation Month</span></p>
@@ -163,50 +153,33 @@
             </div>
         </div>
 
-        <!-- KPIs DEL AÑO FILTRADO -->
+        <!-- KPIs -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="glass-card p-5 rounded-2xl text-center md:text-left">
-                <p class="text-xs text-slate-400 mb-1"><span class="lang-es">Ahorro Generado</span><span class="lang-en">Generated Savings</span></p>
-                <p id="kpi-ahorro" class="text-2xl font-bold text-jf-solar">--</p>
-            </div>
-            <div class="glass-card p-5 rounded-2xl text-center md:text-left">
-                <p class="text-xs text-slate-400 mb-1"><span class="lang-es">Generación Neta</span><span class="lang-en">Net Generation</span></p>
-                <p id="kpi-produccion" class="text-2xl font-bold text-white">--</p>
-            </div>
-            <div class="glass-card p-5 rounded-2xl text-center md:text-left">
-                <p class="text-xs text-slate-400 mb-1"><span class="lang-es">Independencia Energética</span><span class="lang-en">Energy Independence</span></p>
-                <p id="kpi-autonomia" class="text-2xl font-bold text-purple-400">--</p>
-            </div>
-            <div class="glass-card p-5 rounded-2xl text-center md:text-left">
-                <p class="text-xs text-slate-400 mb-1"><span class="lang-es">Variación kW</span><span class="lang-en">kW Variation</span></p>
-                <p id="kpi-var-kw" class="text-2xl font-bold text-orange-400">--</p>
-            </div>
+            <div class="glass-card p-5 rounded-2xl text-center md:text-left"><p class="text-xs text-slate-400 mb-1"><span class="lang-es">Ahorro Generado</span><span class="lang-en">Generated Savings</span></p><p id="kpi-ahorro" class="text-2xl font-bold text-jf-solar">--</p></div>
+            <div class="glass-card p-5 rounded-2xl text-center md:text-left"><p class="text-xs text-slate-400 mb-1"><span class="lang-es">Generación Neta</span><span class="lang-en">Net Generation</span></p><p id="kpi-produccion" class="text-2xl font-bold text-white">--</p></div>
+            <div class="glass-card p-5 rounded-2xl text-center md:text-left"><p class="text-xs text-slate-400 mb-1"><span class="lang-es">Independencia Energética</span><span class="lang-en">Energy Independence</span></p><p id="kpi-autonomia" class="text-2xl font-bold text-purple-400">--</p></div>
+            <div class="glass-card p-5 rounded-2xl text-center md:text-left"><p class="text-xs text-slate-400 mb-1"><span class="lang-es">Variación kW</span><span class="lang-en">kW Variation</span></p><p id="kpi-var-kw" class="text-2xl font-bold text-orange-400">--</p></div>
         </div>
 
-        <!-- CHARTS (Independientes) -->
+        <!-- CHARTS -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="glass-card p-4 rounded-2xl">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-sm font-semibold"><span class="lang-es">Balance Energético</span><span class="lang-en">Energy Balance</span></h3>
-                    <button onclick="toggleChartType('energia')" class="bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 px-3 py-1 rounded text-xs transition-colors">
-                        <i id="icon-chart-energia" class="fa-solid fa-chart-area"></i> <span class="lang-es">Cambiar Vista</span><span class="lang-en">Toggle View</span>
-                    </button>
+                    <button onclick="toggleChartType('energia')" class="bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 px-3 py-1 rounded text-xs transition-colors"><i id="icon-chart-energia" class="fa-solid fa-chart-area"></i></button>
                 </div>
                 <div class="h-64"><canvas id="chart-energia"></canvas></div>
             </div>
-            
             <div class="glass-card p-4 rounded-2xl">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-sm font-semibold"><span class="lang-es">Fluctuación Precio kW</span><span class="lang-en">kW Price Fluctuation</span></h3>
-                    <button onclick="toggleChartType('precio')" class="bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 px-3 py-1 rounded text-xs transition-colors">
-                        <i id="icon-chart-precio" class="fa-solid fa-chart-bar"></i> <span class="lang-es">Cambiar Vista</span><span class="lang-en">Toggle View</span>
-                    </button>
+                    <button onclick="toggleChartType('precio')" class="bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 px-3 py-1 rounded text-xs transition-colors"><i id="icon-chart-precio" class="fa-solid fa-chart-bar"></i></button>
                 </div>
                 <div class="h-64"><canvas id="chart-precio"></canvas></div>
             </div>
         </div>
 
-        <!-- TABLA DE DATOS -->
+        <!-- TABLA -->
         <div class="glass-card p-0 rounded-2xl overflow-hidden">
             <div class="p-3 bg-slate-800/80 border-b border-slate-700 flex justify-between items-center">
                 <h3 class="font-semibold text-sm text-white"><span class="lang-es">Bitácora Cloud (Sincronizada)</span><span class="lang-en">Cloud Log (Synced)</span></h3>
@@ -217,11 +190,11 @@
                     <thead class="bg-slate-800/50">
                         <tr class="text-slate-400 text-xs uppercase tracking-wider">
                             <th class="py-4 px-4"><span class="lang-es">Periodo</span><span class="lang-en">Period</span></th>
-                            <th class="py-4 px-4 text-center"><span class="lang-es">Lecturas (Red | Solar)</span><span class="lang-en">Readings (Grid|Solar)</span></th>
-                            <th class="py-4 px-4 text-center"><span class="lang-es">Consumo (Red)</span><span class="lang-en">Consumption</span></th>
+                            <th class="py-4 px-4 text-center"><span class="lang-es">Lecturas (Red | Solar)</span><span class="lang-en">Readings</span></th>
+                            <th class="py-4 px-4 text-center"><span class="lang-es">Consumo (Red)</span><span class="lang-en">Grid Cons</span></th>
                             <th class="py-4 px-4 text-center"><span class="lang-es">Gen. Solar</span><span class="lang-en">Solar Gen</span></th>
                             <th class="py-4 px-4 text-right"><span class="lang-es">Precio kW</span><span class="lang-en">kW Price</span></th>
-                            <th class="py-4 px-4 text-right"><span class="lang-es">Ahorro Real</span><span class="lang-en">Real Savings</span></th>
+                            <th class="py-4 px-4 text-right"><span class="lang-es">Ahorro Real</span><span class="lang-en">Savings</span></th>
                             <th class="py-4 px-4 text-center admin-only hidden-auth"><i class="fa-solid fa-gear"></i></th>
                         </tr>
                     </thead>
@@ -229,40 +202,41 @@
                 </table>
             </div>
         </div>
-        
-        <div class="text-center mt-6 pb-4 text-slate-600 text-[10px] tracking-widest font-bold uppercase">
-            Designed & Engineered by JF
-        </div>
+        <div class="text-center mt-6 pb-4 text-slate-600 text-[10px] tracking-widest font-bold uppercase">Designed & Engineered by JF</div>
     </div>
 
-    <!-- MODAL NUEVA LECTURA -->
+    <!-- MODAL FORMULARIO (NUEVO/EDITAR) -->
     <div id="add-record-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-jf-bg/90 backdrop-blur-sm p-4">
         <div class="glass-card p-6 rounded-2xl w-full max-w-md shadow-2xl border-t-4 border-jf-solar">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold text-white"><span class="lang-es">Sincronizar a DB Central</span><span class="lang-en">Sync to Core DB</span></h3>
+                <h3 class="text-xl font-bold text-white">
+                    <span id="modal-title-es" class="lang-es">Sincronizar a DB</span>
+                    <span id="modal-title-en" class="lang-en">Sync to DB</span>
+                </h3>
                 <button onclick="document.getElementById('add-record-modal').classList.add('hidden')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <form id="add-record-form" class="space-y-5">
+                <input type="hidden" id="edit-id" value="">
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1"><span class="lang-es">Fecha de Factura/Lectura</span><span class="lang-en">Invoice/Reading Date</span></label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1"><span class="lang-es">Fecha de Lectura</span><span class="lang-en">Reading Date</span></label>
                     <input type="date" id="new-fecha" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-jf-accent outline-none" required>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1"><span class="lang-es">Lectura Medidor Red</span><span class="lang-en">Grid Meter Reading</span></label>
+                        <label class="block text-xs font-medium text-slate-400 mb-1"><span class="lang-es">Medidor Red</span><span class="lang-en">Grid Meter</span></label>
                         <input type="number" step="0.1" id="new-lectura-red" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-jf-accent outline-none" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1"><span class="lang-es">Lectura Inversor (smartESS)</span><span class="lang-en">Inverter Reading (smartESS)</span></label>
+                        <label class="block text-xs font-medium text-slate-400 mb-1"><span class="lang-es">Inversor (Solar)</span><span class="lang-en">Inverter (Solar)</span></label>
                         <input type="number" step="0.1" id="new-lectura-solar" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-jf-accent outline-none" required>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1"><span class="lang-es">Costo Facturado por kW (COP)</span><span class="lang-en">Billed Cost per kW (COP)</span></label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1"><span class="lang-es">Costo por kW (COP)</span><span class="lang-en">Cost per kW (COP)</span></label>
                     <input type="number" step="0.01" id="new-precio" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-jf-accent outline-none" required>
                 </div>
                 <button type="submit" id="btn-save" class="w-full bg-jf-solar hover:bg-emerald-600 text-white font-bold py-3 rounded-lg mt-2 transition-all shadow-lg shadow-emerald-500/20">
-                    <span class="lang-es">Procesar y Subir a la Nube</span><span class="lang-en">Process & Upload</span>
+                    <span class="lang-es">Guardar en la Nube</span><span class="lang-en">Save to Cloud</span>
                 </button>
             </form>
         </div>
@@ -280,45 +254,26 @@
         let chartsObj = {};
         let currentViewData = []; 
         let chartModes = { energia: 'bar', precio: 'line' };
-        let dbData = []; // La data ya no vive en localStorage, vive en Supabase
+        let dbData = []; 
         
         const currentRealYear = new Date().getFullYear();
         const formatCOP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-        
-        const langData = {
-            es: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
-            en: ["January","February","March","April","May","June","July","August","September","October","November","December"]
-        };
+        const langData = { es: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"], en: ["January","February","March","April","May","June","July","August","September","October","November","December"] };
 
         function setLang(lang, flagCode, text) {
             document.body.setAttribute('data-lang', lang);
-            document.getElementById('current-flag').innerHTML = `<img src="https://flagcdn.com/w20/${flagCode}.png" alt="${flagCode}" class="w-5 rounded-sm shadow-sm">`;
+            document.getElementById('current-flag').innerHTML = `<img src="https://flagcdn.com/w20/${flagCode}.png" class="w-5 rounded-sm shadow-sm">`;
             document.getElementById('current-lang-text').innerText = text;
             document.activeElement.blur();
             if(dbData.length > 0) processAndRender(); 
         }
-
         function getMonthName(idx) { return langData[document.body.getAttribute('data-lang')][idx - 1]; }
 
-        function toggleChartType(chartType) {
-            const lang = document.body.getAttribute('data-lang');
-            if(chartType === 'energia') {
-                chartModes.energia = chartModes.energia === 'bar' ? 'line' : 'bar';
-                document.getElementById('icon-chart-energia').className = chartModes.energia === 'bar' ? 'fa-solid fa-chart-area' : 'fa-solid fa-chart-bar';
-                renderEnergiaChart(currentViewData, lang);
-            } else if (chartType === 'precio') {
-                chartModes.precio = chartModes.precio === 'line' ? 'bar' : 'line';
-                document.getElementById('icon-chart-precio').className = chartModes.precio === 'line' ? 'fa-solid fa-chart-bar' : 'fa-solid fa-chart-line';
-                renderPrecioChart(currentViewData, lang);
-            }
-        }
-
-        // --- 2. MANEJO DE SESIÓN DE SUPABASE ---
+        // --- 2. MANEJO DE SESIÓN Y ROLES MEDIANTE DB ---
         window.onload = async () => {
             const { data: { session } } = await sb.auth.getSession();
-            if (session) {
-                handleLoginSuccess(session.user);
-            } else {
+            if (session) { handleLoginSuccess(session.user); } 
+            else {
                 document.getElementById('global-loader').classList.add('hidden');
                 document.getElementById('login-modal').classList.remove('hidden');
             }
@@ -327,20 +282,17 @@
 
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
             const btn = document.getElementById('btn-login');
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Conectando...';
 
-            const { data, error } = await sb.auth.signInWithPassword({ email, password });
+            const { data, error } = await sb.auth.signInWithPassword({ 
+                email: document.getElementById('email').value, 
+                password: document.getElementById('password').value 
+            });
             
-            if (error) {
-                alert('Error de acceso: Verifica tus credenciales.');
-                btn.innerHTML = originalText;
-            } else {
-                handleLoginSuccess(data.user);
-            }
+            if (error) { alert('Error de acceso: Verifica tus credenciales.'); btn.innerHTML = originalText; } 
+            else { handleLoginSuccess(data.user); }
         });
 
         document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -349,76 +301,80 @@
         });
 
         async function handleLoginSuccess(user) {
-            isAdmin = user.email.includes('admin');
+            document.getElementById('login-modal').classList.add('hidden');
+            document.getElementById('global-loader').classList.remove('hidden'); 
+            
+            // Mostrar correo activo en la UI
+            document.getElementById('active-user-email').innerText = user.email;
+            
+            // Consultar la tabla de roles en Supabase
+            const { data: roleData, error } = await sb.from('user_roles').select('role').eq('email', user.email).single();
+            
+            // Si la consulta arroja "admin", le damos permisos
+            isAdmin = (roleData && roleData.role === 'admin');
+            
             document.getElementById('user-role-badge').innerText = isAdmin ? 'Administrador' : 'Observador';
             
+            // Activar/Ocultar botones según rol
             document.querySelectorAll('.admin-only').forEach(el => {
                 if(isAdmin) { el.classList.remove('hidden-auth'); el.removeAttribute('disabled'); } 
                 else { el.classList.add('hidden-auth'); el.setAttribute('disabled', 'true'); }
             });
 
-            document.getElementById('login-modal').classList.add('hidden');
-            document.getElementById('global-loader').classList.remove('hidden'); 
-            
             await fetchSupabaseData();
             
             document.getElementById('global-loader').classList.add('hidden');
             document.getElementById('main-dashboard').classList.remove('hidden');
         }
 
-        // --- 3. OPERACIONES EN LA BASE DE DATOS CLOUD ---
+        // --- 3. OPERACIONES DB (CRUD: LEER, CREAR, EDITAR, BORRAR) ---
         async function fetchSupabaseData() {
             const { data, error } = await sb.from('solar_readings').select('*');
-            if (error) {
-                console.error("Error fetching:", error);
-                alert("Error al descargar los datos de la nube.");
-                return;
-            }
-
-            // AUTO-MIGRACIÓN: Si la DB está vacía y eres Admin, sube el historial local
-            if (data.length === 0 && isAdmin) {
-                await migrateHistoricalData();
-            } else {
-                dbData = data;
-                processAndRender();
-            }
+            if (error) { alert("Error al descargar los datos."); return; }
+            dbData = data;
+            processAndRender();
         }
 
-        async function migrateHistoricalData() {
-            const hist = [
-                {id: "2024-11", year: 2024, "monthIdx": 11, fecha: "2024-11-19", "precioKw": 876.14, "lecturaRed": 86752.0, "lecturaSolar": 0.0},
-                {id: "2024-12", year: 2024, "monthIdx": 12, fecha: "2024-12-19", "precioKw": 906.16, "lecturaRed": 86920.0, "lecturaSolar": 132.1},
-                {id: "2025-1", year: 2025, "monthIdx": 1, fecha: "2025-01-20", "precioKw": 891.09, "lecturaRed": 86962.0, "lecturaSolar": 372.8},
-                {id: "2025-2", year: 2025, "monthIdx": 2, fecha: "2025-02-18", "precioKw": 913.53, "lecturaRed": 87011.0, "lecturaSolar": 592.0},
-                {id: "2025-3", year: 2025, "monthIdx": 3, fecha: "2025-03-19", "precioKw": 919.84, "lecturaRed": 87110.0, "lecturaSolar": 848.3},
-                {id: "2025-4", year: 2025, "monthIdx": 4, fecha: "2025-04-16", "precioKw": 923.2, "lecturaRed": 87182.0, "lecturaSolar": 1075.2},
-                {id: "2025-5", year: 2025, "monthIdx": 5, fecha: "2025-05-17", "precioKw": 890.31, "lecturaRed": 87292.0, "lecturaSolar": 1321.8},
-                {id: "2025-6", year: 2025, "monthIdx": 6, fecha: "2025-06-18", "precioKw": 836.5, "lecturaRed": 87403.0, "lecturaSolar": 1582.3},
-                {id: "2025-7", year: 2025, "monthIdx": 7, fecha: "2025-07-18", "precioKw": 846.43, "lecturaRed": 87494.0, "lecturaSolar": 1832.0},
-                {id: "2025-8", year: 2025, "monthIdx": 8, fecha: "2025-08-19", "precioKw": 888.86, "lecturaRed": 87598.0, "lecturaSolar": 2108.0},
-                {id: "2025-9", year: 2025, "monthIdx": 9, fecha: "2025-09-18", "precioKw": 901.37, "lecturaRed": 87670.0, "lecturaSolar": 2368.0},
-                {id: "2025-10", year: 2025, "monthIdx": 10, fecha: "2025-10-20", "precioKw": 890.09, "lecturaRed": 87776.0, "lecturaSolar": 2630.5},
-                {id: "2025-11", year: 2025, "monthIdx": 11, fecha: "2025-11-19", "precioKw": 885.65, "lecturaRed": 87868.0, "lecturaSolar": 2866.7},
-                {id: "2025-12", year: 2025, "monthIdx": 12, fecha: "2025-12-19", "precioKw": 861.88, "lecturaRed": 87921.0, "lecturaSolar": 3081.0},
-                {id: "2026-1", year: 2026, "monthIdx": 1, fecha: "2026-01-20", "precioKw": 859.19, "lecturaRed": 87980.0, "lecturaSolar": 3300.4},
-                {id: "2026-2", year: 2026, "monthIdx": 2, fecha: "2026-02-18", "precioKw": 859.19, "lecturaRed": 88050.0, "lecturaSolar": 3497.6},
-                {id: "2026-3", year: 2026, "monthIdx": 3, fecha: "2026-03-19", "precioKw": 801.24, "lecturaRed": 88119.0, "lecturaSolar": 3716.9}
-            ];
-            await sb.from('solar_readings').insert(hist);
-            fetchSupabaseData(); // Recargar tras migrar
+        // Abrir Modal Limpio (Nuevo Registro) o Lleno (Editar)
+        window.openModal = function(action, id = null) {
+            const form = document.getElementById('add-record-form');
+            const titleEs = document.getElementById('modal-title-es');
+            const titleEn = document.getElementById('modal-title-en');
+            
+            form.reset();
+            document.getElementById('edit-id').value = ""; // Limpiar ID oculto
+
+            if(action === 'new') {
+                titleEs.innerText = "Nuevo Registro Cloud"; titleEn.innerText = "New Cloud Record";
+            } else if (action === 'edit' && id) {
+                titleEs.innerText = "Editar Registro"; titleEn.innerText = "Edit Record";
+                const record = dbData.find(d => d.id === id);
+                if(record) {
+                    document.getElementById('edit-id').value = record.id;
+                    document.getElementById('new-fecha').value = record.fecha;
+                    document.getElementById('new-lectura-red').value = record.lecturaRed;
+                    document.getElementById('new-lectura-solar').value = record.lecturaSolar;
+                    document.getElementById('new-precio').value = record.precioKw;
+                }
+            }
+            document.getElementById('add-record-modal').classList.remove('hidden');
         }
 
         document.getElementById('add-record-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-save');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Subiendo a la Nube...';
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Subiendo...';
             
             const fechaVal = document.getElementById('new-fecha').value;
             const [yy, mm, dd] = fechaVal.split('-');
             
-            const newRecord = {
-                id: `${parseInt(yy)}-${parseInt(mm)}`, 
+            // Si estamos editando y no cambiaron la fecha, usamos el ID viejo. Si es nuevo, creamos ID según fecha.
+            let recordId = document.getElementById('edit-id').value;
+            if(!recordId) { recordId = `${parseInt(yy)}-${parseInt(mm)}`; }
+            
+            const recordPayload = {
+                id: recordId, 
                 year: parseInt(yy), 
                 "monthIdx": parseInt(mm), 
                 fecha: fechaVal,
@@ -427,15 +383,12 @@
                 "precioKw": parseFloat(document.getElementById('new-precio').value)
             };
 
-            const { error } = await sb.from('solar_readings').upsert(newRecord);
+            const { error } = await sb.from('solar_readings').upsert(recordPayload);
             
             if(!error) {
                 document.getElementById('add-record-modal').classList.add('hidden');
-                e.target.reset();
-                await fetchSupabaseData(); // Recargar DB fresca
-            } else {
-                alert("Error al guardar en Supabase: " + error.message);
-            }
+                await fetchSupabaseData();
+            } else { alert("Error al guardar: " + error.message); }
             btn.innerHTML = originalText;
         });
 
@@ -446,92 +399,63 @@
             }
         };
 
+        // --- UI MENORES ---
         document.getElementById('investment-input').addEventListener('change', (e) => { localStorage.setItem('jfInvestment', e.target.value); processAndRender(); });
         document.getElementById('year-filter').addEventListener('change', processAndRender);
         window.toggleRow = function(id) { document.getElementById(id).classList.toggle('hidden'); };
 
-
-        // --- 4. MOTOR MATEMÁTICO CENTRAL ---
+        // --- 4. MOTOR MATEMÁTICO ---
         function processAndRender() {
-            if(!dbData || dbData.length === 0) return;
+            if(!dbData || dbData.length === 0) { renderTable([], document.body.getAttribute('data-lang')); return; }
             
             dbData.sort((a, b) => a.year !== b.year ? a.year - b.year : a.monthIdx - b.monthIdx);
             
             let processed = [];
             for (let i = 1; i < dbData.length; i++) {
-                const prev = dbData[i-1];
-                const curr = dbData[i];
-
+                const prev = dbData[i-1]; const curr = dbData[i];
                 const consumoRed = curr.lecturaRed - prev.lecturaRed;
                 const prodSolarBruta = curr.lecturaSolar - prev.lecturaSolar;
                 const consumoTotal = consumoRed + prodSolarBruta;
                 const incPrecio = prev.precioKw > 0 ? ((curr.precioKw - prev.precioKw) / prev.precioKw) * 100 : 0;
                 
                 processed.push({
-                    ...curr,
-                    label: `${getMonthName(curr.monthIdx).substring(0,3)} ${curr.year}`,
-                    consumoRed: consumoRed,
-                    prodBruta: prodSolarBruta,
-                    consumoTotal: consumoTotal,
-                    autonomia: consumoTotal > 0 ? (prodSolarBruta / consumoTotal) * 100 : 0,
-                    incPrecio: incPrecio,
-                    ahorroReal: prodSolarBruta * curr.precioKw,
-                    prevPrecio: prev.precioKw
+                    ...curr, label: `${getMonthName(curr.monthIdx).substring(0,3)} ${curr.year}`,
+                    consumoRed: consumoRed, prodBruta: prodSolarBruta, consumoTotal: consumoTotal,
+                    autonomia: consumoTotal > 0 ? (prodSolarBruta / consumoTotal) * 100 : 0, incPrecio: incPrecio,
+                    ahorroReal: prodSolarBruta * curr.precioKw, prevPrecio: prev.precioKw
                 });
             }
 
             const yearFilter = document.getElementById('year-filter').value;
             const lang = document.body.getAttribute('data-lang');
-            
             currentViewData = yearFilter === 'all' ? processed : processed.filter(d => d.year == parseInt(yearFilter));
             const targetYearForTable = yearFilter === 'all' ? currentRealYear : parseInt(yearFilter);
-            const tableData = processed.filter(d => d.year === targetYearForTable);
-
-            renderAIProjections(currentViewData, lang);
-            renderTable(tableData, lang);
-            renderKPIs(currentViewData, processed, lang); 
             
+            renderAIProjections(currentViewData, lang);
+            renderTable(processed.filter(d => d.year === targetYearForTable), lang);
+            renderKPIs(currentViewData, processed, lang); 
             renderEnergiaChart(currentViewData, lang);
             renderPrecioChart(currentViewData, lang);
         }
 
         function renderAIProjections(data, lang) {
-            if(data.length < 2) {
-                document.getElementById('ai-precio-futuro').innerText = '--';
-                document.getElementById('ai-mejor-mes').innerText = '--';
-                document.getElementById('ai-co2').innerText = '--';
-                return;
-            }
-            const n = data.length;
-            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+            if(data.length < 2) { document.getElementById('ai-precio-futuro').innerText = '--'; document.getElementById('ai-mejor-mes').innerText = '--'; document.getElementById('ai-co2').innerText = '--'; return; }
+            const n = data.length; let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
             data.forEach((d, i) => { sumX += i; sumY += d.precioKw; sumXY += i * d.precioKw; sumX2 += i * i; });
             const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
             const intercept = (sumY - slope * sumX) / n;
             const projectedPrice = (slope * (n + 11)) + intercept; 
-
-            const tendText = slope > 0 ? (lang==='es'?'En Alza':'Rising') : (lang==='es'?'A la Baja':'Falling');
-            const tendColor = slope > 0 ? 'text-red-400' : 'text-green-400';
-            
             document.getElementById('ai-precio-futuro').innerText = formatCOP.format(projectedPrice);
-            document.getElementById('ai-tendencia').innerHTML = `<span class="${tendColor}"><i class="fa-solid fa-arrow-trend-${slope>0?'up':'down'}"></i> ${tendText}</span>`;
-
-            let maxGen = data[0];
-            data.forEach(d => { if(d.prodBruta > maxGen.prodBruta) maxGen = d; });
+            document.getElementById('ai-tendencia').innerHTML = `<span class="${slope>0?'text-red-400':'text-green-400'}"><i class="fa-solid fa-arrow-trend-${slope>0?'up':'down'}"></i> ${slope>0?(lang==='es'?'En Alza':'Rising'):(lang==='es'?'A la Baja':'Falling')}</span>`;
+            let maxGen = data[0]; data.forEach(d => { if(d.prodBruta > maxGen.prodBruta) maxGen = d; });
             document.getElementById('ai-mejor-mes').innerText = `${maxGen.label} (${maxGen.prodBruta.toFixed(0)} kWh)`;
-
-            const totalSolar = data.reduce((acc, d) => acc + d.prodBruta, 0);
-            const kgCO2 = (totalSolar * 0.38).toFixed(0);
-            document.getElementById('ai-co2').innerText = `${kgCO2} kg`;
+            document.getElementById('ai-co2').innerText = `${(data.reduce((acc, d) => acc + d.prodBruta, 0) * 0.38).toFixed(0)} kg`;
         }
 
         function renderTable(data, lang) {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
-            
-            if(data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-500">${lang === 'es' ? 'Sin datos para mostrar.' : 'No data to show.'}</td></tr>`;
-                return;
-            }
+            if(data.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-500">${lang === 'es' ? 'Sin datos.' : 'No data.'}</td></tr>`; return; }
 
             data.forEach(row => {
                 let iconClass = row.incPrecio > 0 ? 'text-red-400 fa-arrow-trend-up' : (row.incPrecio < 0 ? 'text-green-400 fa-arrow-trend-down' : 'text-slate-400 fa-minus');
@@ -540,6 +464,7 @@
                 const tr = document.createElement('tr');
                 tr.className = 'cursor-pointer hover:bg-slate-700/30 transition-colors border-b border-slate-700/30';
                 tr.onclick = () => toggleRow(`det-${row.id}`);
+                // SE AGREGA BOTÓN DE EDICIÓN EN LA ÚLTIMA COLUMNA
                 tr.innerHTML = `
                     <td class="py-3 px-4"><p class="font-bold text-jf-accent">${row.label}</p><p class="text-[10px] text-slate-500">${row.fecha}</p></td>
                     <td class="py-3 px-4 text-center text-xs text-slate-400">${row.lecturaRed.toFixed(0)} <span class="opacity-30">|</span> ${row.lecturaSolar.toFixed(0)}</td>
@@ -547,123 +472,54 @@
                     <td class="py-3 px-4 text-center text-jf-solar font-medium">${row.prodBruta.toFixed(1)} <span class="text-[10px] text-slate-500">kWh</span></td>
                     <td class="py-3 px-4 text-right"><div>${formatCOP.format(row.precioKw)}</div><div class="${colorClass} text-[10px]"><i class="fa-solid ${iconClass} mr-1"></i>${Math.abs(row.incPrecio).toFixed(1)}%</div></td>
                     <td class="py-3 px-4 text-right text-jf-solar font-bold">${formatCOP.format(row.ahorroReal)}</td>
-                    <td class="py-3 px-4 text-center admin-only ${isAdmin ? '' : 'hidden-auth'}"><button onclick="event.stopPropagation(); deleteRecord('${row.id}')" class="text-slate-500 hover:text-red-400"><i class="fa-solid fa-trash"></i></button></td>
-                `;
+                    <td class="py-3 px-4 text-center admin-only ${isAdmin ? '' : 'hidden-auth'}">
+                        <button onclick="event.stopPropagation(); openModal('edit', '${row.id}')" class="text-slate-400 hover:text-blue-400 mr-3 transition-colors" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="event.stopPropagation(); deleteRecord('${row.id}')" class="text-slate-500 hover:text-red-400 transition-colors" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                    </td>`;
                 tbody.appendChild(tr);
 
                 const trDet = document.createElement('tr');
                 trDet.id = `det-${row.id}`;
                 trDet.className = 'hidden bg-slate-900/60 expand-row text-xs border-b border-slate-700/50';
-                trDet.innerHTML = `
-                    <td colspan="7" class="py-4 px-6">
-                        <div class="flex justify-between items-center text-slate-400">
-                            <div><p class="text-jf-accent mb-1 font-semibold uppercase tracking-wider">${lang === 'es' ? 'Eficiencia' : 'Efficiency'}</p><p>• Total (Red+Sol): <span class="text-white">${row.consumoTotal.toFixed(1)} kWh</span></p><p>• Autonomía: <span class="text-purple-400 font-bold">${row.autonomia.toFixed(1)}%</span></p></div>
-                            <div class="border-l border-slate-700 pl-6"><p class="text-slate-300 mb-1 font-semibold uppercase tracking-wider">${lang === 'es' ? 'Promedio Diario' : 'Daily Average'}</p><p>• Gasto: <span class="text-white">${(row.consumoRed/30).toFixed(1)} kWh/d</span></p><p>• Generación: <span class="text-jf-solar">${(row.prodBruta/30).toFixed(1)} kWh/d</span></p></div>
-                            <div class="border-l border-slate-700 pl-6"><p class="text-slate-300 mb-1 font-semibold uppercase tracking-wider">${lang === 'es' ? 'Dif. vs Mes Anterior' : 'Vs Prev Month'}</p><p>• Precio Ant: <span>${formatCOP.format(row.prevPrecio)}</span></p><p>• Diferencia: <span class="${colorClass}">${row.precioKw >= row.prevPrecio ? '+' : ''}${formatCOP.format(row.precioKw - row.prevPrecio)}</span></p></div>
-                        </div>
-                    </td>
-                `;
+                trDet.innerHTML = `<td colspan="7" class="py-4 px-6"><div class="flex justify-between items-center text-slate-400"><div><p class="text-jf-accent mb-1 font-semibold uppercase tracking-wider">Eficiencia</p><p>• Total: <span class="text-white">${row.consumoTotal.toFixed(1)} kWh</span></p><p>• Autonomía: <span class="text-purple-400 font-bold">${row.autonomia.toFixed(1)}%</span></p></div><div class="border-l border-slate-700 pl-6"><p class="text-slate-300 mb-1 font-semibold uppercase tracking-wider">Promedio Diario</p><p>• Red: <span class="text-white">${(row.consumoRed/30).toFixed(1)} kWh/d</span></p><p>• Sol: <span class="text-jf-solar">${(row.prodBruta/30).toFixed(1)} kWh/d</span></p></div><div class="border-l border-slate-700 pl-6"><p class="text-slate-300 mb-1 font-semibold uppercase tracking-wider">Fluctuación</p><p>• Ant: <span>${formatCOP.format(row.prevPrecio)}</span></p><p>• Dif: <span class="${colorClass}">${row.precioKw >= row.prevPrecio ? '+' : ''}${formatCOP.format(row.precioKw - row.prevPrecio)}</span></p></div></div></td>`;
                 tbody.appendChild(trDet);
             });
         }
 
         function renderKPIs(viewData, allData, lang) {
-            if(viewData.length === 0) {
-                ['kpi-ahorro', 'kpi-produccion', 'kpi-autonomia', 'kpi-var-kw'].forEach(id => document.getElementById(id).innerText = '--');
-            } else {
-                const tAhorro = viewData.reduce((acc, d) => acc + d.ahorroReal, 0);
-                const tProd = viewData.reduce((acc, d) => acc + d.prodBruta, 0);
-                const avgAuto = viewData.reduce((acc, d) => acc + d.autonomia, 0) / viewData.length;
+            if(viewData.length === 0) { ['kpi-ahorro', 'kpi-produccion', 'kpi-autonomia', 'kpi-var-kw'].forEach(id => document.getElementById(id).innerText = '--'); } 
+            else {
+                document.getElementById('kpi-ahorro').innerText = formatCOP.format(viewData.reduce((acc, d) => acc + d.ahorroReal, 0));
+                document.getElementById('kpi-produccion').innerText = `${viewData.reduce((acc, d) => acc + d.prodBruta, 0).toFixed(1)} kWh`;
+                document.getElementById('kpi-autonomia').innerText = `${(viewData.reduce((acc, d) => acc + d.autonomia, 0) / viewData.length).toFixed(1)}%`;
                 const avgInc = viewData.reduce((acc, d) => acc + d.incPrecio, 0) / viewData.length;
-
-                document.getElementById('kpi-ahorro').innerText = formatCOP.format(tAhorro);
-                document.getElementById('kpi-produccion').innerText = `${tProd.toFixed(1)} kWh`;
-                document.getElementById('kpi-autonomia').innerText = `${avgAuto.toFixed(1)}%`;
                 document.getElementById('kpi-var-kw').innerText = `${avgInc > 0 ? '+' : ''}${avgInc.toFixed(2)}%`;
             }
-
             if (allData.length > 0) {
-                const tHistAhorro = allData.reduce((acc, d) => acc + d.ahorroReal, 0);
-                const avgAhMes = tHistAhorro / allData.length;
+                const avgAhMes = allData.reduce((acc, d) => acc + d.ahorroReal, 0) / allData.length;
                 const inversion = parseFloat(document.getElementById('investment-input').value) || 0;
-                
                 if(avgAhMes > 0 && inversion > 0) {
-                    const mesesParaROI = inversion / avgAhMes;
-                    document.getElementById('roi-time').innerText = `${(mesesParaROI / 12).toFixed(1)} ${lang==='es'?'Años':'Years'}`;
-                    document.getElementById('roi-text').innerHTML = lang === 'es' ? 
-                        `Calculado con DB en tiempo real. Ahorro prom: <b>${formatCOP.format(avgAhMes)}/mes</b>.` : 
-                        `Calculated with real-time DB. Avg savings: <b>${formatCOP.format(avgAhMes)}/mo</b>.`;
-                } else {
-                    document.getElementById('roi-time').innerText = '--';
+                    document.getElementById('roi-time').innerText = `${(inversion / avgAhMes / 12).toFixed(1)} ${lang==='es'?'Años':'Years'}`;
                 }
             }
+        }
+
+        function toggleChartType(chartType) {
+            const lang = document.body.getAttribute('data-lang');
+            if(chartType === 'energia') { chartModes.energia = chartModes.energia === 'bar' ? 'line' : 'bar'; document.getElementById('icon-chart-energia').className = chartModes.energia === 'bar' ? 'fa-solid fa-chart-area' : 'fa-solid fa-chart-bar'; renderEnergiaChart(currentViewData, lang); } 
+            else if (chartType === 'precio') { chartModes.precio = chartModes.precio === 'line' ? 'bar' : 'line'; document.getElementById('icon-chart-precio').className = chartModes.precio === 'line' ? 'fa-solid fa-chart-bar' : 'fa-solid fa-chart-line'; renderPrecioChart(currentViewData, lang); }
         }
 
         Chart.defaults.color = '#64748b'; Chart.defaults.font.family = 'sans-serif';
-
         function renderEnergiaChart(data, lang) {
             if (chartsObj['chart-energia']) chartsObj['chart-energia'].destroy();
-            const labels = data.map(d => d.label);
             const isLine = chartModes.energia === 'line';
-            
-            chartsObj['chart-energia'] = new Chart(document.getElementById('chart-energia'), {
-                type: chartModes.energia,
-                data: { labels: labels, datasets: [
-                    { 
-                        label: lang === 'es' ? 'Consumo Red' : 'Grid', data: data.map(d => d.consumoRed), 
-                        backgroundColor: isLine ? 'rgba(244, 63, 94, 0.2)' : '#F43F5E', 
-                        borderColor: '#F43F5E', borderWidth: isLine ? 2 : 0, fill: isLine, tension: 0.4 
-                    },
-                    { 
-                        label: lang === 'es' ? 'Solar' : 'Solar', data: data.map(d => d.prodBruta), 
-                        backgroundColor: isLine ? 'rgba(16, 185, 129, 0.2)' : '#10B981', 
-                        borderColor: '#10B981', borderWidth: isLine ? 2 : 0, fill: isLine, tension: 0.4 
-                    }
-                ]},
-                options: { 
-                    responsive: true, maintainAspectRatio: false, 
-                    scales: { 
-                        x: { stacked: !isLine }, 
-                        y: { 
-                            stacked: !isLine,
-                            ticks: { callback: function(value) { return value + ' kWh'; } } 
-                        } 
-                    },
-                    plugins: {
-                        tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + context.raw.toFixed(1) + ' kWh'; } } }
-                    }
-                }
-            });
+            chartsObj['chart-energia'] = new Chart(document.getElementById('chart-energia'), { type: chartModes.energia, data: { labels: data.map(d => d.label), datasets: [ { label: lang === 'es' ? 'Consumo Red' : 'Grid', data: data.map(d => d.consumoRed), backgroundColor: isLine ? 'rgba(244, 63, 94, 0.2)' : '#F43F5E', borderColor: '#F43F5E', borderWidth: isLine ? 2 : 0, fill: isLine, tension: 0.4 }, { label: lang === 'es' ? 'Solar' : 'Solar', data: data.map(d => d.prodBruta), backgroundColor: isLine ? 'rgba(16, 185, 129, 0.2)' : '#10B981', borderColor: '#10B981', borderWidth: isLine ? 2 : 0, fill: isLine, tension: 0.4 } ]}, options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: !isLine }, y: { stacked: !isLine, ticks: { callback: function(value) { return value + ' kWh'; } } } }, plugins: { tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + context.raw.toFixed(1) + ' kWh'; } } } } } });
         }
-
         function renderPrecioChart(data, lang) {
             if (chartsObj['chart-precio']) chartsObj['chart-precio'].destroy();
-            const labels = data.map(d => d.label);
             const isLine = chartModes.precio === 'line';
-
-            chartsObj['chart-precio'] = new Chart(document.getElementById('chart-precio'), {
-                type: chartModes.precio,
-                data: { labels: labels, datasets: [
-                    { 
-                        label: lang === 'es' ? 'Precio kW' : 'kW Price', data: data.map(d => d.precioKw), 
-                        borderColor: '#F59E0B', 
-                        backgroundColor: isLine ? 'rgba(245, 158, 11, 0.15)' : '#F59E0B', 
-                        borderWidth: isLine ? 2 : 0, fill: isLine, tension: 0.4, borderRadius: isLine ? 0 : 4
-                    }
-                ]},
-                options: { 
-                    responsive: true, maintainAspectRatio: false, 
-                    scales: { 
-                        y: { 
-                            beginAtZero: true,
-                            ticks: { callback: function(value) { return formatCOP.format(value); } }
-                        } 
-                    },
-                    plugins: {
-                        tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + formatCOP.format(context.raw); } } }
-                    }
-                }
-            });
+            chartsObj['chart-precio'] = new Chart(document.getElementById('chart-precio'), { type: chartModes.precio, data: { labels: data.map(d => d.label), datasets: [ { label: lang === 'es' ? 'Precio kW' : 'kW Price', data: data.map(d => d.precioKw), borderColor: '#F59E0B', backgroundColor: isLine ? 'rgba(245, 158, 11, 0.15)' : '#F59E0B', borderWidth: isLine ? 2 : 0, fill: isLine, tension: 0.4, borderRadius: isLine ? 0 : 4 } ]}, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return formatCOP.format(value); } } } }, plugins: { tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + formatCOP.format(context.raw); } } } } } });
         }
     </script>
 </body>
