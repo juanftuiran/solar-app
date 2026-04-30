@@ -1,0 +1,138 @@
+/**
+ * Estilos de tema
+ */
+
+/* Temas de colores */
+:root {
+  --theme-primary: var(--color-jf-accent);
+  --theme-success: var(--color-jf-solar);
+  --theme-danger: #f43f5e;
+  --theme-warning: #f59e0b;
+  --theme-info: #06b6d4;
+}
+
+/* Texto */
+.text-primary {
+  color: var(--theme-primary);
+}
+
+.text-success {
+  color: var(--theme-success);
+}
+
+.text-danger {
+  color: var(--theme-danger);
+}
+
+.text-warning {
+  color: var(--theme-warning);
+}
+
+.text-info {
+  color: var(--theme-info);
+}
+
+.text-muted {
+  color: #94a3b8;
+}
+
+.text-light {
+  color: #e2e8f0;
+}
+
+.text-dark {
+  color: #0f172a;
+}
+
+/* Backgrounds */
+.bg-primary {
+  background-color: var(--theme-primary);
+}
+
+.bg-success {
+  background-color: var(--theme-success);
+}
+
+.bg-danger {
+  background-color: var(--theme-danger);
+}
+
+.bg-warning {
+  background-color: var(--theme-warning);
+}
+
+.bg-info {
+  background-color: var(--theme-info);
+}
+
+/* Borders */
+.border-primary {
+  border-color: var(--theme-primary);
+}
+
+.border-success {
+  border-color: var(--theme-success);
+}
+
+.border-danger {
+  border-color: var(--theme-danger);
+}
+
+/* Dark mode (default) */
+body {
+  background-color: var(--color-jf-bg);
+  color: #e2e8f0;
+}
+
+/* Light mode (futuro) */
+@media (prefers-color-scheme: light) {
+  body {
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  .glass-card {
+    background: rgba(248, 250, 252, 0.7);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .input-field input,
+  .input-field select,
+  .input-field textarea {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+
+  table th {
+    background-color: #f1f5f9;
+    color: #0f172a;
+  }
+}
+
+/* Scrollbar light mode */
+@media (prefers-color-scheme: light) {
+  ::-webkit-scrollbar-track {
+    background: #f8fafc;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+
+/* Transiciones suaves */
+* {
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+
+/* Disable para elementos deshabilitados */
+:disabled,
+.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
