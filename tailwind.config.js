@@ -1,4 +1,4 @@
-# Configuración de Tailwind CSS
+// Configuración de Tailwind CSS
 
 module.exports = {
   content: ['./public/**/*.{html,js}', './src/**/*.{js,jsx}'],
