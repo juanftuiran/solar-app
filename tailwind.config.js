@@ -1,7 +1,10 @@
 // Configuración de Tailwind CSS
 
 module.exports = {
-  content: ['./public/**/*.{html,js}', './src/**/*.{js,jsx}'],
+  content: [
+    './index.html', // <-- Actualizado para leer la raíz
+    './src/**/*.{js,jsx}'
+  ],
   darkMode: 'class',
   theme: {
     extend: {

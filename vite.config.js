@@ -2,11 +2,9 @@ import { defineConfig } from 'vite';
 import path from 'path';
 
 export default defineConfig({
-  root: 'public',
   build: {
     outDir: path.resolve(__dirname, 'dist'),
     sourcemap: true,
-    minify: 'terser',
     rollupOptions: {
       output: {
         manualChunks: {
