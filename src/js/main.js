@@ -2,11 +2,11 @@
  * Punto de entrada principal de la aplicación
  */
 
-import authModule from './modules/auth.js';
-import databaseModule from './modules/database.js';
-import chartsModule from './modules/charts.js';
-import tablesModule from './modules/tables.js';
-import kpiModule from './modules/kpi.js';
+import authModule from './services/auth.js';
+import databaseModule from './services/database.js';
+import chartsModule from './components/charts.js';
+import tablesModule from './components/tables.js';
+import kpiModule from './components/kpi.js';
 import analyticsModule from './modules/analytics.js';
 import langModule from './modules/lang.js';
 import dataProcessor from './modules/data.js';
