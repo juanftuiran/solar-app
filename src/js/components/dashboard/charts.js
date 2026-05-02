@@ -4,7 +4,7 @@
  */
 
 import Chart from 'chart.js/auto';
-import { formatCOP } from '../utils/formatters.js';
+import { formatCOP } from '../../utils/formatters.js';
 
 export class ChartsModule {
   constructor() {

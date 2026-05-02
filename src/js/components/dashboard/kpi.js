@@ -2,7 +2,7 @@
  * Módulo de Análisis KPI
  */
 
-import { formatCOP, formatPercent, formatKwh, formatDecimal } from '../utils/formatters.js';
+import { formatCOP, formatPercent, formatKwh, formatDecimal } from '../../utils/formatters.js';
 
 export class KPIModule {
   /**

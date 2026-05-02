@@ -3,7 +3,7 @@
  * Renderiza tablas dinámicas
  */
 
-import { formatCOP, formatDecimal } from '../utils/formatters.js';
+import { formatCOP, formatDecimal } from '../../utils/formatters.js';
 
 export class TablesModule {
   /**
