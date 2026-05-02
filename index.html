@@ -156,10 +156,10 @@
         <!-- MÓDULO PREDICTIVO -->
         <div class="glass-card p-1 rounded-2xl bg-gradient-to-r from-jf-ai/20 to-transparent">
             <div class="p-4 bg-slate-900/80 rounded-xl">
-                <h3 class="text-xs font-bold text-jf-ai tracking-widest uppercase mb-4 flex items-center gap-2"><i class="fa-solid fa-microchip"></i> JF Predictive Analytics</h3>
+                <h3 class="text-xs font-bold text-jf-ai tracking-widest uppercase mb-4 flex items-center gap-2"><i class="fa-solid fa-microchip"></i> Predictive Analytics</h3>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="border-l border-slate-700 pl-4">
-                        <p class="text-xs text-slate-400 mb-1"><span class="lang-es">Proyección Precio kW (12m)</span><span class="lang-en">kW Price Projection (12m)</span></p>
+                        <p class="text-xs text-slate-400 mb-1"><span class="lang-es">Proyección Precio kW (Próximo Mes)</span><span class="lang-en">kW Price Projection (Next Month)</span></p>
                         <p class="text-xl font-bold text-white flex items-end gap-2"><span id="ai-precio-futuro">--</span><span id="ai-tendencia" class="text-xs mb-1"></span></p>
                     </div>
                     <div class="border-l border-slate-700 pl-4">
@@ -465,7 +465,7 @@
             data.forEach((d, i) => { sumX += i; sumY += d.precioKw; sumXY += i * d.precioKw; sumX2 += i * i; });
             const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
             const intercept = (sumY - slope * sumX) / n;
-            const projectedPrice = (slope * (n + 11)) + intercept; 
+            const projectedPrice = (slope * n) + intercept; 
             document.getElementById('ai-precio-futuro').innerText = formatCOP.format(projectedPrice);
             document.getElementById('ai-tendencia').innerHTML = `<span class="${slope>0?'text-red-400':'text-green-400'}"><i class="fa-solid fa-arrow-trend-${slope>0?'up':'down'}"></i> ${slope>0?(lang==='es'?'En Alza':'Rising'):(lang==='es'?'A la Baja':'Falling')}</span>`;
             let maxGen = data[0]; data.forEach(d => { if(d.prodBruta > maxGen.prodBruta) maxGen = d; });

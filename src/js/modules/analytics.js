@@ -40,8 +40,8 @@ export class AnalyticsModule {
     const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
     const intercept = (sumY - slope * sumX) / n;
 
-    // Proyección a 12 meses
-    const projectedPrice = slope * (n + 11) + intercept;
+    // Proyección al próximo mes
+    const projectedPrice = slope * n + intercept;
 
     // Tendencia
     const isRising = slope > 0;
