@@ -56,10 +56,22 @@ function setupEventListeners() {
     yearFilter.addEventListener('change', handleYearFilterChange);
   }
 
-  // Input de inversión
-  const investmentInput = document.getElementById('investment-input');
-  if (investmentInput) {
-    investmentInput.addEventListener('change', handleInvestmentChange);
+  // Configuración ROI
+  const roiForm = document.getElementById('roi-config-form');
+  if (roiForm) {
+    roiForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const inv = document.getElementById('roi-input-investment').value;
+      const date = document.getElementById('roi-input-date').value;
+      localStorage.setItem('jfInvestment', inv);
+      localStorage.setItem('jfInstallDate', date);
+      
+      const roiDisplay = document.getElementById('roi-investment-display');
+      if (roiDisplay) roiDisplay.innerText = formatCOP(inv);
+      
+      document.getElementById('roi-config-modal')?.classList.add('hidden');
+      processAndRender();
+    });
   }
 
   // Botón de nuevo registro
@@ -258,10 +270,18 @@ async function initializeApp() {
     loginModal.classList.remove('hidden');
   }
 
-  // Cargar inversión guardada
-  const investmentInput = document.getElementById('investment-input');
-  if (investmentInput) {
-    investmentInput.value = localStorage.getItem('jfInvestment') || 15000000;
+  // Cargar configuración ROI
+  const savedInvestment = localStorage.getItem('jfInvestment') || 16500000;
+  const savedInstallDate = localStorage.getItem('jfInstallDate') || '';
+  
+  const roiInvestmentInput = document.getElementById('roi-input-investment');
+  const roiDateInput = document.getElementById('roi-input-date');
+  const roiDisplay = document.getElementById('roi-investment-display');
+  
+  if (roiInvestmentInput) roiInvestmentInput.value = savedInvestment;
+  if (roiDateInput) roiDateInput.value = savedInstallDate;
+  if (roiDisplay \u0026\u0026 savedInvestment) {
+    roiDisplay.innerText = formatCOP(savedInvestment);
   }
 }
 

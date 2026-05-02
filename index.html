@@ -134,24 +134,29 @@
             </div>
         </header>
 
-        <!-- ROI PANEL -->
-        <div class="glass-card p-5 rounded-2xl border-l-4 border-l-jf-accent flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden">
-            <div class="absolute -right-4 -top-4 text-jf-accent opacity-5 text-7xl"><i class="fa-solid fa-chart-pie"></i></div>
-            <div class="z-10">
-                <h3 class="text-white font-semibold flex items-center gap-2"><i class="fa-solid fa-wallet text-jf-accent"></i> <span class="lang-es">Retorno de Inversión (ROI Global)</span><span class="lang-en">Return on Investment (Global ROI)</span></h3>
-                <p class="text-sm text-slate-400" id="roi-text">Calculado con DB en tiempo real.</p>
-            </div>
-            <div class="flex items-center gap-3 z-10">
-                <div class="text-right">
-                    <p class="text-xs text-slate-400"><span class="lang-es">Costo del Sistema (COP)</span><span class="lang-en">System Cost (COP)</span></p>
-                    <input type="number" id="investment-input" class="bg-transparent text-xl font-bold text-white text-right w-32 border-b border-slate-600 focus:outline-none focus:border-jf-accent admin-only" disabled>
-                </div>
-                <div class="bg-slate-800 p-3 rounded-lg text-center min-w-[120px] shadow-inner">
-                    <p class="text-xs text-slate-400"><span class="lang-es">Recuperación</span><span class="lang-en">Payback</span></p>
-                    <p id="roi-time" class="text-lg font-bold text-jf-accent">--</p>
-                </div>
-            </div>
-        </div>
+        \u003c!-- ROI PANEL --\u003e
+        \u003cdiv class=\"glass-card p-5 rounded-2xl border-l-4 border-l-jf-accent flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden\"\u003e
+            \u003cdiv class=\"absolute -right-4 -top-4 text-jf-accent opacity-5 text-7xl\"\u003e\u003ci class=\"fa-solid fa-chart-pie\"\u003e\u003c/i\u003e\u003c/div\u003e
+            \u003cdiv class=\"z-10 flex-1\"\u003e
+                \u003cdiv class=\"flex items-center gap-3\"\u003e
+                    \u003ch3 class=\"text-white font-semibold flex items-center gap-2\"\u003e\u003ci class=\"fa-solid fa-wallet text-jf-accent\"\u003e\u003c/i\u003e \u003cspan class=\"lang-es\"\u003eRetorno de Inversión (ROI Global)\u003c/span\u003e\u003cspan class=\"lang-en\"\u003eReturn on Investment (Global ROI)\u003c/span\u003e\u003c/h3\u003e
+                    \u003cbutton onclick=\"openROIModal()\" class=\"bg-slate-800 hover:bg-slate-700 text-jf-accent p-2 rounded-lg transition-all admin-only border border-slate-700 shadow-lg group\" title=\"Configurar ROI\"\u003e
+                        \u003ci class=\"fa-solid fa-gear text-xs group-hover:rotate-90 transition-transform duration-300\"\u003e\u003c/i\u003e
+                    \u003c/button\u003e
+                \u003c/div\u003e
+                \u003cp class=\"text-sm text-slate-400 mt-1\" id=\"roi-text\"\u003eConfigura la fecha de instalación para iniciar el cálculo.\u003c/p\u003e
+            \u003c/div\u003e
+            \u003cdiv class=\"flex items-center gap-6 z-10\"\u003e
+                \u003cdiv class=\"text-right hidden md:block\"\u003e
+                    \u003cp class=\"text-xs text-slate-500 uppercase tracking-wider font-bold mb-1\"\u003e\u003cspan class=\"lang-es\"\u003eInversión\u003c/span\u003e\u003cspan class=\"lang-en\"\u003eInvestment\u003c/span\u003e\u003c/p\u003e
+                    \u003cp id=\"roi-investment-display\" class=\"text-xl font-black text-white\"\u003e--\u003c/p\u003e
+                \u003c/div\u003e
+                \u003cdiv class=\"bg-slate-800/80 border border-slate-700/50 p-4 rounded-xl text-center min-w-[140px] shadow-2xl backdrop-blur-md\"\u003e
+                    \u003cp class=\"text-xs text-slate-400 font-medium mb-1\"\u003e\u003cspan class=\"lang-es\"\u003eRecuperación Estimada\u003c/span\u003e\u003cspan class=\"lang-en\"\u003eEstimated Payback\u003c/span\u003e\u003c/p\u003e
+                    \u003cp id=\"roi-time\" class=\"text-xl font-black text-jf-accent\"\u003e--\u003c/p\u003e
+                \u003c/div\u003e
+            \u003c/div\u003e
+        \u003c/div\u003e
 
         <!-- MÓDULO PREDICTIVO -->
         <div class="glass-card p-1 rounded-2xl bg-gradient-to-r from-jf-ai/20 to-transparent">
@@ -261,7 +266,41 @@
                 </button>
             </form>
         </div>
-    </div>
+    \u003c/div\u003e
+
+    \u003c!-- MODAL CONFIGURACIÓN ROI --\u003e
+    \u003cdiv id=\"roi-config-modal\" class=\"hidden fixed inset-0 z-50 flex items-center justify-center bg-jf-bg/90 backdrop-blur-sm p-4\"\u003e
+        \u003cdiv class=\"glass-card p-6 rounded-2xl w-full max-w-md shadow-2xl border-t-4 border-jf-accent\"\u003e
+            \u003cdiv class=\"flex justify-between items-center mb-6\"\u003e
+                \u003ch3 class=\"text-xl font-bold text-white\"\u003e
+                    \u003cspan class=\"lang-es\"\u003eConfiguración Financiera\u003c/span\u003e
+                    \u003cspan class=\"lang-en\"\u003eFinancial Configuration\u003c/span\u003e
+                \u003c/h3\u003e
+                \u003cbutton onclick=\"document.getElementById('roi-config-modal').classList.add('hidden')\" class=\"text-slate-400 hover:text-white transition-colors\"\u003e
+                    \u003ci class=\"fa-solid fa-xmark text-xl\"\u003e\u003c/i\u003e
+                \u003c/button\u003e
+            \u003c/div\u003e
+            \u003cform id=\"roi-config-form\" class=\"space-y-5\"\u003e
+                \u003cdiv\u003e
+                    \u003clabel class=\"block text-xs font-medium text-slate-400 mb-1\"\u003e
+                        \u003cspan class=\"lang-es\"\u003eCosto Total del Sistema (COP)\u003c/span\u003e
+                        \u003cspan class=\"lang-en\"\u003eTotal System Cost (COP)\u003c/span\u003e
+                    \u003c/label\u003e
+                    \u003cinput type=\"number\" id=\"roi-input-investment\" class=\"w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-jf-accent outline-none\" placeholder=\"16500000\" required\u003e
+                \u003c/div\u003e
+                \u003cdiv\u003e
+                    \u003clabel class=\"block text-xs font-medium text-slate-400 mb-1\"\u003e
+                        \u003cspan class=\"lang-es\"\u003eMes de Instalación\u003c/span\u003e
+                        \u003cspan class=\"lang-en\"\u003eInstallation Month\u003c/span\u003e
+                    \u003c/label\u003e
+                    \u003cinput type=\"month\" id=\"roi-input-date\" class=\"w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-jf-accent outline-none\" required\u003e
+                \u003c/div\u003e
+                \u003cbutton type=\"submit\" class=\"w-full bg-jf-accent hover:bg-blue-600 text-white font-bold py-3 rounded-lg mt-2 transition-all shadow-lg shadow-blue-500/20\"\u003e
+                    \u003cspan class=\"lang-es\"\u003eGuardar Cambios\u003c/span\u003e\u003cspan class=\"lang-en\"\u003eSave Changes\u003c/span\u003e
+                \u003c/button\u003e
+            \u003c/form\u003e
+        \u003c/div\u003e
+    \u003c/div\u003e
 
     <script>
         // --- 1. INICIALIZACIÓN DE SUPABASE ---
@@ -298,7 +337,13 @@
                 document.getElementById('global-loader').classList.add('hidden');
                 document.getElementById('login-modal').classList.remove('hidden');
             }
-            document.getElementById('investment-input').value = localStorage.getItem('jfInvestment') || 15000000;
+            
+            // Inicializar configuración ROI
+            const savedInvestment = localStorage.getItem('jfInvestment') || 16500000;
+            const savedInstallDate = localStorage.getItem('jfInstallDate') || '';
+            document.getElementById('roi-input-investment').value = savedInvestment;
+            document.getElementById('roi-input-date').value = savedInstallDate;
+            if(savedInvestment) document.getElementById('roi-investment-display').innerText = formatCOP.format(savedInvestment);
         };
 
         document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -420,8 +465,22 @@
             }
         };
 
+        // --- ROI CONFIG ---
+        window.openROIModal = function() {
+            document.getElementById('roi-config-modal').classList.remove('hidden');
+        };
+        document.getElementById('roi-config-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const inv = document.getElementById('roi-input-investment').value;
+            const date = document.getElementById('roi-input-date').value;
+            localStorage.setItem('jfInvestment', inv);
+            localStorage.setItem('jfInstallDate', date);
+            document.getElementById('roi-investment-display').innerText = formatCOP.format(inv);
+            document.getElementById('roi-config-modal').classList.add('hidden');
+            processAndRender();
+        });
+
         // --- UI MENORES ---
-        document.getElementById('investment-input').addEventListener('change', (e) => { localStorage.setItem('jfInvestment', e.target.value); processAndRender(); });
         document.getElementById('year-filter').addEventListener('change', processAndRender);
         window.toggleRow = function(id) { document.getElementById(id).classList.toggle('hidden'); };
 
@@ -516,12 +575,37 @@
                 const avgInc = viewData.reduce((acc, d) => acc + d.incPrecio, 0) / viewData.length;
                 document.getElementById('kpi-var-kw').innerText = `${avgInc > 0 ? '+' : ''}${avgInc.toFixed(2)}%`;
             }
-            if (allData.length > 0) {
-                const avgAhMes = allData.reduce((acc, d) => acc + d.ahorroReal, 0) / allData.length;
-                const inversion = parseFloat(document.getElementById('investment-input').value) || 0;
-                if(avgAhMes > 0 && inversion > 0) {
-                    document.getElementById('roi-time').innerText = `${(inversion / avgAhMes / 12).toFixed(1)} ${lang==='es'?'Años':'Years'}`;
+            
+            // CÁLCULO ROI DINÁMICO
+            const installDateStr = localStorage.getItem('jfInstallDate') || '';
+            const inversion = parseFloat(localStorage.getItem('jfInvestment')) || 0;
+            
+            if (allData.length \u003e 0 \u0026\u0026 installDateStr) {
+                const [iYear, iMonth] = installDateStr.split('-').map(Number);
+                const validData = allData.filter(d =\u003e d.year \u003e iYear || (d.year === iYear \u0026\u0026 d.monthIdx \u003e= iMonth));
+                
+                if (validData.length \u003e 0) {
+                    const totalAhorroValido = validData.reduce((acc, d) => acc + d.ahorroReal, 0);
+                    const avgAhMes = totalAhorroValido / validData.length;
+                    
+                    if(avgAhMes \u003e 0 \u0026\u0026 inversion \u003e 0) {
+                        const years = inversion / (avgAhMes * 12);
+                        document.getElementById('roi-time').innerText = `${years.toFixed(1)} ${lang==='es'?'Años':'Years'}`;
+                        document.getElementById('roi-text').innerText = lang === 'es' 
+                            ? `Analizando ${validData.length} meses desde ${installDateStr}.` 
+                            : `Analyzing ${validData.length} months since ${installDateStr}.`;
+                    } else {
+                        document.getElementById('roi-time').innerText = lang === 'es' ? 'Recopilando datos...' : 'Collecting data...';
+                    }
+                } else {
+                    document.getElementById('roi-time').innerText = lang === 'es' ? 'Recopilando datos...' : 'Collecting data...';
+                    document.getElementById('roi-text').innerText = lang === 'es' ? 'No hay datos posteriores a instalación.' : 'No data after installation.';
                 }
+            } else {
+                document.getElementById('roi-time').innerText = '--';
+                document.getElementById('roi-text').innerText = lang === 'es' 
+                    ? 'Faltan datos de configuración ROI.' 
+                    : 'Missing ROI config data.';
             }
         }
 

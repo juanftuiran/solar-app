@@ -40,12 +40,24 @@ export class KPIModule {
     // CO2 evitado (0.38 kg por kWh)
     const co2Avoided = totalGeneration * 0.38;
 
-    // ROI
+    // ROI (Retorno de Inversión)
     let roi = '--';
-    if (allData && allData.length > 0 && investment > 0) {
-      const avgSavingsPerMonth = allData.reduce((acc, d) => acc + (d.ahorroReal || 0), 0) / allData.length;
-      if (avgSavingsPerMonth > 0) {
-        roi = `${formatDecimal(investment / avgSavingsPerMonth / 12, 1)} años`;
+    const installDateStr = localStorage.getItem('jfInstallDate') || '';
+    
+    if (allData && allData.length > 0 && investment > 0 && installDateStr) {
+      const [iYear, iMonth] = installDateStr.split('-').map(Number);
+      const validData = allData.filter(d => d.year > iYear || (d.year === iYear && d.monthIdx >= iMonth));
+      
+      if (validData.length > 0) {
+        const totalSavingsValido = validData.reduce((acc, d) => acc + (d.ahorroReal || 0), 0);
+        const avgSavingsPerMonth = totalSavingsValido / validData.length;
+        
+        if (avgSavingsPerMonth > 0) {
+          const years = investment / (avgSavingsPerMonth * 12);
+          roi = `${formatDecimal(years, 1)} años`;
+        }
+      } else {
+        roi = 'Recopilando...';
       }
     }
 
