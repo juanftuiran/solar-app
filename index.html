@@ -580,15 +580,15 @@
             const installDateStr = localStorage.getItem('jfInstallDate') || '';
             const inversion = parseFloat(localStorage.getItem('jfInvestment')) || 0;
             
-            if (allData.length \u003e 0 \u0026\u0026 installDateStr) {
+            if (allData.length > 0 && installDateStr) {
                 const [iYear, iMonth] = installDateStr.split('-').map(Number);
-                const validData = allData.filter(d =\u003e d.year \u003e iYear || (d.year === iYear \u0026\u0026 d.monthIdx \u003e= iMonth));
+                const validData = allData.filter(d => d.year > iYear || (d.year === iYear && d.monthIdx >= iMonth));
                 
-                if (validData.length \u003e 0) {
+                if (validData.length > 0) {
                     const totalAhorroValido = validData.reduce((acc, d) => acc + d.ahorroReal, 0);
                     const avgAhMes = totalAhorroValido / validData.length;
                     
-                    if(avgAhMes \u003e 0 \u0026\u0026 inversion \u003e 0) {
+                    if(avgAhMes > 0 && inversion > 0) {
                         const years = inversion / (avgAhMes * 12);
                         document.getElementById('roi-time').innerText = `${years.toFixed(1)} ${lang==='es'?'Años':'Years'}`;
                         document.getElementById('roi-text').innerText = lang === 'es' 
