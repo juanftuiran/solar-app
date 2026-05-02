@@ -140,7 +140,7 @@ export const getSolarConfig = async (userId) => {
  * @returns {Promise<object|null>} Configuración guardada o null
  */
 export const upsertSolarConfig = async (config) => {
-  const { data, error } = await supabase.from('config_solar').upsert(config).select();
+  const { data, error } = await supabase.from('config_solar').upsert(config, { onConflict: 'user_id' }).select();
   if (error) {
     console.error('Error upserting solar config:', error);
     throw error;

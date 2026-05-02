@@ -80,7 +80,7 @@ function setupEventListeners() {
   const roiDateInput = document.getElementById('roi-input-date');
 
   if (roiInvestmentInput) {
-    roiInvestmentInput.addEventListener('change', handleInvestmentChange);
+    roiInvestmentInput.addEventListener('input', handleInvestmentChange);
   }
   if (roiDateInput) {
     roiDateInput.addEventListener('change', handleInstallDateChange);
@@ -187,7 +187,12 @@ const debouncedUpsertConfig = debounce(async () => {
   if (!user) return;
 
   const investment = document.getElementById('roi-input-investment').value;
-  const installDate = document.getElementById('roi-input-date').value;
+  let installDate = document.getElementById('roi-input-date').value;
+
+  // Supabase 'date' type requires YYYY-MM-DD
+  if (installDate && installDate.length === 7) {
+    installDate += '-01';
+  }
 
   const config = {
     user_id: user.id,
@@ -397,10 +402,13 @@ async function loadSolarConfig() {
 
     if (config) {
       if (roiInvestmentInput) roiInvestmentInput.value = config.inversion_cop;
-      if (roiDateInput) roiDateInput.value = config.fecha_instalacion;
+      if (roiDateInput) {
+        // 'month' input expects YYYY-MM
+        roiDateInput.value = config.fecha_instalacion ? config.fecha_instalacion.substring(0, 7) : '';
+      }
       
       localStorage.setItem('jfInvestment', config.inversion_cop);
-      localStorage.setItem('jfInstallDate', config.fecha_instalacion);
+      localStorage.setItem('jfInstallDate', config.fecha_instalacion ? config.fecha_instalacion.substring(0, 7) : '');
       
       if (statusIndicator) statusIndicator.innerText = '';
     } else {
