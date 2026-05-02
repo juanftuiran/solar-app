@@ -46,7 +46,7 @@ export class KPIModule {
     
     if (allData && allData.length > 0 && investment > 0 && installDateStr) {
       const [iYear, iMonth] = installDateStr.split('-').map(Number);
-      const validData = allData.filter(d => d.year > iYear || (d.year === iYear && (d.month_idx || 0) >= iMonth));
+      const validData = allData.filter(d => d.year > iYear || (d.year === iYear && (d.monthIdx || 0) >= iMonth));
       
       if (validData.length > 0) {
         const totalSavingsValido = validData.reduce((acc, d) => acc + (d.ahorroReal || 0), 0);

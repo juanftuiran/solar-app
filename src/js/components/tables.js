@@ -55,9 +55,9 @@ export class TablesModule {
         if (onToggleRow) onToggleRow(`det-${row.id}`);
       };
 
-      const consumoRed = formatDecimal(parseFloat(row.consumoRed), 1);
-      const prodBruta = formatDecimal(parseFloat(row.prodBruta), 1);
-      const ahorroReal = formatDecimal(parseFloat(row.ahorroReal), 0);
+      const consumoRed = formatDecimal(row.consumoRed || 0, 1);
+      const prodBruta = formatDecimal(row.prodBruta || 0, 1);
+      const ahorroReal = row.ahorroReal || 0;
 
       tr.innerHTML = `
         <td class="py-3 px-4">
@@ -65,7 +65,7 @@ export class TablesModule {
           <p class="text-[10px] text-slate-500">${row.fecha}</p>
         </td>
         <td class="py-3 px-4 text-center text-xs text-slate-400">
-          ${(row.lectura_red || 0).toFixed(0)} <span class="opacity-30">|</span> ${(row.lectura_solar || 0).toFixed(0)}
+          ${(row.lecturaRed || 0).toFixed(0)} <span class="opacity-30">|</span> ${(row.lecturaSolar || 0).toFixed(0)}
         </td>
         <td class="py-3 px-4 text-center font-medium">
           ${consumoRed} <span class="text-[10px] text-slate-500">kWh</span>
@@ -74,7 +74,7 @@ export class TablesModule {
           ${prodBruta} <span class="text-[10px] text-slate-500">kWh</span>
         </td>
         <td class="py-3 px-4 text-right">
-          <div>${formatCOP(row.precio_kw || 0)}</div>
+          <div>${formatCOP(row.precioKw || 0)}</div>
           <div class="${colorClass} text-[10px]">
             <i class="fa-solid ${iconClass} mr-1"></i>${Math.abs(incPrecio).toFixed(1)}%
           </div>
@@ -119,10 +119,10 @@ export class TablesModule {
       trDet.id = `det-${row.id}`;
       trDet.className = 'hidden bg-slate-900/60 expand-row text-xs border-b border-slate-700/50';
 
-      const autonomia = formatDecimal(parseFloat(row.autonomia), 1);
-      const consumoTotal = formatDecimal(parseFloat(row.consumoTotal), 1);
-      const dailyConsumption = formatDecimal(parseFloat(row.consumoRed) / 30, 1);
-      const dailyGeneration = formatDecimal(parseFloat(row.prodBruta) / 30, 1);
+      const autonomia = formatDecimal(row.autonomia || 0, 1);
+      const consumoTotal = formatDecimal(row.consumoTotal || 0, 1);
+      const dailyConsumption = formatDecimal((row.consumoRed || 0) / 30, 1);
+      const dailyGeneration = formatDecimal((row.prodBruta || 0) / 30, 1);
 
       trDet.innerHTML = `
         <td colspan="7" class="py-4 px-6">

@@ -20,7 +20,7 @@ export class DataProcessor {
     // Ordenar primero
     rawData.sort((a, b) => {
       if (a.year !== b.year) return a.year - b.year;
-      return (a.month_idx || 0) - (b.month_idx || 0);
+      return (a.monthIdx || 0) - (b.monthIdx || 0);
     });
 
     // Procesar cada registro (excepto el primero)
@@ -28,14 +28,14 @@ export class DataProcessor {
       const prev = rawData[i - 1];
       const curr = rawData[i];
 
-      // Calcular incrementos (Snake case from DB)
-      const consumoRed = (curr.lectura_red || 0) - (prev.lectura_red || 0);
-      const prodSolarBruta = (curr.lectura_solar || 0) - (prev.lectura_solar || 0);
+      // Calcular incrementos (Camel case from existing solar_readings table)
+      const consumoRed = (curr.lecturaRed || 0) - (prev.lecturaRed || 0);
+      const prodSolarBruta = (curr.lecturaSolar || 0) - (prev.lecturaSolar || 0);
       const consumoTotal = consumoRed + prodSolarBruta;
 
       // Calcular variación de precio
-      const precioKw = curr.precio_kw || 0;
-      const prevPrecioKw = prev.precio_kw || 0;
+      const precioKw = curr.precioKw || 0;
+      const prevPrecioKw = prev.precioKw || 0;
       const incPrecio = prevPrecioKw > 0 ? ((precioKw - prevPrecioKw) / prevPrecioKw) * 100 : 0;
 
       // Calcular autonomía
@@ -45,19 +45,19 @@ export class DataProcessor {
       const ahorroReal = prodSolarBruta * precioKw;
 
       // Crear label
-      const monthIdx = curr.month_idx || 0;
+      const monthIdx = curr.monthIdx || 0;
       const monthName = langModule.getMonthName(monthIdx);
       const label = `${monthName.substring(0, 3)} ${curr.year}`;
 
       processed.push({
         ...curr,
         label,
-        consumoRed: formatDecimal(consumoRed, 1),
-        prodBruta: formatDecimal(prodSolarBruta, 1),
-        consumoTotal: formatDecimal(consumoTotal, 1),
-        autonomia: formatDecimal(autonomia, 1),
-        incPrecio: formatDecimal(incPrecio, 1),
-        ahorroReal: formatDecimal(ahorroReal, 0),
+        consumoRed,
+        prodBruta: prodSolarBruta,
+        consumoTotal,
+        autonomia,
+        incPrecio,
+        ahorroReal,
         prevPrecio: prevPrecioKw,
       });
     }
@@ -98,7 +98,7 @@ export class DataProcessor {
     const grouped = {};
 
     data.forEach((d) => {
-      const key = `${d.year}-${String(d.month_idx || 0).padStart(2, '0')}`;
+      const key = `${d.year}-${String(d.monthIdx || 0).padStart(2, '0')}`;
       if (!grouped[key]) {
         grouped[key] = {
           periodo: d.label,

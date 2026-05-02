@@ -27,7 +27,7 @@ export class DatabaseModule {
       if (data) {
         this.data = data.sort((a, b) => {
           if (a.year !== b.year) return a.year - b.year;
-          return (a.month_idx || 0) - (b.month_idx || 0);
+          return (a.monthIdx || 0) - (b.monthIdx || 0);
         });
         log(`Loaded ${this.data.length} solar readings`);
         if (this.onDataChange) this.onDataChange(this.data);

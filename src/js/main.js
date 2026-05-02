@@ -252,11 +252,11 @@ async function handleSaveRecord(e) {
   const record = {
     id: editId?.value || `${year}-${month}`,
     year: parseInt(year),
-    month_idx: parseInt(month),
+    monthIdx: parseInt(month),
     fecha,
-    lectura_red: parseFloat(lecturaRedInput.value),
-    lectura_solar: parseFloat(lecturaSolarInput.value),
-    precio_kw: parseFloat(precioInput.value),
+    lecturaRed: parseFloat(lecturaRedInput.value),
+    lecturaSolar: parseFloat(lecturaSolarInput.value),
+    precioKw: parseFloat(precioInput.value),
   };
 
   // Mostrar estado de carga
@@ -303,9 +303,9 @@ function openModal(action, id = null) {
     if (record) {
       if (editIdInput) editIdInput.value = record.id;
       document.getElementById('new-fecha').value = record.fecha;
-      document.getElementById('new-lectura-red').value = record.lectura_red || 0;
-      document.getElementById('new-lectura-solar').value = record.lectura_solar || 0;
-      document.getElementById('new-precio').value = record.precio_kw || 0;
+      document.getElementById('new-lectura-red').value = record.lecturaRed || 0;
+      document.getElementById('new-lectura-solar').value = record.lecturaSolar || 0;
+      document.getElementById('new-precio').value = record.precioKw || 0;
     }
   }
 
