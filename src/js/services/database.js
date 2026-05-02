@@ -4,10 +4,8 @@
 
 import {
   getSolarReadings,
-  getSolarReadingById,
   upsertSolarReading,
   deleteSolarReading,
-  getSolarReadingsByYear,
 } from './apiClient.js';
 import { log } from '../utils/helpers.js';
 

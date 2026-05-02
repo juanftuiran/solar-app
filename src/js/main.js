@@ -10,7 +10,7 @@ import kpiModule from './components/kpi.js';
 import analyticsModule from './modules/analytics.js';
 import langModule from './modules/lang.js';
 import dataProcessor from './modules/data.js';
-import { getSolarReadings, upsertSolarReading, deleteSolarReading, getSolarConfig, upsertSolarConfig } from './services/apiClient.js';
+import { getSolarConfig, upsertSolarConfig } from './services/apiClient.js';
 import { debounce } from './utils/helpers.js';
 import { formatCOP } from './utils/formatters.js';
 

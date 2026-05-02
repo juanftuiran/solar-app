@@ -4,8 +4,7 @@
  */
 
 import Chart from 'chart.js/auto';
-import { COLORS } from '../utils/constants.js';
-import { formatCOP, formatKwh } from '../utils/formatters.js';
+import { formatCOP } from '../utils/formatters.js';
 
 export class ChartsModule {
   constructor() {

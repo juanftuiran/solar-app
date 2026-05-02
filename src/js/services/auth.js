@@ -2,7 +2,7 @@
  * Módulo de Autenticación
  */
 
-import { signIn, signOut, getCurrentUser, getCurrentSession } from './supabaseClient.js';
+import { signIn, signOut, getCurrentSession } from './supabaseClient.js';
 import { getUserRole } from './apiClient.js';
 import { log } from '../utils/helpers.js';
 

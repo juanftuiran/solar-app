@@ -3,7 +3,7 @@
  * Procesa datos brutos en información análitica
  */
 
-import { formatDecimal } from '../utils/formatters.js';
+
 
 export class DataProcessor {
   /**
