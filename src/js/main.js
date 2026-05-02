@@ -252,11 +252,11 @@ async function handleSaveRecord(e) {
   const record = {
     id: editId?.value || `${year}-${month}`,
     year: parseInt(year),
-    monthIdx: parseInt(month),
+    month_idx: parseInt(month),
     fecha,
-    lecturaRed: parseFloat(lecturaRedInput.value),
-    lecturaSolar: parseFloat(lecturaSolarInput.value),
-    precioKw: parseFloat(precioInput.value),
+    lectura_red: parseFloat(lecturaRedInput.value),
+    lectura_solar: parseFloat(lecturaSolarInput.value),
+    precio_kw: parseFloat(precioInput.value),
   };
 
   // Mostrar estado de carga
@@ -303,9 +303,9 @@ function openModal(action, id = null) {
     if (record) {
       if (editIdInput) editIdInput.value = record.id;
       document.getElementById('new-fecha').value = record.fecha;
-      document.getElementById('new-lectura-red').value = record.lecturaRed;
-      document.getElementById('new-lectura-solar').value = record.lecturaSolar;
-      document.getElementById('new-precio').value = record.precioKw;
+      document.getElementById('new-lectura-red').value = record.lectura_red || 0;
+      document.getElementById('new-lectura-solar').value = record.lectura_solar || 0;
+      document.getElementById('new-precio').value = record.precio_kw || 0;
     }
   }
 
@@ -361,10 +361,14 @@ async function initializeDashboard() {
   // Actualizar visibilidad de botones admin
   updateAdminElements();
 
-  // Cargar datos
-  await databaseModule.fetchAllData();
-  await loadSolarConfig();
-  processAndRender();
+  try {
+    // Cargar datos
+    await databaseModule.fetchAllData();
+    await loadSolarConfig();
+    processAndRender();
+  } catch (error) {
+    console.error('Error in initializeDashboard:', error);
+  }
 
   loader?.classList.add('hidden');
   mainDashboard.classList.remove('hidden');

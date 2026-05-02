@@ -20,7 +20,7 @@ export class DataProcessor {
     // Ordenar primero
     rawData.sort((a, b) => {
       if (a.year !== b.year) return a.year - b.year;
-      return a.monthIdx - b.monthIdx;
+      return (a.month_idx || 0) - (b.month_idx || 0);
     });
 
     // Procesar cada registro (excepto el primero)
@@ -28,23 +28,25 @@ export class DataProcessor {
       const prev = rawData[i - 1];
       const curr = rawData[i];
 
-      // Calcular incrementos
-      const consumoRed = curr.lecturaRed - prev.lecturaRed;
-      const prodSolarBruta = curr.lecturaSolar - prev.lecturaSolar;
+      // Calcular incrementos (Snake case from DB)
+      const consumoRed = (curr.lectura_red || 0) - (prev.lectura_red || 0);
+      const prodSolarBruta = (curr.lectura_solar || 0) - (prev.lectura_solar || 0);
       const consumoTotal = consumoRed + prodSolarBruta;
 
       // Calcular variación de precio
-      const incPrecio =
-        prev.precioKw > 0 ? ((curr.precioKw - prev.precioKw) / prev.precioKw) * 100 : 0;
+      const precioKw = curr.precio_kw || 0;
+      const prevPrecioKw = prev.precio_kw || 0;
+      const incPrecio = prevPrecioKw > 0 ? ((precioKw - prevPrecioKw) / prevPrecioKw) * 100 : 0;
 
       // Calcular autonomía
       const autonomia = consumoTotal > 0 ? (prodSolarBruta / consumoTotal) * 100 : 0;
 
       // Calcular ahorro real
-      const ahorroReal = prodSolarBruta * curr.precioKw;
+      const ahorroReal = prodSolarBruta * precioKw;
 
       // Crear label
-      const monthName = langModule.getMonthName(curr.monthIdx);
+      const monthIdx = curr.month_idx || 0;
+      const monthName = langModule.getMonthName(monthIdx);
       const label = `${monthName.substring(0, 3)} ${curr.year}`;
 
       processed.push({
@@ -56,7 +58,7 @@ export class DataProcessor {
         autonomia: formatDecimal(autonomia, 1),
         incPrecio: formatDecimal(incPrecio, 1),
         ahorroReal: formatDecimal(ahorroReal, 0),
-        prevPrecio: prev.precioKw,
+        prevPrecio: prevPrecioKw,
       });
     }
 
@@ -96,7 +98,7 @@ export class DataProcessor {
     const grouped = {};
 
     data.forEach((d) => {
-      const key = `${d.year}-${String(d.monthIdx).padStart(2, '0')}`;
+      const key = `${d.year}-${String(d.month_idx || 0).padStart(2, '0')}`;
       if (!grouped[key]) {
         grouped[key] = {
           periodo: d.label,

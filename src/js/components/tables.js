@@ -65,7 +65,7 @@ export class TablesModule {
           <p class="text-[10px] text-slate-500">${row.fecha}</p>
         </td>
         <td class="py-3 px-4 text-center text-xs text-slate-400">
-          ${row.lecturaRed.toFixed(0)} <span class="opacity-30">|</span> ${row.lecturaSolar.toFixed(0)}
+          ${(row.lectura_red || 0).toFixed(0)} <span class="opacity-30">|</span> ${(row.lectura_solar || 0).toFixed(0)}
         </td>
         <td class="py-3 px-4 text-center font-medium">
           ${consumoRed} <span class="text-[10px] text-slate-500">kWh</span>
@@ -74,7 +74,7 @@ export class TablesModule {
           ${prodBruta} <span class="text-[10px] text-slate-500">kWh</span>
         </td>
         <td class="py-3 px-4 text-right">
-          <div>${formatCOP(row.precioKw)}</div>
+          <div>${formatCOP(row.precio_kw || 0)}</div>
           <div class="${colorClass} text-[10px]">
             <i class="fa-solid ${iconClass} mr-1"></i>${Math.abs(incPrecio).toFixed(1)}%
           </div>
