@@ -8,7 +8,7 @@ import {
   upsertSolarReading,
   deleteSolarReading,
   getSolarReadingsByYear,
-} from '../services/apiClient.js';
+} from './apiClient.js';
 import { log } from '../utils/helpers.js';
 
 export class DatabaseModule {

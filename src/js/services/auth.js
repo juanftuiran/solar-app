@@ -2,8 +2,8 @@
  * Módulo de Autenticación
  */
 
-import { signIn, signOut, getCurrentUser, getCurrentSession } from '../services/supabaseClient.js';
-import { getUserRole } from '../services/apiClient.js';
+import { signIn, signOut, getCurrentUser, getCurrentSession } from './supabaseClient.js';
+import { getUserRole } from './apiClient.js';
 import { log } from '../utils/helpers.js';
 
 export class AuthModule {
