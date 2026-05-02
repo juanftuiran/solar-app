@@ -336,20 +336,6 @@ async function initializeApp() {
     loader.classList.add('hidden');
     loginModal.classList.remove('hidden');
   }
-
-  // Cargar configuración ROI
-  const savedInvestment = localStorage.getItem('jfInvestment') || 16500000;
-  const savedInstallDate = localStorage.getItem('jfInstallDate') || '';
-  
-  const roiInvestmentInput = document.getElementById('roi-input-investment');
-  const roiDateInput = document.getElementById('roi-input-date');
-  const roiDisplay = document.getElementById('roi-investment-display');
-  
-  if (roiInvestmentInput) roiInvestmentInput.value = savedInvestment;
-  if (roiDateInput) roiDateInput.value = savedInstallDate;
-  if (roiDisplay && savedInvestment) {
-    roiDisplay.innerText = formatCOP(savedInvestment);
-  }
 }
 
 async function initializeDashboard() {
