@@ -115,3 +115,35 @@ export const getAggregatedStats = async () => {
 
   return data;
 };
+/**
+ * Obtiene la configuración solar de un usuario
+ * @param {string} userId - ID del usuario
+ * @returns {Promise<object|null>} Configuración o null
+ */
+export const getSolarConfig = async (userId) => {
+  const { data, error } = await supabase
+    .from('config_solar')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error fetching solar config:', error);
+    return null;
+  }
+  return data;
+};
+
+/**
+ * Guarda o actualiza la configuración solar
+ * @param {object} config - Configuración a guardar
+ * @returns {Promise<object|null>} Configuración guardada o null
+ */
+export const upsertSolarConfig = async (config) => {
+  const { data, error } = await supabase.from('config_solar').upsert(config).select();
+  if (error) {
+    console.error('Error upserting solar config:', error);
+    throw error;
+  }
+  return data ? data[0] : null;
+};

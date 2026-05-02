@@ -2,7 +2,7 @@
  * Módulo de Autenticación
  */
 
-import { signIn, signOut, getCurrentUser } from '../services/supabaseClient.js';
+import { signIn, signOut, getCurrentUser, getCurrentSession } from '../services/supabaseClient.js';
 import { getUserRole } from '../services/apiClient.js';
 import { log } from '../utils/helpers.js';
 
@@ -38,6 +38,19 @@ export class AuthModule {
       console.error('Login failed:', error);
       return false;
     }
+  }
+
+  /**
+   * Obtiene la sesión actual
+   * @returns {Promise<object|null>} Sesión actual
+   */
+  async getCurrentSession() {
+    const session = await getCurrentSession();
+    if (session?.user) {
+      this.user = session.user;
+      await this.loadUserRole();
+    }
+    return session;
   }
 
   /**

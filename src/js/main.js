@@ -10,8 +10,9 @@ import kpiModule from './components/kpi.js';
 import analyticsModule from './modules/analytics.js';
 import langModule from './modules/lang.js';
 import dataProcessor from './modules/data.js';
-import { formatCOP } from './utils/formatters.js';
+import { getSolarReadings, upsertSolarReading, deleteSolarReading, getSolarConfig, upsertSolarConfig } from './services/apiClient.js';
 import { debounce } from './utils/helpers.js';
+import { formatCOP } from './utils/formatters.js';
 
 // ============================================
 // ESTADO GLOBAL
@@ -72,6 +73,17 @@ function setupEventListeners() {
       document.getElementById('roi-config-modal')?.classList.add('hidden');
       processAndRender();
     });
+  }
+
+  // Configuración ROI (Inputs directos)
+  const roiInvestmentInput = document.getElementById('roi-input-investment');
+  const roiDateInput = document.getElementById('roi-input-date');
+
+  if (roiInvestmentInput) {
+    roiInvestmentInput.addEventListener('change', handleInvestmentChange);
+  }
+  if (roiDateInput) {
+    roiDateInput.addEventListener('change', handleInstallDateChange);
   }
 
   // Botón de nuevo registro
@@ -158,14 +170,64 @@ function handleLanguageChange(e) {
   }
 }
 
-function handleYearFilterChange(e) {
+function handleYearFilterChange() {
   processAndRender();
 }
 
-function handleInvestmentChange(e) {
-  localStorage.setItem('jfInvestment', e.target.value);
-  processAndRender();
+function handleInvestmentChange() {
+  debouncedUpsertConfig();
 }
+
+function handleInstallDateChange() {
+  debouncedUpsertConfig();
+}
+
+const debouncedUpsertConfig = debounce(async () => {
+  const user = authModule.getUser();
+  if (!user) return;
+
+  const investment = document.getElementById('roi-input-investment').value;
+  const installDate = document.getElementById('roi-input-date').value;
+
+  const config = {
+    user_id: user.id,
+    inversion_cop: parseInt(investment) || 0,
+    fecha_instalacion: installDate,
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    await upsertSolarConfig(config);
+    
+    // Guardar en localStorage para compatibilidad
+    localStorage.setItem('jfInvestment', investment);
+    localStorage.setItem('jfInstallDate', installDate);
+
+    // Feedback visual
+    const invSaved = document.getElementById('roi-investment-saved');
+    const dateSaved = document.getElementById('roi-date-saved');
+    const statusIndicator = document.getElementById('roi-status-indicator');
+
+    if (invSaved) invSaved.classList.remove('hidden');
+    if (dateSaved) dateSaved.classList.remove('hidden');
+    if (statusIndicator) {
+      statusIndicator.innerText = langModule.getLanguage() === 'es' ? '(Guardado)' : '(Saved)';
+      statusIndicator.classList.remove('text-orange-400');
+      statusIndicator.classList.add('text-emerald-400');
+    }
+
+    setTimeout(() => {
+      if (invSaved) invSaved.classList.add('hidden');
+      if (dateSaved) dateSaved.classList.add('hidden');
+      if (statusIndicator) statusIndicator.innerText = '';
+    }, 2000);
+
+    processAndRender();
+  } catch (error) {
+    console.error('Error upserting config:', error);
+    alert('Error: No se pudo guardar la configuración');
+  }
+}, 1000);
 
 async function handleSaveRecord(e) {
   e.preventDefault();
@@ -180,7 +242,7 @@ async function handleSaveRecord(e) {
   if (!fechaInput || !lecturaRedInput || !lecturaSolarInput || !precioInput) return;
 
   const fecha = fechaInput.value;
-  const [year, month, day] = fecha.split('-');
+  const [year, month] = fecha.split('-');
 
   const record = {
     id: editId?.value || `${year}-${month}`,
@@ -280,7 +342,7 @@ async function initializeApp() {
   
   if (roiInvestmentInput) roiInvestmentInput.value = savedInvestment;
   if (roiDateInput) roiDateInput.value = savedInstallDate;
-  if (roiDisplay \u0026\u0026 savedInvestment) {
+  if (roiDisplay && savedInvestment) {
     roiDisplay.innerText = formatCOP(savedInvestment);
   }
 }
@@ -296,9 +358,8 @@ async function initializeDashboard() {
   loader?.classList.remove('hidden');
 
   // Actualizar UI con información del usuario
-  const user = authModule.getUser();
   const userEmail = document.getElementById('active-user-email');
-  const rolebadge = document.getElementById('user-role-badge');
+  const roleBadge = document.getElementById('user-role-badge');
 
   if (userEmail) userEmail.innerText = authModule.getUserEmail();
   if (roleBadge) {
@@ -311,10 +372,53 @@ async function initializeDashboard() {
 
   // Cargar datos
   await databaseModule.fetchAllData();
+  await loadSolarConfig();
   processAndRender();
 
   loader?.classList.add('hidden');
   mainDashboard.classList.remove('hidden');
+}
+
+async function loadSolarConfig() {
+  const statusIndicator = document.getElementById('roi-status-indicator');
+  if (statusIndicator) {
+    statusIndicator.innerText = langModule.getLanguage() === 'es' ? '(Cargando configuración...)' : '(Loading config...)';
+    statusIndicator.classList.remove('text-emerald-400', 'text-orange-400');
+  }
+
+  try {
+    const user = authModule.getUser();
+    if (!user) return;
+
+    const config = await getSolarConfig(user.id);
+    
+    const roiInvestmentInput = document.getElementById('roi-input-investment');
+    const roiDateInput = document.getElementById('roi-input-date');
+
+    if (config) {
+      if (roiInvestmentInput) roiInvestmentInput.value = config.inversion_cop;
+      if (roiDateInput) roiDateInput.value = config.fecha_instalacion;
+      
+      localStorage.setItem('jfInvestment', config.inversion_cop);
+      localStorage.setItem('jfInstallDate', config.fecha_instalacion);
+      
+      if (statusIndicator) statusIndicator.innerText = '';
+    } else {
+      const today = new Date().toISOString().substring(0, 7);
+      if (roiInvestmentInput) roiInvestmentInput.value = 0;
+      if (roiDateInput) roiDateInput.value = today;
+      
+      if (statusIndicator) {
+        statusIndicator.innerText = langModule.getLanguage() === 'es' 
+          ? '(Por favor, ingresa los datos de inversión)' 
+          : '(Please enter investment data)';
+        statusIndicator.classList.add('text-orange-400');
+      }
+    }
+  } catch (error) {
+    console.error('Error loading solar config:', error);
+    if (statusIndicator) statusIndicator.innerText = '(Error)';
+  }
 }
 
 // ============================================
@@ -370,7 +474,7 @@ function renderTable() {
 }
 
 function renderKPIs() {
-  const investment = parseFloat(document.getElementById('investment-input')?.value) || 0;
+  const investment = parseFloat(document.getElementById('roi-input-investment')?.value) || 0;
   const kpis = kpiModule.calculateKPIs(currentViewData, currentProcessedData, investment);
 
   const updateElement = (id, value) => {
