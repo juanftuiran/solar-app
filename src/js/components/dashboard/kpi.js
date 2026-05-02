@@ -42,9 +42,10 @@ export class KPIModule {
 
     // ROI (Retorno de Inversión)
     let roi = '--';
+    let avgSavingsFormatted = '--';
     const installDateStr = localStorage.getItem('jfInstallDate') || '';
     
-    if (allData && allData.length > 0 && investment > 0 && installDateStr) {
+    if (allData && allData.length > 0 && installDateStr) {
       const [iYear, iMonth] = installDateStr.split('-').map(Number);
       const validData = allData.filter(d => d.year > iYear || (d.year === iYear && (d.monthIdx || 0) >= iMonth));
       
@@ -52,9 +53,13 @@ export class KPIModule {
         const totalSavingsValido = validData.reduce((acc, d) => acc + (d.ahorroReal || 0), 0);
         const avgSavingsPerMonth = totalSavingsValido / validData.length;
         
-        if (avgSavingsPerMonth > 0) {
+        avgSavingsFormatted = formatCOP(avgSavingsPerMonth);
+        
+        if (investment > 0 && avgSavingsPerMonth > 0) {
           const years = investment / (avgSavingsPerMonth * 12);
           roi = `${formatDecimal(years, 1)} años`;
+        } else if (investment <= 0) {
+           roi = '--';
         }
       } else {
         roi = 'Recopilando...';
@@ -73,6 +78,7 @@ export class KPIModule {
       averageAutonomy: formatPercent(averageAutonomy),
       averageVariation: `${averageVariation > 0 ? '+' : ''}${formatDecimal(averageVariation, 2)}%`,
       roi,
+      avgSavings: avgSavingsFormatted,
       co2Avoided: `${formatDecimal(co2Avoided, 0)} kg`,
       energyIndependenceMonthly,
     };
