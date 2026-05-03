@@ -37,7 +37,7 @@ export const getSolarReadingById = async (id) => {
  * @returns {Promise<object|null>} Registro guardado o null
  */
 export const upsertSolarReading = async (record) => {
-  const { data, error } = await supabase.from('solar_readings').upsert(record);
+  const { data, error } = await supabase.from('solar_readings').upsert(record).select();
   if (error) {
     console.error('Error upserting solar reading:', error);
     return null;

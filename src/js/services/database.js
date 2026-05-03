@@ -63,7 +63,7 @@ export class DatabaseModule {
   async saveRecord(record) {
     try {
       const result = await upsertSolarReading(record);
-      if (result) {
+      if (result !== null) {
         await this.fetchAllData();
         log(`Record saved: ${record.id}`);
         return true;
