@@ -197,6 +197,131 @@ function renderPriceChart(data) {
   });
 }
 
+function renderProjectionChart() {
+  const id='chart-proyeccion'; if(state.charts[id]) state.charts[id].destroy();
+  const ctx=document.getElementById(id); if(!ctx) return;
+  
+  let currentGen = 9320;
+  let currentPrice = 950;
+  
+  if (state.processedData && state.processedData.length > 0) {
+    const last = state.processedData[state.processedData.length-1];
+    if (last && last.precioKw) currentPrice = last.precioKw;
+    const totalGen = state.processedData.reduce((a,d)=>a+(d.prodBruta||0),0);
+    currentGen = (totalGen / state.processedData.length) * 12;
+  }
+  
+  const labels = [];
+  const genData = [];
+  const anualAhorroData = [];
+  const acumAhorroData = [];
+  
+  const deg = 0.004;
+  const infl = 0.04;
+  let acum = 0;
+  
+  const tableBody = document.getElementById('tabla-proyeccion-body');
+  if (tableBody) tableBody.innerHTML = '';
+  
+  for (let i = 1; i <= 30; i++) {
+    labels.push(i);
+    genData.push(currentGen);
+    const ahorro = currentGen * currentPrice;
+    anualAhorroData.push(ahorro);
+    acum += ahorro;
+    acumAhorroData.push(acum);
+    
+    if (tableBody) {
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+      tr.innerHTML = `
+        <td style="padding:.5rem">${i}</td>
+        <td style="text-align:right;padding:.5rem">${fDec(currentGen,0)}</td>
+        <td style="text-align:right;padding:.5rem">${fCOP(ahorro)}</td>
+        <td style="text-align:right;padding:.5rem;font-weight:bold;color:var(--solar)">${fCOP(acum)}</td>
+      `;
+      tableBody.appendChild(tr);
+    }
+    
+    currentGen *= (1 - deg);
+    currentPrice *= (1 + infl);
+  }
+  
+  state.charts[id] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: state.lang === 'es' ? 'Generación (kWh)' : 'Generation (kWh)',
+          data: genData,
+          borderColor: '#9333ea',
+          backgroundColor: 'transparent',
+          yAxisID: 'yGen',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.1
+        },
+        {
+          label: state.lang === 'es' ? 'Ahorro Anual (COP)' : 'Annual Savings (COP)',
+          data: anualAhorroData,
+          borderColor: '#ef4444',
+          backgroundColor: 'transparent',
+          yAxisID: 'yAhorro',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.1
+        },
+        {
+          label: state.lang === 'es' ? 'Ahorro Acumulado (COP)' : 'Cumulated Savings (COP)',
+          data: acumAhorroData,
+          borderColor: '#22c55e',
+          backgroundColor: 'transparent',
+          yAxisID: 'yAhorro',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { title: { display: false } },
+        yGen: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          title: { display: true, text: state.lang==='es'?'Generación (kWh)':'Generation (kWh)' },
+          grid: { drawOnChartArea: true },
+          ticks: { callback: v => fDec(v,0) }
+        },
+        yAhorro: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          title: { display: true, text: state.lang==='es'?'Ahorro (COP)':'Savings (COP)' },
+          grid: { drawOnChartArea: false },
+          ticks: { callback: v => '$' + (v / 1000000).toFixed(0) + 'M' }
+        }
+      },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: c => {
+              if (c.dataset.yAxisID === 'yGen') return `${c.dataset.label}: ${fDec(c.raw,0)}`;
+              return `${c.dataset.label}: ${fCOP(c.raw)}`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
 // ── Table ─────────────────────────────────────────────────────────────────────
 function renderTable(data) {
   const tbody=document.getElementById('table-body'); if(!tbody) return;
@@ -277,6 +402,7 @@ function render() {
 
   renderEnergyChart(state.viewData);
   renderPriceChart(state.viewData);
+  renderProjectionChart();
   renderTable(tableData);
 
   const kpis=calcKPIs(state.viewData, state.processedData);

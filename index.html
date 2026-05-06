@@ -221,6 +221,29 @@
         </div>
       </div>
 
+      <!-- PROJECTION CHART -->
+      <div class="card chart-wrap" style="grid-column: 1 / -1; margin-top: 1.5rem; margin-bottom: 1.5rem; width: 100%; box-sizing: border-box;">
+        <div class="chart-container" style="height: 350px; position: relative;"><canvas id="chart-proyeccion"></canvas></div>
+        <div style="margin-top: 1rem;">
+          <button onclick="document.getElementById('proyeccion-detallada').classList.toggle('hidden')" style="background:none;border:none;color:var(--solar);font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.5rem;font-size:.875rem">
+            <i class="fa-solid fa-caret-down"></i> <span class="lang-es">Mostrar proyección anual detallada</span><span class="lang-en">Show detailed annual projection</span>
+          </button>
+          <div id="proyeccion-detallada" class="hidden" style="margin-top:1rem;padding:1rem;background:rgba(255,255,255,0.05);border-radius:.5rem;overflow-x:auto">
+            <table style="width:100%;font-size:.75rem;min-width:600px;text-align:left;border-collapse:collapse">
+              <thead>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+                  <th style="padding:.5rem"><span class="lang-es">Año</span><span class="lang-en">Year</span></th>
+                  <th style="text-align:right;padding:.5rem"><span class="lang-es">Generación (kWh)</span><span class="lang-en">Generation (kWh)</span></th>
+                  <th style="text-align:right;padding:.5rem"><span class="lang-es">Ahorro Anual (COP)</span><span class="lang-en">Annual Savings (COP)</span></th>
+                  <th style="text-align:right;padding:.5rem"><span class="lang-es">Ahorro Acumulado (COP)</span><span class="lang-en">Cumulated Savings (COP)</span></th>
+                </tr>
+              </thead>
+              <tbody id="tabla-proyeccion-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- TABLE -->
       <div class="card table-wrap" style="padding:0;overflow:hidden">
         <div class="table-header">
