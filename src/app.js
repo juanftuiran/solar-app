@@ -201,10 +201,21 @@ function renderProjectionChart() {
   const id='chart-proyeccion'; if(state.charts[id]) state.charts[id].destroy();
   const ctx=document.getElementById(id); if(!ctx) return;
   
+  const installDate = localStorage.getItem('jfInstallDate') || '';
   const investment = parseFloat(localStorage.getItem('jfInvestment')) || 0;
   
   const realYears = {};
   let firstYear = new Date().getFullYear();
+  
+  let installYear = firstYear;
+  let installMonth = 1;
+  if (installDate) {
+    const parts = installDate.split('-');
+    if (parts.length >= 2) {
+      installYear = parseInt(parts[0]);
+      installMonth = parseInt(parts[1]);
+    }
+  }
   
   if (state.processedData && state.processedData.length > 0) {
     state.processedData.forEach(d => {
@@ -226,7 +237,8 @@ function renderProjectionChart() {
     if (y.lastPrice) currentPrice = y.lastPrice;
   });
   
-  let currentGen = totalSolarMonths > 0 ? (totalSolarGen / totalSolarMonths) * 12 : 9320;
+  const monthlyAvgGen = totalSolarMonths > 0 ? (totalSolarGen / totalSolarMonths) : (9320 / 12);
+  let currentGen = monthlyAvgGen * 12;
 
   const labels = [];
   const genData = [];
@@ -248,10 +260,21 @@ function renderProjectionChart() {
     
     let gen = 0;
     let ahorro = 0;
+    let isExtrapolated = false;
     
     if (realYears[y]) {
       gen = realYears[y].gen;
       ahorro = realYears[y].ahorro;
+      
+      let expectedMonths = 12;
+      if (y === installYear) expectedMonths = 12 - installMonth + 1;
+      
+      const missingMonths = expectedMonths - realYears[y].months;
+      if (missingMonths > 0) {
+         gen += (missingMonths * monthlyAvgGen);
+         ahorro += (missingMonths * monthlyAvgGen * currentPrice);
+         isExtrapolated = true;
+      }
     } else {
       gen = currentGen;
       ahorro = currentGen * currentPrice;
@@ -269,8 +292,16 @@ function renderProjectionChart() {
       const tr = document.createElement('tr');
       tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
       if (isRecovered) tr.style.background = 'rgba(74,222,128,0.1)';
+      
+      let icons = '';
+      if (realYears[y]) {
+        icons += '<i class="fa-solid fa-database text-muted" title="Datos Reales"></i>';
+        if (isExtrapolated) icons += ' <i class="fa-solid fa-wand-magic-sparkles text-muted" title="Completado con media móvil"></i>';
+      }
+      if (isRecovered) icons += ' <i class="fa-solid fa-flag-checkered text-solar"></i>';
+      
       tr.innerHTML = `
-        <td style="padding:.5rem">${y} ${realYears[y] ? '<i class="fa-solid fa-database text-muted" title="Datos Reales"></i>' : ''} ${isRecovered ? ' <i class="fa-solid fa-flag-checkered text-solar"></i>' : ''}</td>
+        <td style="padding:.5rem">${y} ${icons}</td>
         <td style="text-align:right;padding:.5rem">${fDec(gen,0)}</td>
         <td style="text-align:right;padding:.5rem">${fCOP(ahorro)}</td>
         <td style="text-align:right;padding:.5rem;font-weight:bold;color:${isRecovered?'#4ade80':'var(--solar)'}">${fCOP(acum)}</td>
