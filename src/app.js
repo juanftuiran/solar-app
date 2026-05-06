@@ -201,35 +201,33 @@ function renderProjectionChart() {
   const id='chart-proyeccion'; if(state.charts[id]) state.charts[id].destroy();
   const ctx=document.getElementById(id); if(!ctx) return;
   
-  const installDate = localStorage.getItem('jfInstallDate') || '';
   const investment = parseFloat(localStorage.getItem('jfInvestment')) || 0;
-
-  let currentGen = 0;
-  let currentPrice = 0;
   
-  // They want to base it on 2024 real data where solar was present
-  const data2024 = (state.processedData || []).filter(d => d.year === 2024);
-  const solarMonths24 = data2024.filter(d => (d.prodBruta || 0) > 0);
+  const realYears = {};
+  let firstYear = new Date().getFullYear();
   
-  if (solarMonths24.length > 0) {
-    const last = solarMonths24[solarMonths24.length - 1];
-    if (last && last.precioKw) currentPrice = last.precioKw;
-    const totalGen = solarMonths24.reduce((a, d) => a + d.prodBruta, 0);
-    currentGen = (totalGen / solarMonths24.length) * 12;
+  if (state.processedData && state.processedData.length > 0) {
+    state.processedData.forEach(d => {
+      if (!realYears[d.year]) realYears[d.year] = { gen: 0, ahorro: 0, months: 0, lastPrice: 0 };
+      realYears[d.year].gen += (d.prodBruta || 0);
+      realYears[d.year].ahorro += (d.ahorroReal || 0);
+      if ((d.prodBruta || 0) > 0) realYears[d.year].months++;
+      if (d.precioKw) realYears[d.year].lastPrice = d.precioKw;
+    });
+    firstYear = Math.min(...Object.keys(realYears).map(Number));
   } else {
-    // fallback to any available solar data
-    const allSolar = (state.processedData || []).filter(d => (d.prodBruta || 0) > 0);
-    if (allSolar.length > 0) {
-      const last = allSolar[allSolar.length - 1];
-      if (last && last.precioKw) currentPrice = last.precioKw;
-      const totalGen = allSolar.reduce((a, d) => a + d.prodBruta, 0);
-      currentGen = (totalGen / allSolar.length) * 12;
-    } else {
-      currentGen = 9320;
-      currentPrice = 950;
-    }
+    realYears[firstYear] = { gen: 9320, ahorro: 8854000, months: 12, lastPrice: 950 };
   }
+
+  let totalSolarGen = 0, totalSolarMonths = 0, currentPrice = 950;
+  Object.values(realYears).forEach(y => {
+    totalSolarGen += y.gen;
+    totalSolarMonths += y.months;
+    if (y.lastPrice) currentPrice = y.lastPrice;
+  });
   
+  let currentGen = totalSolarMonths > 0 ? (totalSolarGen / totalSolarMonths) * 12 : 9320;
+
   const labels = [];
   const genData = [];
   const anualAhorroData = [];
@@ -243,31 +241,42 @@ function renderProjectionChart() {
   const tableBody = document.getElementById('tabla-proyeccion-body');
   if (tableBody) tableBody.innerHTML = '';
   
-  for (let i = 1; i <= 25; i++) {
-    labels.push(i);
-    genData.push(currentGen);
-    const ahorro = currentGen * currentPrice;
+  for (let i = 0; i < 25; i++) {
+    const y = firstYear + i;
+    labels.push(y);
+    invData.push(investment);
+    
+    let gen = 0;
+    let ahorro = 0;
+    
+    if (realYears[y]) {
+      gen = realYears[y].gen;
+      ahorro = realYears[y].ahorro;
+    } else {
+      gen = currentGen;
+      ahorro = currentGen * currentPrice;
+      currentGen *= (1 - deg);
+      currentPrice *= (1 + infl);
+    }
+    
+    genData.push(gen);
     anualAhorroData.push(ahorro);
     acum += ahorro;
     acumAhorroData.push(acum);
-    invData.push(investment);
     
     if (tableBody) {
-      const isRecovered = acum >= investment && (acum - ahorro) < investment;
+      const isRecovered = acum >= investment && (acum - ahorro) < investment && investment > 0;
       const tr = document.createElement('tr');
       tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
       if (isRecovered) tr.style.background = 'rgba(74,222,128,0.1)';
       tr.innerHTML = `
-        <td style="padding:.5rem">${i} ${isRecovered ? ' <i class="fa-solid fa-flag-checkered text-solar"></i>' : ''}</td>
-        <td style="text-align:right;padding:.5rem">${fDec(currentGen,0)}</td>
+        <td style="padding:.5rem">${y} ${realYears[y] ? '<i class="fa-solid fa-database text-muted" title="Datos Reales"></i>' : ''} ${isRecovered ? ' <i class="fa-solid fa-flag-checkered text-solar"></i>' : ''}</td>
+        <td style="text-align:right;padding:.5rem">${fDec(gen,0)}</td>
         <td style="text-align:right;padding:.5rem">${fCOP(ahorro)}</td>
         <td style="text-align:right;padding:.5rem;font-weight:bold;color:${isRecovered?'#4ade80':'var(--solar)'}">${fCOP(acum)}</td>
       `;
       tableBody.appendChild(tr);
     }
-    
-    currentGen *= (1 - deg);
-    currentPrice *= (1 + infl);
   }
   
   state.charts[id] = new Chart(ctx, {
@@ -345,6 +354,7 @@ function renderProjectionChart() {
         legend: { position: 'top' },
         tooltip: {
           callbacks: {
+            title: ctx => state.lang==='es'?`Año ${ctx[0].label}`:`Year ${ctx[0].label}`,
             label: c => {
               if (c.dataset.yAxisID === 'yGen') return `${c.dataset.label}: ${fDec(c.raw,0)}`;
               return `${c.dataset.label}: ${fCOP(c.raw)}`;
