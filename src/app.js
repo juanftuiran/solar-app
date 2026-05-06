@@ -201,14 +201,30 @@ function renderProjectionChart() {
   const id='chart-proyeccion'; if(state.charts[id]) state.charts[id].destroy();
   const ctx=document.getElementById(id); if(!ctx) return;
   
-  let currentGen = 9320;
-  let currentPrice = 950;
+  const installDate = localStorage.getItem('jfInstallDate') || '';
+  let validData = state.processedData || [];
   
-  if (state.processedData && state.processedData.length > 0) {
+  if (validData.length > 0 && installDate) {
+    const [iY, iM] = installDate.split('-').map(Number);
+    validData = validData.filter(d => d.year > iY || (d.year === iY && (d.monthIdx || 0) >= iM));
+  }
+
+  let currentGen = 0;
+  let currentPrice = 0;
+  
+  if (validData.length > 0) {
+    const last = validData[validData.length - 1];
+    if (last && last.precioKw) currentPrice = last.precioKw;
+    const totalGen = validData.reduce((a, d) => a + (d.prodBruta || 0), 0);
+    currentGen = (totalGen / validData.length) * 12;
+  } else if (state.processedData && state.processedData.length > 0) {
     const last = state.processedData[state.processedData.length-1];
     if (last && last.precioKw) currentPrice = last.precioKw;
     const totalGen = state.processedData.reduce((a,d)=>a+(d.prodBruta||0),0);
     currentGen = (totalGen / state.processedData.length) * 12;
+  } else {
+    currentGen = 9320;
+    currentPrice = 950;
   }
   
   const labels = [];
@@ -223,7 +239,7 @@ function renderProjectionChart() {
   const tableBody = document.getElementById('tabla-proyeccion-body');
   if (tableBody) tableBody.innerHTML = '';
   
-  for (let i = 1; i <= 30; i++) {
+  for (let i = 1; i <= 25; i++) {
     labels.push(i);
     genData.push(currentGen);
     const ahorro = currentGen * currentPrice;
