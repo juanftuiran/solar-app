@@ -26,7 +26,7 @@ export function render(contentHTML = null) {
 
   // Sidebar (admin only)
   const sidebarHTML = isAdmin
-    ? renderSidebar(state.currentView || 'dashboard', 'window.__onNavigate')
+    ? renderSidebar(state.currentView || 'dashboard', 'window.__navigate')
     : '';
 
   return `
