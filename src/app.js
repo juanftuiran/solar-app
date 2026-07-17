@@ -1,686 +1,695 @@
-import { createClient } from '@supabase/supabase-js';
-import Chart from 'chart.js/auto';
+/**
+ * JF Solar Cloud — Multi-Project App v3.0
+ * Main entry point, router, and orchestrator
+ */
 import './app.css';
+import { state, setUser, setActiveProject, clearProjectData, setView } from './modules/state.js';
+import { sb, signIn, signOut, getSession, getUserRole, getUserProjects, getProject, createProject, updateProject, getProjectMembers, addProjectMember, removeProjectMember, updateMemberRole, getUserProjectRole, getProjectInvestments, createInvestment, updateInvestment, deleteInvestment, fetchProjectReadings, upsertRecord, deleteRecord, fetchAllReadings, getProjectCount } from './modules/supabase.js';
+import { fCOP, fDec, debounce } from './modules/formatters.js';
+import { t, monthName, MONTHS } from './modules/i18n.js';
+import { processData, filterByYear, calcProjections, calcKPIs } from './modules/analytics.js';
+import { renderEnergyChart, renderPriceChart, renderProjectionChart, destroyAllCharts, updateChartIcons } from './modules/charts.js';
 
-// ── Supabase ──────────────────────────────────────────────────────────────────
-const sb = createClient(
-  import.meta.env.VITE_SUPABASE_URL || 'https://qoauvsouetyuqqplbfak.supabase.co',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_gPLFAn4uk3YzcbPiMbBPYA_bGRvncMz'
-);
+import * as loginView from './views/loginView.js';
+import * as projectSelectorView from './views/projectSelectorView.js';
+import * as dashboardView from './views/dashboardView.js';
+import * as projectSettingsView from './views/projectSettingsView.js';
+import * as membersView from './views/membersView.js';
 
-// ── State ─────────────────────────────────────────────────────────────────────
-const state = {
-  user: null,
-  isAdmin: false,
-  rawData: [],
-  processedData: [],
-  viewData: [],
-  chartModes: { energia: 'bar', precio: 'line' },
-  charts: {},
-  lang: 'es',
-};
+import { showModal, closeModal as closeGlobalModal } from './components/modal.js';
 
-// ── i18n ──────────────────────────────────────────────────────────────────────
-const MONTHS = {
-  es: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
-  en: ['January','February','March','April','May','June','July','August','September','October','November','December'],
-};
-const T = {
-  es: { deleteConfirm:'¿Eliminar registro?', noData:'Sin datos.', admin:'Administrador', observer:'Observador', error:'Error', saving:'Subiendo...', connecting:'Conectando...' },
-  en: { deleteConfirm:'Delete record?', noData:'No data.', admin:'Administrator', observer:'Observer', error:'Error', saving:'Uploading...', connecting:'Connecting...' },
-};
-const t = (k) => T[state.lang][k] || k;
-const monthName = (idx) => MONTHS[state.lang][(idx||1)-1] || '';
+// ── App Container ─────────────────────────────────────────────────────────────
+const app = () => document.getElementById('app');
 
-// ── Formatters ────────────────────────────────────────────────────────────────
-const fCOP = (v) => new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(v||0);
-const fDec = (v,d=2) => parseFloat(v||0).toFixed(d);
-const fKwh = (v) => `${fDec(v,1)} kWh`;
-const fPct = (v) => `${fDec(v,1)}%`;
-const debounce = (fn,ms) => { let t; return (...a) => { clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
-
-// ── Database ──────────────────────────────────────────────────────────────────
-async function fetchData() {
-  const { data } = await sb.from('solar_readings').select('*');
-  if (!data) return;
-  state.rawData = data.sort((a,b) => a.year!==b.year ? a.year-b.year : (a.monthIdx||0)-(b.monthIdx||0));
+// ── Toast Notification ────────────────────────────────────────────────────────
+function showToast(message, type = 'info', duration = 3000) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${message}`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), duration);
 }
 
-async function upsertRecord(rec) {
-  const { data, error } = await sb.from('solar_readings').upsert(rec).select();
-  if (error) throw error;
-  return data;
-}
-
-async function deleteRecord(id, fecha) {
-  let query = sb.from('solar_readings').delete();
-  
-  if (id && id !== 'undefined') {
-    const res = await query.eq('id', id).select();
-    if (!res.error && res.data && res.data.length > 0) return;
+// ── Language ──────────────────────────────────────────────────────────────────
+function changeLang(lang, flagCode, text) {
+  state.lang = lang;
+  document.body.setAttribute('data-lang', lang);
+  const flagEl = document.getElementById('current-flag');
+  const txtEl = document.getElementById('current-lang-text');
+  if (flagEl) flagEl.innerHTML = `<img src="https://flagcdn.com/w20/${flagCode}.png" class="flag-img">`;
+  if (txtEl) txtEl.innerText = text;
+  document.activeElement?.blur();
+  // Close lang menu
+  document.getElementById('lang-menu')?.classList.add('hidden');
+  // Re-render if we have data
+  if (state.processedData.length) {
+    state.processedData = processData(state.rawData);
+    renderDashboardData();
   }
-  
-  if (fecha && fecha !== 'undefined') {
-    const res = await sb.from('solar_readings').delete().eq('fecha', fecha).select();
-    if (res.error) throw res.error;
-    if (!res.data || res.data.length === 0) throw new Error('No se pudo eliminar. Verifica permisos o existencia.');
-    return;
-  }
-
-  throw new Error('ID y fecha inválidos para eliminar.');
 }
 
-async function getUserRole(email) {
-  const { data } = await sb.from('user_roles').select('role').eq('email', email).single();
-  return data?.role || null;
-}
+// ── Router ────────────────────────────────────────────────────────────────────
+async function navigate(view, opts = {}) {
+  destroyAllCharts();
+  setView(view);
 
-async function getSolarConfig(userId) {
-  const { data, error } = await sb.from('config_solar').select('*').eq('user_id', userId).single();
-  if (error && error.code !== 'PGRST116') return null;
-  return data;
-}
+  switch (view) {
+    case 'login':
+      app().innerHTML = loginView.render();
+      loginView.init(handleLogin);
+      break;
 
-async function upsertConfig(cfg) {
-  const { error } = await sb.from('config_solar').upsert(cfg, { onConflict:'user_id' });
-  if (error) throw error;
-}
+    case 'projects':
+      await loadProjects();
+      app().innerHTML = projectSelectorView.render();
+      projectSelectorView.init(handleSelectProject, handleCreateProject, handleLogout);
+      break;
 
-// ── Data Processing ───────────────────────────────────────────────────────────
-function processData() {
-  const raw = state.rawData;
-  if (!raw || raw.length < 2) { state.processedData = []; return; }
-  const out = [];
-  for (let i = 1; i < raw.length; i++) {
-    const prev = raw[i-1], curr = raw[i];
-    const consumoRed = (curr.lecturaRed||0) - (prev.lecturaRed||0);
-    const prodBruta  = (curr.lecturaSolar||0) - (prev.lecturaSolar||0);
-    const consumoTotal = consumoRed + prodBruta;
-    const precioKw = curr.precioKw||0;
-    const prevPrecio = prev.precioKw||0;
-    const incPrecio = prevPrecio > 0 ? ((precioKw-prevPrecio)/prevPrecio)*100 : 0;
-    const autonomia = consumoTotal > 0 ? (prodBruta/consumoTotal)*100 : 0;
-    const ahorroReal = prodBruta * precioKw;
-    const label = `${monthName(curr.monthIdx).substring(0,3)} ${curr.year}`;
-    out.push({ ...curr, label, consumoRed, prodBruta, consumoTotal, autonomia, incPrecio, ahorroReal, prevPrecio });
-  }
-  state.processedData = out;
-}
-
-function filterByYear(year) {
-  if (year === 'all') return state.processedData;
-  return state.processedData.filter(d => d.year === parseInt(year));
-}
-
-// ── Analytics ─────────────────────────────────────────────────────────────────
-function calcProjections(data) {
-  if (!data || data.length < 2) return { projectedPrice:'--', trend:'--', trendIcon:'fa-minus', trendColor:'text-slate-400', bestMonth:'--', co2:'--' };
-  const n = data.length;
-  let sx=0,sy=0,sxy=0,sx2=0;
-  data.forEach((d,i)=>{ sx+=i; sy+=d.precioKw; sxy+=i*d.precioKw; sx2+=i*i; });
-  const slope = (n*sxy-sx*sy)/(n*sx2-sx*sx);
-  const intercept = (sy-slope*sx)/n;
-  const proj = slope*n+intercept;
-  const rising = slope>0;
-  const best = data.reduce((m,d)=>d.prodBruta>m.prodBruta?d:m, data[0]);
-  const co2 = (data.reduce((a,d)=>a+d.prodBruta,0)*0.38).toFixed(0);
-  return {
-    projectedPrice: fCOP(proj),
-    trend: rising ? (state.lang==='es'?'En Alza':'Rising') : (state.lang==='es'?'A la Baja':'Falling'),
-    trendIcon: rising?'fa-arrow-trend-up':'fa-arrow-trend-down',
-    trendColor: rising?'text-red-400':'text-green-400',
-    bestMonth: `${best.label} (${fDec(best.prodBruta,0)} kWh)`,
-    co2: `${co2} kg`,
-  };
-}
-
-function calcKPIs(viewData, allData) {
-  if (!viewData||!viewData.length) return { savings:'--', gen:'--', autonomy:'--', varKw:'--', roi:'--', avgSavings:'--' };
-  const totalSavings = viewData.reduce((a,d)=>a+(d.ahorroReal||0),0);
-  const totalGen = viewData.reduce((a,d)=>a+(d.prodBruta||0),0);
-  const avgAutonomy = viewData.reduce((a,d)=>a+(d.autonomia||0),0)/viewData.length;
-  const avgVar = viewData.reduce((a,d)=>a+(d.incPrecio||0),0)/viewData.length;
-  const investment = parseFloat(document.getElementById('roi-input-investment')?.value)||0;
-  const installDate = localStorage.getItem('jfInstallDate')||'';
-  let roi='--', avgSavings='--';
-  if (allData?.length && installDate) {
-    const [iY,iM] = installDate.split('-').map(Number);
-    const valid = allData.filter(d=>d.year>iY||(d.year===iY&&(d.monthIdx||0)>=iM));
-    if (valid.length) {
-      const tot = valid.reduce((a,d)=>a+(d.ahorroReal||0),0);
-      const avg = tot/valid.length;
-      avgSavings = fCOP(avg);
-      if (investment>0&&avg>0) roi=`${fDec(investment/(avg*12),1)} años`;
-    }
-  }
-  return { savings:fCOP(totalSavings), gen:fKwh(totalGen), autonomy:fPct(avgAutonomy), varKw:`${avgVar>0?'+':''}${fDec(avgVar,2)}%`, roi, avgSavings };
-}
-
-// ── Charts ────────────────────────────────────────────────────────────────────
-Chart.defaults.color='#64748b';
-Chart.defaults.plugins.legend.labels.usePointStyle=true;
-
-function renderEnergyChart(data) {
-  const id='chart-energia'; if(state.charts[id]) state.charts[id].destroy();
-  const ctx=document.getElementById(id); if(!ctx) return;
-  const isLine=state.chartModes.energia==='line';
-  state.charts[id]=new Chart(ctx,{
-    type:state.chartModes.energia,
-    data:{ labels:data.map(d=>d.label), datasets:[
-      { label:state.lang==='es'?'Consumo Red':'Grid', data:data.map(d=>parseFloat(d.consumoRed)),
-        backgroundColor:isLine?'rgba(244,63,94,.2)':'#F43F5E', borderColor:'#F43F5E', borderWidth:isLine?2:0, fill:isLine, tension:.4 },
-      { label:'Solar', data:data.map(d=>parseFloat(d.prodBruta)),
-        backgroundColor:isLine?'rgba(16,185,129,.2)':'#10B981', borderColor:'#10B981', borderWidth:isLine?2:0, fill:isLine, tension:.4 },
-    ]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      scales:{ x:{stacked:!isLine}, y:{stacked:!isLine, ticks:{callback:v=>`${v} kWh`}} },
-      plugins:{ tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw.toFixed(1)} kWh`}}, legend:{position:'top'} }
-    }
-  });
-}
-
-function renderPriceChart(data) {
-  const id='chart-precio'; if(state.charts[id]) state.charts[id].destroy();
-  const ctx=document.getElementById(id); if(!ctx) return;
-  const isLine=state.chartModes.precio==='line';
-  state.charts[id]=new Chart(ctx,{
-    type:state.chartModes.precio,
-    data:{ labels:data.map(d=>d.label), datasets:[
-      { label:state.lang==='es'?'Precio kW':'kW Price', data:data.map(d=>d.precioKw),
-        borderColor:'#F59E0B', backgroundColor:isLine?'rgba(245,158,11,.15)':'#F59E0B',
-        borderWidth:isLine?2:0, fill:isLine, tension:.4, borderRadius:isLine?0:4 }
-    ]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      scales:{ y:{beginAtZero:true, ticks:{callback:v=>fCOP(v)}} },
-      plugins:{ tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${fCOP(c.raw)}`}}, legend:{position:'top'} }
-    }
-  });
-}
-
-function renderProjectionChart() {
-  const id='chart-proyeccion'; if(state.charts[id]) state.charts[id].destroy();
-  const ctx=document.getElementById(id); if(!ctx) return;
-  
-  const installDate = localStorage.getItem('jfInstallDate') || '';
-  const investment = parseFloat(localStorage.getItem('jfInvestment')) || 0;
-  
-  const realYears = {};
-  let firstYear = new Date().getFullYear();
-  
-  let installYear = firstYear;
-  let installMonth = 1;
-  if (installDate) {
-    const parts = installDate.split('-');
-    if (parts.length >= 2) {
-      installYear = parseInt(parts[0]);
-      installMonth = parseInt(parts[1]);
-    }
-  }
-  
-  if (state.processedData && state.processedData.length > 0) {
-    state.processedData.forEach(d => {
-      if (!realYears[d.year]) realYears[d.year] = { gen: 0, ahorro: 0, months: 0, lastPrice: 0 };
-      realYears[d.year].gen += (d.prodBruta || 0);
-      realYears[d.year].ahorro += (d.ahorroReal || 0);
-      if ((d.prodBruta || 0) > 0) realYears[d.year].months++;
-      if (d.precioKw) realYears[d.year].lastPrice = d.precioKw;
-    });
-    firstYear = Math.min(...Object.keys(realYears).map(Number));
-  } else {
-    realYears[firstYear] = { gen: 9320, ahorro: 8854000, months: 12, lastPrice: 950 };
-  }
-
-  let totalSolarGen = 0, totalSolarMonths = 0, currentPrice = 950;
-  Object.values(realYears).forEach(y => {
-    totalSolarGen += y.gen;
-    totalSolarMonths += y.months;
-    if (y.lastPrice) currentPrice = y.lastPrice;
-  });
-  
-  const monthlyAvgGen = totalSolarMonths > 0 ? (totalSolarGen / totalSolarMonths) : (9320 / 12);
-  let currentGen = monthlyAvgGen * 12;
-
-  const labels = [];
-  const genData = [];
-  const anualAhorroData = [];
-  const acumAhorroData = [];
-  const invData = [];
-  
-  const deg = 0.004;
-  const infl = 0.04;
-  let acum = 0;
-  
-  const tableBody = document.getElementById('tabla-proyeccion-body');
-  if (tableBody) tableBody.innerHTML = '';
-  
-  for (let i = 0; i < 25; i++) {
-    const y = firstYear + i;
-    labels.push(y);
-    invData.push(investment);
-    
-    let gen = 0;
-    let ahorro = 0;
-    let isExtrapolated = false;
-    
-    if (realYears[y]) {
-      gen = realYears[y].gen;
-      ahorro = realYears[y].ahorro;
-      
-      let expectedMonths = 12;
-      if (y === installYear) expectedMonths = 12 - installMonth + 1;
-      
-      const missingMonths = expectedMonths - realYears[y].months;
-      if (missingMonths > 0) {
-         gen += (missingMonths * monthlyAvgGen);
-         ahorro += (missingMonths * monthlyAvgGen * currentPrice);
-         isExtrapolated = true;
+    case 'dashboard':
+      // If entering dashboard, load project data
+      if (opts.projectId) {
+        await loadProjectData(opts.projectId);
       }
-    } else {
-      gen = currentGen;
-      ahorro = currentGen * currentPrice;
-      currentGen *= (1 - deg);
-      currentPrice *= (1 + infl);
-    }
-    
-    genData.push(gen);
-    anualAhorroData.push(ahorro);
-    acum += ahorro;
-    acumAhorroData.push(acum);
-    
-    if (tableBody) {
-      const isRecovered = acum >= investment && (acum - ahorro) < investment && investment > 0;
-      const tr = document.createElement('tr');
-      tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-      if (isRecovered) tr.style.background = 'rgba(74,222,128,0.1)';
-      
-      let icons = '';
-      if (realYears[y]) {
-        icons += '<i class="fa-solid fa-database text-muted" title="Datos Reales"></i>';
-        if (isExtrapolated) icons += ' <i class="fa-solid fa-wand-magic-sparkles text-muted" title="Completado con media móvil"></i>';
-      }
-      if (isRecovered) icons += ' <i class="fa-solid fa-flag-checkered text-solar"></i>';
-      
-      tr.innerHTML = `
-        <td style="padding:.5rem">${y} ${icons}</td>
-        <td style="text-align:right;padding:.5rem">${fDec(gen,0)}</td>
-        <td style="text-align:right;padding:.5rem">${fCOP(ahorro)}</td>
-        <td style="text-align:right;padding:.5rem;font-weight:bold;color:${isRecovered?'#4ade80':'var(--solar)'}">${fCOP(acum)}</td>
-      `;
-      tableBody.appendChild(tr);
-    }
+      renderDashboardView('dashboard');
+      break;
+
+    case 'settings':
+      renderDashboardView('settings');
+      break;
+
+    case 'investments':
+      renderDashboardView('investments');
+      break;
+
+    case 'members':
+      renderDashboardView('members');
+      break;
+
+    default:
+      navigate('login');
+  }
+}
+
+// ── Dashboard View Rendering ──────────────────────────────────────────────────
+async function renderDashboardView(subView) {
+  state.currentView = subView;
+  
+  let contentHTML = null;
+  let members = [];
+  
+  if (subView === 'settings' || subView === 'investments') {
+    contentHTML = projectSettingsView.render();
+  } else if (subView === 'members') {
+    members = state.activeProject ? await getProjectMembers(state.activeProject.id) : [];
+    contentHTML = membersView.render(members);
   }
   
-  state.charts[id] = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: state.lang === 'es' ? 'Generación (kWh)' : 'Generation (kWh)',
-          data: genData,
-          borderColor: '#9333ea',
-          backgroundColor: 'transparent',
-          yAxisID: 'yGen',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.1
-        },
-        {
-          label: state.lang === 'es' ? 'Ahorro Anual (COP)' : 'Annual Savings (COP)',
-          data: anualAhorroData,
-          borderColor: '#ef4444',
-          backgroundColor: 'transparent',
-          yAxisID: 'yAhorro',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.1
-        },
-        {
-          label: state.lang === 'es' ? 'Ahorro Acumulado (COP)' : 'Cumulated Savings (COP)',
-          data: acumAhorroData,
-          borderColor: '#22c55e',
-          backgroundColor: 'transparent',
-          yAxisID: 'yAhorro',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.1
-        },
-        {
-          label: state.lang === 'es' ? 'Inversión' : 'Investment',
-          data: invData,
-          borderColor: '#facc15',
-          backgroundColor: 'transparent',
-          borderDash: [5, 5],
-          yAxisID: 'yAhorro',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      scales: {
-        x: { title: { display: false } },
-        yGen: {
-          type: 'linear',
-          display: true,
-          position: 'left',
-          title: { display: true, text: state.lang==='es'?'Generación (kWh)':'Generation (kWh)' },
-          grid: { drawOnChartArea: true },
-          ticks: { callback: v => fDec(v,0) }
-        },
-        yAhorro: {
-          type: 'linear',
-          display: true,
-          position: 'right',
-          title: { display: true, text: state.lang==='es'?'Ahorro (COP)':'Savings (COP)' },
-          grid: { drawOnChartArea: false },
-          ticks: { callback: v => '$' + (v / 1000000).toFixed(0) + 'M' }
-        }
-      },
-      plugins: {
-        legend: { position: 'top' },
-        tooltip: {
-          callbacks: {
-            title: ctx => state.lang==='es'?`Año ${ctx[0].label}`:`Year ${ctx[0].label}`,
-            label: c => {
-              if (c.dataset.yAxisID === 'yGen') return `${c.dataset.label}: ${fDec(c.raw,0)}`;
-              return `${c.dataset.label}: ${fCOP(c.raw)}`;
-            }
-          }
-        }
-      }
-    }
-  });
-}
+  app().innerHTML = dashboardView.render(contentHTML);
 
-// ── Table ─────────────────────────────────────────────────────────────────────
-function renderTable(data) {
-  const tbody=document.getElementById('table-body'); if(!tbody) return;
-  tbody.innerHTML='';
-  if(!data||!data.length){ tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:2rem;color:#64748b">${t('noData')}</td></tr>`; return; }
-  data.forEach(row=>{
-    const inc=parseFloat(row.incPrecio);
-    const ic=inc>0?'text-red-400 fa-arrow-trend-up':inc<0?'text-green-400 fa-arrow-trend-down':'text-slate-400 fa-minus';
-    const cc=inc>0?'color:#f87171':inc<0?'color:#4ade80':'color:#64748b';
-
-    const tr=document.createElement('tr');
-    tr.onclick=()=>document.getElementById(`det-${row.id}`)?.classList.toggle('hidden');
-    tr.innerHTML=`
-      <td class="py-3 px-4"><p class="font-bold text-accent">${row.label}</p><p class="text-xs text-muted">${row.fecha}</p></td>
-      <td class="py-3 px-4 text-center text-xs text-muted">${(row.lecturaRed||0).toFixed(0)} <span style="opacity:.3">|</span> ${(row.lecturaSolar||0).toFixed(0)}</td>
-      <td class="py-3 px-4 text-center font-bold">${fDec(row.consumoRed,1)} <span class="text-xs text-muted">kWh</span></td>
-      <td class="py-3 px-4 text-center text-solar font-bold">${fDec(row.prodBruta,1)} <span class="text-xs text-muted">kWh</span></td>
-      <td class="py-3 px-4 text-right">
-        <div>${fCOP(row.precioKw||0)}</div>
-        <div class="text-xs" style="${cc}"><i class="fa-solid ${ic} mr-1"></i>${Math.abs(inc).toFixed(1)}%</div>
-      </td>
-      <td class="py-3 px-4 text-right text-solar font-bold">${fCOP(row.ahorroReal)}</td>
-      <td class="py-3 px-4 text-center admin-only${state.isAdmin?'':' hidden-auth'}">
-        <button class="edit-btn" data-id="${row.id}" title="Editar" style="color:#64748b;background:none;border:none;cursor:pointer;margin-right:.5rem"><i class="fa-solid fa-pen"></i></button>
-        <button class="del-btn" data-id="${row.id}" data-fecha="${row.fecha}" title="Eliminar" style="color:#64748b;background:none;border:none;cursor:pointer"><i class="fa-solid fa-trash"></i></button>
-      </td>`;
-    tbody.appendChild(tr);
-
-    // detail row
-    const dc=inc>0?'#f87171':inc<0?'#4ade80':'#64748b';
-    const det=document.createElement('tr');
-    det.id=`det-${row.id}`; det.className='hidden detail-row';
-    det.innerHTML=`<td colspan="7"><div class="detail-inner">
-      <div class="detail-section"><p style="color:var(--accent);font-weight:700;font-size:.65rem;text-transform:uppercase;margin-bottom:.25rem">Eficiencia</p>
-        <p>Total: <span style="color:#fff">${fDec(row.consumoTotal,1)} kWh</span></p>
-        <p>Autonomía: <span style="color:#a78bfa;font-weight:700">${fDec(row.autonomia,1)}%</span></p></div>
-      <div class="detail-section"><p style="font-weight:700;font-size:.65rem;text-transform:uppercase;margin-bottom:.25rem">Prom. Diario</p>
-        <p>Red: <span style="color:#fff">${fDec((row.consumoRed||0)/30,1)} kWh/d</span></p>
-        <p>Sol: <span style="color:var(--solar)">${fDec((row.prodBruta||0)/30,1)} kWh/d</span></p></div>
-      <div class="detail-section"><p style="font-weight:700;font-size:.65rem;text-transform:uppercase;margin-bottom:.25rem">Fluctuación</p>
-        <p>Ant: <span>${fCOP(row.prevPrecio)}</span></p>
-        <p>Dif: <span style="color:${dc}">${row.precioKw>=(row.prevPrecio||0)?'+':''}${fCOP((row.precioKw||0)-(row.prevPrecio||0))}</span></p></div>
-    </div></td>`;
-    tbody.appendChild(det);
+  // Init sidebar + header events
+  dashboardView.init({
+    onYearChange: () => renderDashboardData(),
+    onSaveRecord: handleSaveRecord,
+    onDeleteRecord: handleDeleteRecord,
+    onEditRecord: (id) => openRecordModal('edit', id),
+    onOpenNewRecord: () => openRecordModal('new'),
+    onToggleChart: handleToggleChart,
+    onLogout: handleLogout,
+    onNavigate: handleSidebarNavigate,
+    onLangChange: changeLang,
   });
 
-  if(state.isAdmin) {
-    tbody.querySelectorAll('.edit-btn').forEach(btn=>btn.addEventListener('click',e=>{e.stopPropagation();openModal('edit',btn.dataset.id);}));
-    tbody.querySelectorAll('.del-btn').forEach(btn=>btn.addEventListener('click',async e=>{
-      e.stopPropagation();
-      if(!confirm(t('deleteConfirm'))) return;
-      
-      const origHtml = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-circle-notch spin"></i>`;
-      btn.disabled = true;
-      
-      try {
-        await deleteRecord(btn.dataset.id, btn.dataset.fecha);
-        await fetchData(); processData(); render();
-      } catch (err) {
-        alert(`${t('error')}: ${err.message || 'No se pudo eliminar'}`);
-        btn.innerHTML = origHtml;
-        btn.disabled = false;
-      }
-    }));
+  // Init subview specific events
+  switch (subView) {
+    case 'dashboard':
+      renderDashboardData();
+      break;
+
+    case 'settings':
+    case 'investments':
+      projectSettingsView.init({
+        onSaveSettings: handleSaveSettings,
+        onCreatePhase: handleCreatePhase,
+        onEditPhase: handleEditPhase,
+        onDeletePhase: handleDeletePhase,
+      });
+      break;
+
+    case 'members':
+      membersView.init({
+        onAddMember: handleAddMember,
+        onRemoveMember: handleRemoveMember,
+        onChangeRole: handleChangeRole,
+      });
+      break;
   }
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
-function render() {
-  const year=document.getElementById('year-filter')?.value||'all';
-  state.viewData=filterByYear(year);
+async function loadAndRenderMembers() {
+  await renderDashboardView('members');
+}
 
-  // table shows current year or all
-  const curYear=new Date().getFullYear();
-  const tableYear=year==='all'?curYear:parseInt(year);
-  const tableData=state.processedData.filter(d=>d.year===tableYear);
+// ── Dashboard Data Rendering ──────────────────────────────────────────────────
+function renderDashboardData() {
+  const year = document.getElementById('year-filter')?.value || 'all';
+  state.viewData = filterByYear(state.processedData, year);
 
+  const curYear = new Date().getFullYear();
+  const tableYear = year === 'all' ? curYear : parseInt(year);
+  const tableData = state.processedData.filter(d => d.year === tableYear);
+
+  // Render charts
   renderEnergyChart(state.viewData);
   renderPriceChart(state.viewData);
   renderProjectionChart();
-  renderTable(tableData);
 
-  const kpis=calcKPIs(state.viewData, state.processedData);
-  setText('kpi-ahorro',kpis.savings);
-  setText('kpi-produccion',kpis.gen);
-  setText('kpi-autonomia',kpis.autonomy);
-  setText('kpi-var-kw',kpis.varKw);
-  setText('roi-time',kpis.roi);
-  setText('roi-avg-savings',kpis.avgSavings);
+  // Render table
+  const tbody = document.getElementById('table-body');
+  if (tbody) {
+    if (dashboardView.renderTableRows) {
+      tbody.innerHTML = dashboardView.renderTableRows(tableData);
+      // Bind edit/delete events on table
+      bindTableEvents(tbody);
+    }
+  }
 
-  const proj=calcProjections(state.viewData);
-  setText('ai-precio-futuro',proj.projectedPrice);
-  setText('ai-mejor-mes',proj.bestMonth);
-  setText('ai-co2',proj.co2);
-  const tEl=document.getElementById('ai-tendencia');
-  if(tEl) tEl.innerHTML=`<span class="${proj.trendColor}"><i class="fa-solid ${proj.trendIcon}"></i> ${proj.trend}</span>`;
+  // Update KPIs
+  const kpis = calcKPIs(state.viewData, state.processedData, state.investments);
+  setText('kpi-ahorro', kpis.savings);
+  setText('kpi-produccion', kpis.gen);
+  setText('kpi-autonomia', kpis.autonomy);
+  setText('kpi-var-kw', kpis.varKw);
+  setText('roi-time', kpis.roi);
+  setText('roi-avg-savings', kpis.avgSavings);
+
+  // Update ROI total investment display
+  const totalInv = (state.investments || []).reduce((a, i) => a + (parseFloat(i.investment_cop) || 0), 0);
+  setText('roi-total-investment', fCOP(totalInv));
+
+  // Update projections
+  const proj = calcProjections(state.viewData);
+  setText('ai-precio-futuro', proj.projectedPrice);
+  setText('ai-mejor-mes', proj.bestMonth);
+  setText('ai-co2', proj.co2);
+  const tEl = document.getElementById('ai-tendencia');
+  if (tEl) tEl.innerHTML = `<span class="${proj.trendColor}"><i class="fa-solid ${proj.trendIcon}"></i> ${proj.trend}</span>`;
 
   updateChartIcons();
 }
 
-const setText=(id,val)=>{ const el=document.getElementById(id); if(el) el.innerText=val; };
+function bindTableEvents(tbody) {
+  if (!state.isAdmin && state.activeProjectRole !== 'admin') return;
+  tbody.querySelectorAll('.edit-btn').forEach(btn =>
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openRecordModal('edit', btn.dataset.id);
+    })
+  );
+  tbody.querySelectorAll('.del-btn').forEach(btn =>
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm(t('deleteConfirm'))) return;
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-circle-notch spin"></i>`;
+      btn.disabled = true;
+      try {
+        await deleteRecord(btn.dataset.id, btn.dataset.fecha);
+        await reloadProjectData();
+        renderDashboardData();
+        showToast(state.lang === 'es' ? 'Registro eliminado' : 'Record deleted', 'success');
+      } catch (err) {
+        showToast(`${t('error')}: ${err.message}`, 'error');
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+      }
+    })
+  );
+  // Row click for detail toggle
+  tbody.querySelectorAll('tr[data-row-id]').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const det = document.getElementById(`det-${tr.dataset.rowId}`);
+      if (det) det.classList.toggle('hidden');
+    });
+  });
+}
 
-// ── Modal ─────────────────────────────────────────────────────────────────────
-function openModal(action='new', id=null) {
-  const modal=document.getElementById('add-record-modal'); if(!modal) return;
+// ── Data Loading ──────────────────────────────────────────────────────────────
+async function loadProjects() {
+  if (!state.user) return;
+  try {
+    const projects = await getUserProjects(state.user.id);
+    state.projects = projects || [];
+  } catch (e) {
+    state.projects = [];
+  }
+}
+
+async function loadProjectData(projectId) {
+  try {
+    const project = await getProject(projectId);
+    if (!project) throw new Error('Project not found');
+
+    const role = state.isAdmin ? 'admin' : await getUserProjectRole(projectId, state.user.id);
+    setActiveProject(project, role || 'observer');
+
+    // Load readings
+    const readings = await fetchProjectReadings(projectId);
+    state.rawData = (readings || []).sort((a, b) => a.year !== b.year ? a.year - b.year : (a.monthIdx || 0) - (b.monthIdx || 0));
+
+    // If no project-specific readings, try legacy readings
+    if (state.rawData.length === 0) {
+      const allReadings = await fetchAllReadings();
+      state.rawData = (allReadings || []).sort((a, b) => a.year !== b.year ? a.year - b.year : (a.monthIdx || 0) - (b.monthIdx || 0));
+    }
+
+    // Process data
+    state.processedData = processData(state.rawData);
+
+    // Load investments
+    const investments = await getProjectInvestments(projectId);
+    state.investments = investments || [];
+  } catch (e) {
+    console.error('Error loading project data:', e);
+    clearProjectData();
+  }
+}
+
+async function reloadProjectData() {
+  if (!state.activeProject) return;
+  const readings = await fetchProjectReadings(state.activeProject.id);
+  state.rawData = (readings || []).sort((a, b) => a.year !== b.year ? a.year - b.year : (a.monthIdx || 0) - (b.monthIdx || 0));
+  if (state.rawData.length === 0) {
+    const allReadings = await fetchAllReadings();
+    state.rawData = (allReadings || []).sort((a, b) => a.year !== b.year ? a.year - b.year : (a.monthIdx || 0) - (b.monthIdx || 0));
+  }
+  state.processedData = processData(state.rawData);
+}
+
+// ── Event Handlers ────────────────────────────────────────────────────────────
+async function handleLogin(email, password) {
+  const btn = document.getElementById('btn-login');
+  const orig = btn?.innerHTML;
+  if (btn) { btn.innerHTML = `<i class="fa-solid fa-circle-notch spin"></i> ${t('connecting')}`; btn.disabled = true; }
+
+  try {
+    const result = await signIn(email, password);
+    if (result.error || !result.user) {
+      showToast(`${t('error')}: Verifica tus credenciales`, 'error');
+      if (btn) { btn.innerHTML = orig; btn.disabled = false; }
+      return;
+    }
+    state.user = result.user;
+    const role = await getUserRole(state.user.email);
+    state.isAdmin = role === 'admin';
+
+    // Route based on role
+    if (state.isAdmin) {
+      await navigate('projects');
+    } else {
+      // Observer: load their projects
+      await loadProjects();
+      if (state.projects.length === 1) {
+        await navigate('dashboard', { projectId: state.projects[0].id });
+      } else if (state.projects.length === 0) {
+        // No projects assigned — show message
+        app().innerHTML = `
+          <div class="empty-state" style="min-height:100vh">
+            <i class="fa-solid fa-folder-open"></i>
+            <h3><span class="lang-es">${t('noProjectsAssigned')}</span><span class="lang-en">${t('noProjectsAssigned')}</span></h3>
+            <p><span class="lang-es">${t('contactAdmin')}</span><span class="lang-en">${t('contactAdmin')}</span></p>
+            <button class="btn btn-ghost" style="margin-top:1.5rem" onclick="window.__logout()">
+              <i class="fa-solid fa-power-off"></i> Logout
+            </button>
+          </div>`;
+        window.__logout = handleLogout;
+      } else {
+        // Multiple projects (shouldn't happen for observer per spec, but handle gracefully)
+        await navigate('projects');
+      }
+    }
+  } catch (e) {
+    showToast(`${t('error')}: ${e.message}`, 'error');
+    if (btn) { btn.innerHTML = orig; btn.disabled = false; }
+  }
+}
+
+async function handleLogout() {
+  await signOut();
+  state.user = null;
+  state.isAdmin = false;
+  state.projects = [];
+  clearProjectData();
+  setActiveProject(null, null);
+  navigate('login');
+}
+
+async function handleSelectProject(projectId) {
+  await navigate('dashboard', { projectId });
+}
+
+async function handleCreateProject() {
+  // Check limit
+  const count = await getProjectCount();
+  if (count >= 20) {
+    showToast(t('maxProjectsReached'), 'error');
+    return;
+  }
+
+  const bodyHTML = `
+    <form id="create-project-form" class="create-project-form">
+      <div class="field">
+        <label><span class="lang-es">Nombre del Proyecto</span><span class="lang-en">Project Name</span></label>
+        <input type="text" id="cp-name" required placeholder="Mi Sistema Solar">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label><span class="lang-es">Ubicación</span><span class="lang-en">Location</span></label>
+          <input type="text" id="cp-location" placeholder="Cali, Colombia">
+        </div>
+        <div class="field">
+          <label><span class="lang-es">Capacidad (kW)</span><span class="lang-en">Capacity (kW)</span></label>
+          <input type="number" id="cp-capacity" step="0.1" placeholder="3.2">
+        </div>
+      </div>
+      <div class="field">
+        <label><span class="lang-es">Descripción</span><span class="lang-en">Description</span></label>
+        <textarea id="cp-description" rows="2" placeholder="Descripción del proyecto..."></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label><span class="lang-es">Paneles</span><span class="lang-en">Panels</span></label>
+          <input type="number" id="cp-panels" placeholder="6">
+        </div>
+        <div class="field">
+          <label><span class="lang-es">Modelo Inversor</span><span class="lang-en">Inverter Model</span></label>
+          <input type="text" id="cp-inverter" placeholder="DEYE SUN-5K">
+        </div>
+      </div>
+      <div class="field">
+        <label><span class="lang-es">URL de Monitoreo</span><span class="lang-en">Monitoring URL</span></label>
+        <input type="url" id="cp-monitoring" placeholder="https://www.dessmonitor.com/">
+      </div>
+      <button type="submit" class="btn btn-solar btn-lg" style="margin-top:.5rem">
+        <i class="fa-solid fa-plus"></i>
+        <span class="lang-es">Crear Proyecto</span><span class="lang-en">Create Project</span>
+      </button>
+    </form>`;
+
+  showModal('Nuevo Proyecto Solar', 'New Solar Project', bodyHTML);
+
+  // Bind form
+  setTimeout(() => {
+    document.getElementById('create-project-form')?.addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = document.getElementById('cp-name')?.value?.trim();
+      if (!name) return;
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+      try {
+        await createProject({
+          name,
+          slug: slug + '-' + Date.now().toString(36),
+          description: document.getElementById('cp-description')?.value || '',
+          location: document.getElementById('cp-location')?.value || '',
+          capacity_kw: parseFloat(document.getElementById('cp-capacity')?.value) || 0,
+          panel_count: parseInt(document.getElementById('cp-panels')?.value) || 0,
+          inverter_model: document.getElementById('cp-inverter')?.value || '',
+          monitoring_url: document.getElementById('cp-monitoring')?.value || '',
+          owner_id: state.user.id,
+        });
+        closeGlobalModal();
+        showToast(state.lang === 'es' ? 'Proyecto creado' : 'Project created', 'success');
+        await navigate('projects');
+      } catch (err) {
+        showToast(`${t('error')}: ${err.message}`, 'error');
+      }
+    });
+  }, 100);
+}
+
+function handleSidebarNavigate(viewName) {
+  if (viewName === 'backToProjects') {
+    navigate('projects');
+    return;
+  }
+  if (viewName === 'changeProject') {
+    navigate('projects');
+    return;
+  }
+  renderDashboardView(viewName);
+}
+
+function openRecordModal(action = 'new', id = null) {
+  const modal = document.getElementById('add-record-modal');
+  if (!modal) return;
   document.getElementById('add-record-form')?.reset();
-  const editId=document.getElementById('edit-id');
-  if(editId) editId.value='';
+  const editId = document.getElementById('edit-id');
+  if (editId) editId.value = '';
 
-  const esTitle=document.getElementById('modal-title-es');
-  const enTitle=document.getElementById('modal-title-en');
-  if(action==='new') {
-    if(esTitle) esTitle.innerText='Nuevo Registro Cloud';
-    if(enTitle) enTitle.innerText='New Cloud Record';
-  } else if(action==='edit'&&id) {
-    if(esTitle) esTitle.innerText='Editar Registro';
-    if(enTitle) enTitle.innerText='Edit Record';
-    const rec=state.rawData.find(d=>d.id===id);
-    if(rec&&editId) {
-      editId.value=rec.id;
-      const f=document.getElementById('new-fecha'); if(f) f.value=rec.fecha;
-      const lr=document.getElementById('new-lectura-red'); if(lr) lr.value=rec.lecturaRed||0;
-      const ls=document.getElementById('new-lectura-solar'); if(ls) ls.value=rec.lecturaSolar||0;
-      const p=document.getElementById('new-precio'); if(p) p.value=rec.precioKw||0;
+  const esTitle = document.getElementById('modal-title-es');
+  const enTitle = document.getElementById('modal-title-en');
+
+  if (action === 'new') {
+    if (esTitle) esTitle.innerText = 'Nuevo Registro Cloud';
+    if (enTitle) enTitle.innerText = 'New Cloud Record';
+  } else if (action === 'edit' && id) {
+    if (esTitle) esTitle.innerText = 'Editar Registro';
+    if (enTitle) enTitle.innerText = 'Edit Record';
+    const rec = state.rawData.find(d => d.id === id);
+    if (rec && editId) {
+      editId.value = rec.id;
+      const f = document.getElementById('new-fecha'); if (f) f.value = rec.fecha;
+      const lr = document.getElementById('new-lectura-red'); if (lr) lr.value = rec.lecturaRed || 0;
+      const ls = document.getElementById('new-lectura-solar'); if (ls) ls.value = rec.lecturaSolar || 0;
+      const p = document.getElementById('new-precio'); if (p) p.value = rec.precioKw || 0;
     }
   }
   modal.classList.remove('hidden');
 }
 
-const closeModal=()=>document.getElementById('add-record-modal')?.classList.add('hidden');
+async function handleSaveRecord(e) {
+  e.preventDefault();
+  const editId = document.getElementById('edit-id')?.value;
+  const fecha = document.getElementById('new-fecha')?.value;
+  if (!fecha) return;
+  const [year, month] = fecha.split('-');
+  const rec = {
+    id: editId || `${year}-${month}`,
+    year: parseInt(year),
+    monthIdx: parseInt(month),
+    fecha,
+    lecturaRed: parseFloat(document.getElementById('new-lectura-red')?.value),
+    lecturaSolar: parseFloat(document.getElementById('new-lectura-solar')?.value),
+    precioKw: parseFloat(document.getElementById('new-precio')?.value),
+    project_id: state.activeProject?.id || null,
+  };
 
-// ── Chart icon toggle ─────────────────────────────────────────────────────────
-function updateChartIcons() {
-  const ei=document.getElementById('icon-chart-energia');
-  const pi=document.getElementById('icon-chart-precio');
-  if(ei) ei.className=`fa-solid ${state.chartModes.energia==='bar'?'fa-chart-area':'fa-chart-bar'}`;
-  if(pi) pi.className=`fa-solid ${state.chartModes.precio==='line'?'fa-chart-bar':'fa-chart-line'}`;
-}
+  const btn = document.getElementById('btn-save');
+  const orig = btn?.innerHTML;
+  if (btn) { btn.innerHTML = `<i class="fa-solid fa-circle-notch spin"></i> ${t('saving')}`; btn.disabled = true; }
 
-// ── Language ──────────────────────────────────────────────────────────────────
-function setLang(lang, flagCode, text) {
-  state.lang=lang;
-  document.body.setAttribute('data-lang',lang);
-  const flagEl=document.getElementById('current-flag');
-  const txtEl=document.getElementById('current-lang-text');
-  if(flagEl) flagEl.innerHTML=`<img src="https://flagcdn.com/w20/${flagCode}.png" class="flag-img">`;
-  if(txtEl) txtEl.innerText=text;
-  document.activeElement?.blur();
-  if(state.processedData.length) { processData(); render(); }
-}
-
-// ── Config Save (debounced) ───────────────────────────────────────────────────
-const saveConfig=debounce(async()=>{
-  if(!state.user) return;
-  const inv=document.getElementById('roi-input-investment')?.value||'0';
-  let dt=document.getElementById('roi-input-date')?.value||'';
-  if(dt&&dt.length===7) dt+='-01';
   try {
-    await upsertConfig({ user_id:state.user.id, inversion_cop:parseInt(inv)||0, fecha_instalacion:dt, updated_at:new Date().toISOString() });
-    localStorage.setItem('jfInvestment',inv);
-    localStorage.setItem('jfInstallDate',dt);
-    ['roi-investment-saved','roi-date-saved'].forEach(id=>{ const el=document.getElementById(id); if(el){el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),2000);} });
-    const si=document.getElementById('roi-status-indicator');
-    if(si){si.innerText=state.lang==='es'?'(Guardado)':'(Saved)';si.style.color='#4ade80';setTimeout(()=>{si.innerText='';si.style.color='';},2000);}
-    render();
-  } catch(e){ alert('Error guardando configuración'); }
-},1000);
+    await upsertRecord(rec);
+    document.getElementById('add-record-modal')?.classList.add('hidden');
+    await reloadProjectData();
+    renderDashboardData();
+    showToast(state.lang === 'es' ? 'Registro guardado' : 'Record saved', 'success');
+  } catch (err) {
+    showToast(`${t('error')}: ${err.message}`, 'error');
+  }
+  if (btn) { btn.innerHTML = orig; btn.disabled = false; }
+}
 
-// ── Load solar config ─────────────────────────────────────────────────────────
-async function loadConfig() {
-  if(!state.user) return;
-  const cfg=await getSolarConfig(state.user.id);
-  const invEl=document.getElementById('roi-input-investment');
-  const dtEl=document.getElementById('roi-input-date');
-  const si=document.getElementById('roi-status-indicator');
-  if(cfg) {
-    if(invEl) invEl.value=cfg.inversion_cop;
-    if(dtEl) dtEl.value=cfg.fecha_instalacion?cfg.fecha_instalacion.substring(0,7):'';
-    localStorage.setItem('jfInvestment',cfg.inversion_cop);
-    localStorage.setItem('jfInstallDate',cfg.fecha_instalacion?cfg.fecha_instalacion.substring(0,7):'');
-    if(si) si.innerText='';
-  } else {
-    if(invEl) invEl.value=0;
-    if(dtEl) dtEl.value=new Date().toISOString().substring(0,7);
-    if(si){ si.innerText=state.lang==='es'?'(Ingresa datos de inversión)':'(Enter investment data)'; si.style.color='#fb923c'; }
+async function handleDeleteRecord(id, fecha) {
+  if (!confirm(t('deleteConfirm'))) return;
+  try {
+    await deleteRecord(id, fecha);
+    await reloadProjectData();
+    renderDashboardData();
+    showToast(state.lang === 'es' ? 'Registro eliminado' : 'Record deleted', 'success');
+  } catch (err) {
+    showToast(`${t('error')}: ${err.message}`, 'error');
   }
 }
 
-// ── Auth helpers ──────────────────────────────────────────────────────────────
-function showDashboard() {
-  document.getElementById('loader')?.classList.add('hidden');
-  document.getElementById('login-modal')?.classList.add('hidden');
-  document.getElementById('main-dashboard')?.classList.remove('hidden');
-
-  setText('active-user-email', state.user?.email||'');
-  const rb=document.getElementById('user-role-badge');
-  if(rb) rb.innerText=state.isAdmin?t('admin'):t('observer');
-
-  document.querySelectorAll('.admin-only').forEach(el=>{
-    if(state.isAdmin){ el.classList.remove('hidden-auth'); el.removeAttribute('disabled'); }
-    else { el.classList.add('hidden-auth'); el.setAttribute('disabled','true'); }
-  });
-}
-
-async function initDashboard() {
-  document.getElementById('loader')?.classList.remove('hidden');
-  document.getElementById('login-modal')?.classList.add('hidden');
-  const role=await getUserRole(state.user.email);
-  state.isAdmin=role==='admin';
-  await fetchData();
-  await loadConfig();
-  processData();
-  showDashboard();
-  render();
-}
-
-// ── Event Listeners ───────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-  // Login form
-  document.getElementById('login-form')?.addEventListener('submit', async e=>{
-    e.preventDefault();
-    const email=document.getElementById('email')?.value;
-    const pass=document.getElementById('password')?.value;
-    const btn=document.getElementById('btn-login');
-    const orig=btn?.innerHTML;
-    if(btn){btn.innerHTML=`<i class="fa-solid fa-circle-notch spin"></i> ${t('connecting')}`;btn.disabled=true;}
-    const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
-    if(error||!data.user){ alert(`${t('error')}: Verifica tus credenciales`); if(btn){btn.innerHTML=orig;btn.disabled=false;} return; }
-    state.user=data.user;
-    await initDashboard();
-    if(btn){btn.innerHTML=orig;btn.disabled=false;}
-  });
-
-  // Logout
-  document.getElementById('logout-btn')?.addEventListener('click', async e=>{
-    e.preventDefault();
-    await sb.auth.signOut();
-    location.reload();
-  });
-
-  // Year filter
-  document.getElementById('year-filter')?.addEventListener('change', render);
-
-  // ROI inputs
-  document.getElementById('roi-input-investment')?.addEventListener('input', saveConfig);
-  document.getElementById('roi-input-date')?.addEventListener('change', saveConfig);
-
-  // Save record form
-  document.getElementById('add-record-form')?.addEventListener('submit', async e=>{
-    e.preventDefault();
-    const editId=document.getElementById('edit-id')?.value;
-    const fecha=document.getElementById('new-fecha')?.value;
-    const [year,month]=fecha.split('-');
-    const rec={
-      id: editId||`${year}-${month}`,
-      year:parseInt(year), monthIdx:parseInt(month), fecha,
-      lecturaRed:parseFloat(document.getElementById('new-lectura-red')?.value),
-      lecturaSolar:parseFloat(document.getElementById('new-lectura-solar')?.value),
-      precioKw:parseFloat(document.getElementById('new-precio')?.value),
-    };
-    const btn=document.getElementById('btn-save');
-    const orig=btn?.innerHTML;
-    if(btn){btn.innerHTML=`<i class="fa-solid fa-circle-notch spin"></i> ${t('saving')}`;btn.disabled=true;}
-    try {
-      await upsertRecord(rec);
-      closeModal();
-      await fetchData(); processData(); render();
-    } catch(err){ alert(`${t('error')}: No se pudo guardar el registro`); }
-    if(btn){btn.innerHTML=orig;btn.disabled=false;}
-  });
-
-  // Check session
-  const {data:{session}}=await sb.auth.getSession();
-  if(session?.user){ state.user=session.user; await initDashboard(); }
-  else { document.getElementById('loader')?.classList.add('hidden'); document.getElementById('login-modal')?.classList.remove('hidden'); }
-});
-
-// ── Global handlers (onclick in HTML) ────────────────────────────────────────
-window.setLang=(lang,flagCode,text)=>setLang(lang,flagCode,text);
-window.openModal=(action,id)=>openModal(action,id);
-window.closeModal=closeModal;
-window.toggleChartType=(type)=>{
-  if(type==='energia'){ state.chartModes.energia=state.chartModes.energia==='bar'?'line':'bar'; renderEnergyChart(state.viewData); }
-  else { state.chartModes.precio=state.chartModes.precio==='line'?'bar':'line'; renderPriceChart(state.viewData); }
+function handleToggleChart(type) {
+  if (type === 'energia') {
+    state.chartModes.energia = state.chartModes.energia === 'bar' ? 'line' : 'bar';
+    renderEnergyChart(state.viewData);
+  } else {
+    state.chartModes.precio = state.chartModes.precio === 'line' ? 'bar' : 'line';
+    renderPriceChart(state.viewData);
+  }
   updateChartIcons();
+}
+
+// ── Settings Handlers ─────────────────────────────────────────────────────────
+async function handleSaveSettings(e) {
+  e.preventDefault();
+  if (!state.activeProject) return;
+  try {
+    await updateProject(state.activeProject.id, {
+      name: document.getElementById('setting-name')?.value,
+      description: document.getElementById('setting-description')?.value,
+      location: document.getElementById('setting-location')?.value,
+      capacity_kw: parseFloat(document.getElementById('setting-capacity')?.value) || 0,
+      panel_count: parseInt(document.getElementById('setting-panels')?.value) || 0,
+      inverter_model: document.getElementById('setting-inverter')?.value,
+      monitoring_url: document.getElementById('setting-monitoring-url')?.value,
+      updated_at: new Date().toISOString(),
+    });
+    // Reload project
+    const updated = await getProject(state.activeProject.id);
+    if (updated) setActiveProject(updated, state.activeProjectRole);
+    showToast(state.lang === 'es' ? 'Configuración guardada' : 'Settings saved', 'success');
+  } catch (err) {
+    showToast(`${t('error')}: ${err.message}`, 'error');
+  }
+}
+
+async function handleCreatePhase(e) {
+  e.preventDefault();
+  if (!state.activeProject) return;
+  try {
+    await createInvestment({
+      project_id: state.activeProject.id,
+      phase_name: document.getElementById('phase-name')?.value,
+      description: document.getElementById('phase-description')?.value || '',
+      investment_cop: parseFloat(document.getElementById('phase-investment')?.value) || 0,
+      capacity_added_kw: parseFloat(document.getElementById('phase-capacity')?.value) || 0,
+      panels_added: parseInt(document.getElementById('phase-panels')?.value) || 0,
+      start_date: document.getElementById('phase-start-date')?.value,
+    });
+    // Reload investments
+    state.investments = await getProjectInvestments(state.activeProject.id) || [];
+    showToast(state.lang === 'es' ? 'Fase de inversión creada' : 'Investment phase created', 'success');
+    renderDashboardView(state.currentView);
+  } catch (err) {
+    showToast(`${t('error')}: ${err.message}`, 'error');
+  }
+}
+
+async function handleEditPhase(investmentId, updates) {
+  try {
+    await updateInvestment(investmentId, updates);
+    state.investments = await getProjectInvestments(state.activeProject.id) || [];
+    showToast(state.lang === 'es' ? 'Fase actualizada' : 'Phase updated', 'success');
+    renderDashboardView(state.currentView);
+  } catch (err) {
+    showToast(`${t('error')}: ${err.message}`, 'error');
+  }
+}
+
+async function handleDeletePhase(investmentId) {
+  if (!confirm(t('deleteConfirm'))) return;
+  try {
+    await deleteInvestment(investmentId);
+    state.investments = await getProjectInvestments(state.activeProject.id) || [];
+    showToast(state.lang === 'es' ? 'Fase eliminada' : 'Phase deleted', 'success');
+    renderDashboardView(state.currentView);
+  } catch (err) {
+    showToast(`${t('error')}: ${err.message}`, 'error');
+  }
+}
+
+// ── Member Handlers ───────────────────────────────────────────────────────────
+async function handleAddMember(e) {
+  e.preventDefault();
+  if (!state.activeProject) return;
+  const email = document.getElementById('new-member-email')?.value?.trim();
+  const role = document.getElementById('new-member-role')?.value || 'observer';
+  if (!email) return;
+
+  try {
+    await addProjectMember(state.activeProject.id, email, role);
+    showToast(state.lang === 'es' ? 'Miembro agregado' : 'Member added', 'success');
+    await loadAndRenderMembers();
+  } catch (err) {
+    showToast(`${t('error')}: ${err.message}`, 'error');
+  }
+}
+
+async function handleRemoveMember(memberId) {
+  if (!confirm(t('deleteConfirm'))) return;
+  try {
+    await removeProjectMember(memberId);
+    showToast(state.lang === 'es' ? 'Miembro removido' : 'Member removed', 'success');
+    await loadAndRenderMembers();
+  } catch (err) {
+    showToast(`${t('error')}: ${err.message}`, 'error');
+  }
+}
+
+async function handleChangeRole(memberId, newRole) {
+  try {
+    await updateMemberRole(memberId, newRole);
+    showToast(state.lang === 'es' ? 'Rol actualizado' : 'Role updated', 'success');
+  } catch (err) {
+    showToast(`${t('error')}: ${err.message}`, 'error');
+  }
+}
+
+// ── Helper ────────────────────────────────────────────────────────────────────
+const setText = (id, val) => {
+  const el = document.getElementById(id);
+  if (el) el.innerText = val;
 };
+
+// ── Global Handlers (for onclick in HTML) ─────────────────────────────────────
+window.__navigate = (view) => handleSidebarNavigate(view);
+window.__logout = handleLogout;
+window.__changeLang = changeLang;
+window.__openRecordModal = (action, id) => openRecordModal(action, id);
+window.__closeRecordModal = () => document.getElementById('add-record-modal')?.classList.add('hidden');
+window.__toggleChart = handleToggleChart;
+window.__selectProject = handleSelectProject;
+window.__createProject = handleCreateProject;
+window.__toggleLangMenu = () => document.getElementById('lang-menu')?.classList.toggle('hidden');
+window.__toggleSidebar = () => {
+  document.querySelector('.sidebar')?.classList.toggle('open');
+  document.querySelector('.sidebar-overlay')?.classList.toggle('visible');
+};
+window.__closeSidebar = () => {
+  document.querySelector('.sidebar')?.classList.remove('open');
+  document.querySelector('.sidebar-overlay')?.classList.remove('visible');
+};
+window.__toggleProjectionDetail = () => {
+  document.getElementById('proyeccion-detallada')?.classList.toggle('hidden');
+};
+window.__handleSaveRecord = handleSaveRecord;
+window.__handleCreatePhase = handleCreatePhase;
+window.__handleSaveSettings = handleSaveSettings;
+window.__handleDeletePhase = handleDeletePhase;
+window.__handleEditPhase = handleEditPhase;
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const session = await getSession();
+    if (session?.user) {
+      state.user = session.user;
+      const role = await getUserRole(state.user.email);
+      state.isAdmin = role === 'admin';
+
+      if (state.isAdmin) {
+        await navigate('projects');
+      } else {
+        await loadProjects();
+        if (state.projects.length === 1) {
+          await navigate('dashboard', { projectId: state.projects[0].id });
+        } else if (state.projects.length > 1) {
+          await navigate('projects');
+        } else {
+          navigate('login');
+        }
+      }
+    } else {
+      navigate('login');
+    }
+  } catch (e) {
+    console.error('Bootstrap error:', e);
+    navigate('login');
+  }
+});
