@@ -466,8 +466,13 @@ function openRecordModal(action = 'new', id = null) {
   modal.classList.remove('hidden');
 }
 
-async function handleSaveRecord(e) {
-  e.preventDefault();
+async function handleSaveRecord(dataOrEvent) {
+  // dashboardView.js already calls e.preventDefault() and passes a data object.
+  // Just in case it's called directly with an event, we handle it conditionally.
+  if (dataOrEvent && typeof dataOrEvent.preventDefault === 'function') {
+    dataOrEvent.preventDefault();
+  }
+  
   const editId = document.getElementById('edit-id')?.value;
   const fecha = document.getElementById('new-fecha')?.value;
   if (!fecha) return;
