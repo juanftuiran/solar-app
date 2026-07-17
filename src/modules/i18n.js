@@ -128,6 +128,7 @@ export const T = {
   // Trend
   rising:  { es: 'En alza', en: 'Rising' },
   falling: { es: 'A la baja', en: 'Falling' },
+  equal:   { es: 'Estable', en: 'Stable' },
 
   // Limits
   maxProjectsReached: { es: 'Máximo de proyectos alcanzado', en: 'Maximum projects reached' },

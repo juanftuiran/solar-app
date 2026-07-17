@@ -37,8 +37,14 @@ export function processData(rawData) {
     const prev = rawData[i - 1];
     const curr = rawData[i];
 
-    const consumoRed = Math.max(0, (curr.medidorRed || 0) - (prev.medidorRed || 0));
-    const prodBruta = Math.max(0, (curr.inversores || 0) - (prev.inversores || 0));
+    // Support both old naming (medidorRed/inversores) and new naming (lecturaRed/lecturaSolar)
+    const currRed = curr.lecturaRed ?? curr.medidorRed ?? 0;
+    const prevRed = prev.lecturaRed ?? prev.medidorRed ?? 0;
+    const currSolar = curr.lecturaSolar ?? curr.inversores ?? 0;
+    const prevSolar = prev.lecturaSolar ?? prev.inversores ?? 0;
+
+    const consumoRed = Math.max(0, currRed - prevRed);
+    const prodBruta = Math.max(0, currSolar - prevSolar);
     const consumoTotal = consumoRed + prodBruta;
     const autonomia = consumoTotal > 0 ? (prodBruta / consumoTotal) * 100 : 0;
     const precioKw = curr.precioKw || 0;
@@ -62,8 +68,8 @@ export function processData(rawData) {
       ahorroReal,
       label,
       // Carry forward raw values for downstream use
-      medidorRed: curr.medidorRed,
-      inversores: curr.inversores,
+      lecturaRed: currRed,
+      lecturaSolar: currSolar,
       fecha: curr.fecha,
       id: curr.id,
     });
@@ -135,13 +141,24 @@ export function calcProjections(data) {
   const slope = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0;
   const intercept = (sumY - slope * sumX) / n;
 
-  // Project 12 months ahead
-  const projectedPrice = intercept + slope * (n + 12);
+  // Project NEXT month (x = n) instead of 12 months ahead
+  const projectedPrice = intercept + slope * n;
 
-  const isRising = slope > 0;
-  const trend = isRising ? t('rising') : t('falling');
-  const trendIcon = isRising ? '↑' : '↓';
-  const trendColor = isRising ? 'text-red-500' : 'text-green-500';
+  // Calculate trend
+  let trend, trendIcon, trendColor;
+  if (Math.abs(slope) < 0.01) { // practically zero
+    trend = t('equal') || 'Igual';
+    trendIcon = '→';
+    trendColor = 'text-gray-400';
+  } else if (slope > 0) {
+    trend = t('rising') || 'Sube';
+    trendIcon = '↑';
+    trendColor = 'text-red-500';
+  } else {
+    trend = t('falling') || 'Baja';
+    trendIcon = '↓';
+    trendColor = 'text-green-500';
+  }
 
   // --- Best generation month ---
   const monthTotals = new Map();
