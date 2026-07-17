@@ -534,12 +534,12 @@ export async function upsertRecord(rec) {
       .single();
     if (error) {
       console.error('[supabase] upsertRecord error:', error);
-      return null;
+      throw new Error(error.message);
     }
     return data;
   } catch (err) {
-    console.error('[supabase] upsertRecord error:', err);
-    return null;
+    console.error('[supabase] upsertRecord exception:', err);
+    throw err;
   }
 }
 
