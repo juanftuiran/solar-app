@@ -408,7 +408,7 @@ async function handleCreateProject() {
       const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
       try {
-        const result = await createProject({
+        await createProject({
           name,
           slug: slug + '-' + Date.now().toString(36),
           description: document.getElementById('cp-description')?.value || '',
@@ -418,8 +418,8 @@ async function handleCreateProject() {
           inverter_model: document.getElementById('cp-inverter')?.value || '',
           monitoring_url: document.getElementById('cp-monitoring')?.value || '',
           owner_id: state.user.id,
-        });
-        if (!result) throw new Error('No se pudo guardar. Verifica que las tablas de la base de datos existan.');
+        }, state.user.email);
+        
         closeGlobalModal();
         showToast(state.lang === 'es' ? 'Proyecto creado' : 'Project created', 'success');
         await navigate('projects');

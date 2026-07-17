@@ -165,7 +165,7 @@ export async function getProject(projectId) {
  * @param {string} projectData.owner_id
  * @returns {Promise<Object|null>} The created project or null
  */
-export async function createProject(projectData) {
+export async function createProject(projectData, userEmail) {
   try {
     const { data, error } = await sb
       .from('projects')
@@ -175,20 +175,27 @@ export async function createProject(projectData) {
 
     if (error) {
       console.error('[supabase] createProject error:', error);
-      return null;
+      throw new Error(error.message);
     }
 
     // Also create a project_members entry for the owner as admin
-    await sb.from('project_members').insert({
+    const memRes = await sb.from('project_members').insert({
       project_id: data.id,
       user_id: projectData.owner_id,
+      email: userEmail,
       role: 'admin',
     });
 
+    if (memRes.error) {
+      console.error('[supabase] createProject member error:', memRes.error);
+      // Even if member creation fails, the project is created.
+      // But we should warn.
+    }
+
     return data;
   } catch (err) {
-    console.error('[supabase] createProject error:', err);
-    return null;
+    console.error('[supabase] createProject exception:', err);
+    throw err;
   }
 }
 
