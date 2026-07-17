@@ -5,7 +5,7 @@
 import './app.css';
 import { state, setUser, setActiveProject, clearProjectData, setView } from './modules/state.js';
 import { sb, signIn, signOut, getSession, getUserRole, getUserProjects, getProject, createProject, updateProject, getProjectMembers, addProjectMember, removeProjectMember, updateMemberRole, getUserProjectRole, getProjectInvestments, createInvestment, updateInvestment, deleteInvestment, fetchProjectReadings, upsertRecord, deleteRecord, fetchAllReadings, getProjectCount } from './modules/supabase.js';
-import { fCOP, fDec, debounce } from './modules/formatters.js';
+import { fCOP, fDec, fKwh, fPct, debounce } from './modules/formatters.js';
 import { t, monthName, MONTHS } from './modules/i18n.js';
 import { processData, filterByYear, calcProjections, calcKPIs } from './modules/analytics.js';
 import { renderEnergyChart, renderPriceChart, renderProjectionChart, destroyAllCharts, updateChartIcons } from './modules/charts.js';
@@ -177,20 +177,23 @@ function renderDashboardData() {
 
   // Update KPIs
   const kpis = calcKPIs(state.viewData, state.processedData, state.investments);
-  setText('kpi-ahorro', kpis.savings);
-  setText('kpi-produccion', kpis.gen);
-  setText('kpi-autonomia', kpis.autonomy);
-  setText('kpi-var-kw', kpis.varKw);
-  setText('roi-time', kpis.roi);
-  setText('roi-avg-savings', kpis.avgSavings);
-
-  // Update ROI total investment display
+  
+  // Total Investment
   const totalInv = (state.investments || []).reduce((a, i) => a + (parseFloat(i.investment_cop) || 0), 0);
+  
+  setText('kpi-ahorro', fCOP(kpis.savings));
+  setText('kpi-produccion', fKwh(kpis.gen));
+  setText('kpi-autonomia', fPct(kpis.autonomy));
+  setText('kpi-var-kw', fPct(kpis.varKw));
+  
+  const paybackMonths = kpis.avgSavings > 0 ? (totalInv / kpis.avgSavings) : 0;
+  setText('roi-time', Math.round(paybackMonths));
+  setText('roi-avg-savings', fCOP(kpis.avgSavings));
   setText('roi-total-investment', fCOP(totalInv));
 
   // Update projections
   const proj = calcProjections(state.viewData);
-  setText('ai-precio-futuro', proj.projectedPrice);
+  setText('ai-precio-futuro', fCOP(proj.projectedPrice));
   setText('ai-mejor-mes', proj.bestMonth);
   setText('ai-co2', proj.co2);
   const tEl = document.getElementById('ai-tendencia');
