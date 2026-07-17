@@ -158,3 +158,24 @@ CREATE POLICY "Members can view project readings" ON solar_readings
     OR project_id IN (SELECT get_user_projects())
     OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
   );
+
+CREATE POLICY "Admins can insert project readings" ON solar_readings
+  FOR INSERT WITH CHECK (
+    (project_id IS NULL AND auth.uid() IS NOT NULL)
+    OR project_id IN (SELECT get_admin_projects())
+    OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
+  );
+
+CREATE POLICY "Admins can update project readings" ON solar_readings
+  FOR UPDATE USING (
+    (project_id IS NULL AND auth.uid() IS NOT NULL)
+    OR project_id IN (SELECT get_admin_projects())
+    OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
+  );
+
+CREATE POLICY "Admins can delete project readings" ON solar_readings
+  FOR DELETE USING (
+    (project_id IS NULL AND auth.uid() IS NOT NULL)
+    OR project_id IN (SELECT get_admin_projects())
+    OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
+  );
