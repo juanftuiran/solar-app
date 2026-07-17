@@ -477,11 +477,15 @@ async function handleSaveRecord(dataOrEvent) {
   const fecha = document.getElementById('new-fecha')?.value;
   if (!fecha) return;
   const [year, month] = fecha.split('-');
+  
+  // Ensure fecha is a valid YYYY-MM-DD for Postgres DATE column
+  const dbFecha = fecha.length === 7 ? `${fecha}-01` : fecha;
+
   const rec = {
     id: editId || `${year}-${month}`,
     year: parseInt(year),
     monthIdx: parseInt(month),
-    fecha,
+    fecha: dbFecha,
     lecturaRed: parseFloat(document.getElementById('new-lectura-red')?.value),
     lecturaSolar: parseFloat(document.getElementById('new-lectura-solar')?.value),
     precioKw: parseFloat(document.getElementById('new-precio')?.value),
