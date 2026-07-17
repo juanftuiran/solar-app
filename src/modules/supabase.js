@@ -295,34 +295,20 @@ export async function getProjectMembers(projectId) {
  */
 export async function addProjectMember(projectId, email, role) {
   try {
-    const insertData = { project_id: projectId, email, role };
-
-    // Attempt to resolve user_id from auth users via email lookup.
-    // If the lookup fails (e.g. permissions), we still store the email.
-    const { data: users } = await sb
-      .from('user_roles')
-      .select('user_id')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (users?.user_id) {
-      insertData.user_id = users.user_id;
-    }
-
-    const { data, error } = await sb
-      .from('project_members')
-      .insert(insertData)
-      .select()
-      .single();
+    const { data, error } = await sb.rpc('add_project_member_by_email', {
+      p_project_id: projectId,
+      p_email: email,
+      p_role: role
+    });
 
     if (error) {
       console.error('[supabase] addProjectMember error:', error);
-      return null;
+      throw new Error(error.message || 'Error al agregar miembro');
     }
     return data;
   } catch (err) {
     console.error('[supabase] addProjectMember error:', err);
-    return null;
+    throw err; // Rethrow to show the error in the UI toast
   }
 }
 
