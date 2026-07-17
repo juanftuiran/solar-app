@@ -612,12 +612,8 @@ async function handleDeletePhase(investmentId) {
 }
 
 // ── Member Handlers ───────────────────────────────────────────────────────────
-async function handleAddMember(e) {
-  e.preventDefault();
-  if (!state.activeProject) return;
-  const email = document.getElementById('new-member-email')?.value?.trim();
-  const role = document.getElementById('new-member-role')?.value || 'observer';
-  if (!email) return;
+async function handleAddMember({ email, role }) {
+  if (!state.activeProject || !email) return;
 
   try {
     const result = await addProjectMember(state.activeProject.id, email, role);
