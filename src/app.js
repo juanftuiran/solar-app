@@ -408,7 +408,7 @@ async function handleCreateProject() {
       const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
       try {
-        await createProject({
+        const result = await createProject({
           name,
           slug: slug + '-' + Date.now().toString(36),
           description: document.getElementById('cp-description')?.value || '',
@@ -419,6 +419,7 @@ async function handleCreateProject() {
           monitoring_url: document.getElementById('cp-monitoring')?.value || '',
           owner_id: state.user.id,
         });
+        if (!result) throw new Error('No se pudo guardar. Verifica que las tablas de la base de datos existan.');
         closeGlobalModal();
         showToast(state.lang === 'es' ? 'Proyecto creado' : 'Project created', 'success');
         await navigate('projects');
@@ -491,7 +492,8 @@ async function handleSaveRecord(e) {
   if (btn) { btn.innerHTML = `<i class="fa-solid fa-circle-notch spin"></i> ${t('saving')}`; btn.disabled = true; }
 
   try {
-    await upsertRecord(rec);
+    const result = await upsertRecord(rec);
+    if (!result) throw new Error('Error al guardar registro en la BD.');
     document.getElementById('add-record-modal')?.classList.add('hidden');
     await reloadProjectData();
     renderDashboardData();
@@ -505,7 +507,8 @@ async function handleSaveRecord(e) {
 async function handleDeleteRecord(id, fecha) {
   if (!confirm(t('deleteConfirm'))) return;
   try {
-    await deleteRecord(id, fecha);
+    const ok = await deleteRecord(id, fecha);
+    if (!ok) throw new Error('Error al eliminar registro en la BD.');
     await reloadProjectData();
     renderDashboardData();
     showToast(state.lang === 'es' ? 'Registro eliminado' : 'Record deleted', 'success');
@@ -530,7 +533,7 @@ async function handleSaveSettings(e) {
   e.preventDefault();
   if (!state.activeProject) return;
   try {
-    await updateProject(state.activeProject.id, {
+    const result = await updateProject(state.activeProject.id, {
       name: document.getElementById('setting-name')?.value,
       description: document.getElementById('setting-description')?.value,
       location: document.getElementById('setting-location')?.value,
@@ -540,6 +543,7 @@ async function handleSaveSettings(e) {
       monitoring_url: document.getElementById('setting-monitoring-url')?.value,
       updated_at: new Date().toISOString(),
     });
+    if (!result) throw new Error('No se pudo guardar la configuración.');
     // Reload project
     const updated = await getProject(state.activeProject.id);
     if (updated) setActiveProject(updated, state.activeProjectRole);
@@ -553,7 +557,7 @@ async function handleCreatePhase(e) {
   e.preventDefault();
   if (!state.activeProject) return;
   try {
-    await createInvestment({
+    const result = await createInvestment({
       project_id: state.activeProject.id,
       phase_name: document.getElementById('phase-name')?.value,
       description: document.getElementById('phase-description')?.value || '',
@@ -562,6 +566,7 @@ async function handleCreatePhase(e) {
       panels_added: parseInt(document.getElementById('phase-panels')?.value) || 0,
       start_date: document.getElementById('phase-start-date')?.value,
     });
+    if (!result) throw new Error('No se pudo crear la fase. Verifica que las tablas existan.');
     // Reload investments
     state.investments = await getProjectInvestments(state.activeProject.id) || [];
     showToast(state.lang === 'es' ? 'Fase de inversión creada' : 'Investment phase created', 'success');
@@ -573,7 +578,8 @@ async function handleCreatePhase(e) {
 
 async function handleEditPhase(investmentId, updates) {
   try {
-    await updateInvestment(investmentId, updates);
+    const result = await updateInvestment(investmentId, updates);
+    if (!result) throw new Error('No se pudo actualizar la fase.');
     state.investments = await getProjectInvestments(state.activeProject.id) || [];
     showToast(state.lang === 'es' ? 'Fase actualizada' : 'Phase updated', 'success');
     renderDashboardView(state.currentView);
@@ -585,7 +591,8 @@ async function handleEditPhase(investmentId, updates) {
 async function handleDeletePhase(investmentId) {
   if (!confirm(t('deleteConfirm'))) return;
   try {
-    await deleteInvestment(investmentId);
+    const ok = await deleteInvestment(investmentId);
+    if (!ok) throw new Error('No se pudo eliminar la fase.');
     state.investments = await getProjectInvestments(state.activeProject.id) || [];
     showToast(state.lang === 'es' ? 'Fase eliminada' : 'Phase deleted', 'success');
     renderDashboardView(state.currentView);
@@ -603,7 +610,8 @@ async function handleAddMember(e) {
   if (!email) return;
 
   try {
-    await addProjectMember(state.activeProject.id, email, role);
+    const result = await addProjectMember(state.activeProject.id, email, role);
+    if (!result) throw new Error('No se pudo agregar el miembro. Verifica las tablas BD.');
     showToast(state.lang === 'es' ? 'Miembro agregado' : 'Member added', 'success');
     await loadAndRenderMembers();
   } catch (err) {
@@ -614,7 +622,8 @@ async function handleAddMember(e) {
 async function handleRemoveMember(memberId) {
   if (!confirm(t('deleteConfirm'))) return;
   try {
-    await removeProjectMember(memberId);
+    const ok = await removeProjectMember(memberId);
+    if (!ok) throw new Error('Error al remover miembro.');
     showToast(state.lang === 'es' ? 'Miembro removido' : 'Member removed', 'success');
     await loadAndRenderMembers();
   } catch (err) {
@@ -624,7 +633,8 @@ async function handleRemoveMember(memberId) {
 
 async function handleChangeRole(memberId, newRole) {
   try {
-    await updateMemberRole(memberId, newRole);
+    const ok = await updateMemberRole(memberId, newRole);
+    if (!ok) throw new Error('Error al actualizar rol.');
     showToast(state.lang === 'es' ? 'Rol actualizado' : 'Role updated', 'success');
   } catch (err) {
     showToast(`${t('error')}: ${err.message}`, 'error');
