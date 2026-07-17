@@ -431,11 +431,7 @@ async function handleCreateProject() {
 }
 
 function handleSidebarNavigate(viewName) {
-  if (viewName === 'backToProjects') {
-    navigate('projects');
-    return;
-  }
-  if (viewName === 'changeProject') {
+  if (viewName === 'projects' || viewName === 'switch-project') {
     navigate('projects');
     return;
   }

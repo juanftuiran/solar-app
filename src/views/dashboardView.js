@@ -6,7 +6,7 @@
  */
 
 import { state } from '../modules/state.js';
-import { renderSidebar } from '../components/sidebar.js';
+import { renderSidebar, initSidebar } from '../components/sidebar.js';
 import { fCOP, fDec, fKwh, fPct } from '../modules/formatters.js';
 
 /**
@@ -26,7 +26,7 @@ export function render(contentHTML = null) {
 
   // Sidebar (admin only)
   const sidebarHTML = isAdmin
-    ? renderSidebar(state.currentView || 'dashboard', 'window.__navigate')
+    ? renderSidebar(state.currentView || 'dashboard')
     : '';
 
   return `
@@ -95,6 +95,11 @@ export function init(callbacks) {
     onNavigate,
     onLangChange,
   } = callbacks || {};
+
+  // Init Sidebar
+  if (document.getElementById('sidebar-panel')) {
+    initSidebar(onNavigate);
+  }
 
   // Year filter
   const yearFilter = document.getElementById('year-filter');
@@ -426,26 +431,7 @@ function _renderROIPanel(totalInvestment, isAdmin) {
         <span id="roi-total-investment" style="font-weight:700;color:#0ea5e9;">${fCOP(totalInvestment)}</span>
       </div>
 
-      ${isAdmin ? `
-        <div class="roi-inputs" style="margin-bottom:1rem;">
-          <div class="roi-input-wrap">
-            <div class="roi-input-label">
-              <span class="lang-es">Inversión COP</span>
-              <span class="lang-en">Investment COP</span>
-              <span id="roi-investment-saved" class="roi-saved-indicator hidden">✓</span>
-            </div>
-            <input type="number" id="roi-input-investment" value="0" min="0" step="100000">
-          </div>
-          <div class="roi-input-wrap">
-            <div class="roi-input-label">
-              <span class="lang-es">Fecha Instalación</span>
-              <span class="lang-en">Install Date</span>
-              <span id="roi-date-saved" class="roi-saved-indicator hidden">✓</span>
-            </div>
-            <input type="month" id="roi-input-date">
-          </div>
-        </div>
-      ` : ''}
+
 
       <div class="roi-stats">
         <div class="roi-stat">
