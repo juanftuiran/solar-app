@@ -561,18 +561,17 @@ async function handleSaveSettings(e) {
   }
 }
 
-async function handleCreatePhase(e) {
-  e.preventDefault();
-  if (!state.activeProject) return;
+async function handleCreatePhase(data) {
+  if (!state.activeProject || !data) return;
   try {
     const result = await createInvestment({
       project_id: state.activeProject.id,
-      phase_name: document.getElementById('phase-name')?.value,
-      description: document.getElementById('phase-description')?.value || '',
-      investment_cop: parseFloat(document.getElementById('phase-investment')?.value) || 0,
-      capacity_added_kw: parseFloat(document.getElementById('phase-capacity')?.value) || 0,
-      panels_added: parseInt(document.getElementById('phase-panels')?.value) || 0,
-      start_date: document.getElementById('phase-start-date')?.value,
+      phase_name: data.phase_name,
+      description: data.description || '',
+      investment_cop: data.investment_cop || 0,
+      capacity_added_kw: data.capacity_added_kw || 0,
+      panels_added: data.panels_added || 0,
+      start_date: data.start_date,
     });
     if (!result) throw new Error('No se pudo crear la fase. Verifica que las tablas existan.');
     // Reload investments
@@ -584,9 +583,11 @@ async function handleCreatePhase(e) {
   }
 }
 
-async function handleEditPhase(investmentId, updates) {
+async function handleEditPhase(data) {
+  if (!state.activeProject || !data || !data.id) return;
   try {
-    const result = await updateInvestment(investmentId, updates);
+    const { id, ...updates } = data;
+    const result = await updateInvestment(id, updates);
     if (!result) throw new Error('No se pudo actualizar la fase.');
     state.investments = await getProjectInvestments(state.activeProject.id) || [];
     showToast(state.lang === 'es' ? 'Fase actualizada' : 'Phase updated', 'success');

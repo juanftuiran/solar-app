@@ -226,6 +226,14 @@ export function renderProjectionChart() {
     entry.count += 1;
   }
 
+  // Get average of last 3 months to estimate missing data for the current year
+  const last3 = processed.slice(-3);
+  const avgLast3 = last3.length > 0
+    ? last3.reduce((s, d) => s + (d.prodBruta || 0), 0) / last3.length
+    : avgGen;
+    
+  const currentYear = new Date().getFullYear();
+
   for (let i = 0; i < YEARS; i++) {
     const year = firstInvestmentYear + i;
     labels.push(String(year));
@@ -257,6 +265,10 @@ export function renderProjectionChart() {
     let yearGen;
     if (realYear) {
       yearGen = realYear.gen;
+      // If it's the current year and is incomplete, estimate remaining months
+      if (year === currentYear && realYear.count < 12) {
+        yearGen += avgLast3 * (12 - realYear.count);
+      }
     } else {
       // Annualise average monthly generation (×12), apply degradation & capacity scaling
       yearGen = avgGen * 12 * capacityMultiplier * Math.pow(1 - DEGRADATION, i);

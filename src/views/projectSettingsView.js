@@ -297,7 +297,6 @@ export function init(callbacks) {
   if (newPhaseBtn) {
     newPhaseBtn.addEventListener('click', () => {
       _openPhaseModal();
-      if (typeof onCreatePhase === 'function') onCreatePhase();
     });
   }
 
