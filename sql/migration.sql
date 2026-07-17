@@ -66,10 +66,29 @@ ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_investments ENABLE ROW LEVEL SECURITY;
 
--- 7. RLS Policies for projects
+-- 7. Helper functions to prevent infinite recursion
+CREATE OR REPLACE FUNCTION get_user_projects()
+RETURNS SETOF uuid
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT project_id FROM project_members WHERE user_id = auth.uid();
+$$;
+
+CREATE OR REPLACE FUNCTION get_admin_projects()
+RETURNS SETOF uuid
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT project_id FROM project_members WHERE user_id = auth.uid() AND role = 'admin';
+$$;
+
+-- 8. RLS Policies for projects
 CREATE POLICY "Users can view projects they belong to" ON projects
   FOR SELECT USING (
-    id IN (SELECT project_id FROM project_members WHERE user_id = auth.uid())
+    id IN (SELECT get_user_projects())
     OR owner_id = auth.uid()
   );
 
@@ -82,38 +101,60 @@ CREATE POLICY "Project owners can update" ON projects
 CREATE POLICY "Project owners can delete" ON projects
   FOR DELETE USING (owner_id = auth.uid());
 
--- 8. RLS Policies for project_members
+-- 9. RLS Policies for project_members
 CREATE POLICY "Members can view project members" ON project_members
   FOR SELECT USING (
-    project_id IN (SELECT project_id FROM project_members WHERE user_id = auth.uid())
+    project_id IN (SELECT get_user_projects())
+    OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
   );
 
-CREATE POLICY "Admins can manage members" ON project_members
-  FOR ALL USING (
-    project_id IN (
-      SELECT project_id FROM project_members
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
+CREATE POLICY "Admins can insert members" ON project_members
+  FOR INSERT WITH CHECK (
+    project_id IN (SELECT get_admin_projects())
+    OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
   );
 
--- 9. RLS Policies for project_investments
+CREATE POLICY "Admins can update members" ON project_members
+  FOR UPDATE USING (
+    project_id IN (SELECT get_admin_projects())
+    OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
+  );
+
+CREATE POLICY "Admins can delete members" ON project_members
+  FOR DELETE USING (
+    project_id IN (SELECT get_admin_projects())
+    OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
+  );
+
+-- 10. RLS Policies for project_investments
 CREATE POLICY "Members can view investments" ON project_investments
   FOR SELECT USING (
-    project_id IN (SELECT project_id FROM project_members WHERE user_id = auth.uid())
+    project_id IN (SELECT get_user_projects())
+    OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
   );
 
-CREATE POLICY "Admins can manage investments" ON project_investments
-  FOR ALL USING (
-    project_id IN (
-      SELECT project_id FROM project_members
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
+CREATE POLICY "Admins can insert investments" ON project_investments
+  FOR INSERT WITH CHECK (
+    project_id IN (SELECT get_admin_projects())
+    OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
   );
 
--- 10. Update solar_readings RLS to include project scope
--- (Keep existing policies, add project-aware ones)
+CREATE POLICY "Admins can update investments" ON project_investments
+  FOR UPDATE USING (
+    project_id IN (SELECT get_admin_projects())
+    OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
+  );
+
+CREATE POLICY "Admins can delete investments" ON project_investments
+  FOR DELETE USING (
+    project_id IN (SELECT get_admin_projects())
+    OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
+  );
+
+-- 11. Update solar_readings RLS to include project scope
 CREATE POLICY "Members can view project readings" ON solar_readings
   FOR SELECT USING (
     project_id IS NULL
-    OR project_id IN (SELECT project_id FROM project_members WHERE user_id = auth.uid())
+    OR project_id IN (SELECT get_user_projects())
+    OR project_id IN (SELECT id FROM projects WHERE owner_id = auth.uid())
   );
