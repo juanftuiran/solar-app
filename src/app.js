@@ -187,7 +187,8 @@ function renderDashboardData() {
   setText('kpi-var-kw', fPct(kpis.varKw));
   
   const paybackMonths = kpis.avgSavings > 0 ? (totalInv / kpis.avgSavings) : 0;
-  setText('roi-time', Math.round(paybackMonths));
+  const paybackYears = paybackMonths / 12;
+  setText('roi-time', paybackYears > 0 ? fDec(paybackYears, 1) : 0);
   setText('roi-avg-savings', fCOP(kpis.avgSavings));
   setText('roi-total-investment', fCOP(totalInv));
 

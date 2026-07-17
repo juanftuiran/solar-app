@@ -235,8 +235,8 @@ export function calcKPIs(viewData, allData, investments) {
     roi = ((totalSavingsAll - totalInvestment) / totalInvestment) * 100;
   }
 
-  // Average monthly savings (from all data for payback projection)
-  const avgSavings = allData.length > 0 ? totalSavingsAll / allData.length : 0;
+  // Average monthly savings (from current view data for consistency with UI)
+  const avgSavings = viewData.length > 0 ? savings / viewData.length : 0;
 
   return { savings, gen, autonomy, varKw, roi, avgSavings };
 }

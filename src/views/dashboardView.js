@@ -439,7 +439,9 @@ function _renderROIPanel(totalInvestment, isAdmin) {
             <span class="lang-es">Recuperación</span>
             <span class="lang-en">Recovery</span>
           </div>
-          <div class="roi-stat-val" id="roi-time">--</div>
+          <div class="roi-stat-val">
+            <span id="roi-time">--</span> <span style="font-size:.65rem;color:#94a3b8;font-weight:400;" class="lang-es">Años aprox.</span><span style="font-size:.65rem;color:#94a3b8;font-weight:400;" class="lang-en">Years approx.</span>
+          </div>
         </div>
         <div class="roi-divider"></div>
         <div class="roi-stat">
