@@ -235,8 +235,13 @@ export function calcKPIs(viewData, allData, investments) {
     roi = ((totalSavingsAll - totalInvestment) / totalInvestment) * 100;
   }
 
-  // Average monthly savings (from current view data for consistency with UI)
-  const avgSavings = viewData.length > 0 ? savings / viewData.length : 0;
+  // Average monthly savings (recent estimate based on last 3 months of all data)
+  let avgSavings = 0;
+  if (allData && allData.length > 0) {
+    const last3 = allData.slice(-3);
+    const sumLast3 = last3.reduce((s, d) => s + (d.ahorroReal || 0), 0);
+    avgSavings = sumLast3 / last3.length;
+  }
 
   return { savings, gen, autonomy, varKw, roi, avgSavings };
 }
