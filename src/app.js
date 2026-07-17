@@ -476,13 +476,13 @@ async function handleSaveRecord(dataOrEvent) {
   const editId = document.getElementById('edit-id')?.value;
   const fecha = document.getElementById('new-fecha')?.value;
   if (!fecha) return;
-  const [year, month] = fecha.split('-');
+  const [year, month, day] = fecha.split('-');
   
-  // Ensure fecha is a valid YYYY-MM-DD for Postgres DATE column
-  const dbFecha = fecha.length === 7 ? `${fecha}-01` : fecha;
+  // Since input is now 'date', fecha is already in YYYY-MM-DD format
+  const dbFecha = fecha;
 
   const rec = {
-    id: editId || `${year}-${month}`,
+    id: editId || `${year}-${month}-${day || '01'}`,
     year: parseInt(year),
     monthIdx: parseInt(month),
     fecha: dbFecha,

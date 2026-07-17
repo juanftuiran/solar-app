@@ -757,7 +757,7 @@ function _renderRecordModal() {
               <span class="lang-es">Fecha</span>
               <span class="lang-en">Date</span>
             </label>
-            <input type="month" id="new-fecha" required>
+            <input type="date" id="new-fecha" required>
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
