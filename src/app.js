@@ -465,6 +465,7 @@ function openRecordModal(action = 'new', id = null) {
       const lr = document.getElementById('new-lectura-red'); if (lr) lr.value = rec.lecturaRed || 0;
       const ls = document.getElementById('new-lectura-solar'); if (ls) ls.value = rec.lecturaSolar || 0;
       const p = document.getElementById('new-precio'); if (p) p.value = rec.precioKw || 0;
+      const reset = document.getElementById('new-inverter-reset'); if (reset) reset.checked = !!rec.inverter_reset;
     }
   }
   modal.classList.remove('hidden');
@@ -494,6 +495,7 @@ async function handleSaveRecord(dataOrEvent) {
     lecturaSolar: parseFloat(document.getElementById('new-lectura-solar')?.value),
     precioKw: parseFloat(document.getElementById('new-precio')?.value),
     project_id: state.activeProject?.id || null,
+    inverter_reset: document.getElementById('new-inverter-reset')?.checked || false,
   };
 
   const btn = document.getElementById('btn-save');

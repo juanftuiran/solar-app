@@ -124,6 +124,7 @@ export function init(callbacks) {
         lecturaRed: parseFloat(document.getElementById('new-lectura-red')?.value) || 0,
         lecturaSolar: parseFloat(document.getElementById('new-lectura-solar')?.value) || 0,
         precioKw: parseFloat(document.getElementById('new-precio')?.value) || 0,
+        inverter_reset: document.getElementById('new-inverter-reset')?.checked || false,
       };
       onSaveRecord(data);
     });
@@ -785,6 +786,18 @@ function _renderRecordModal() {
               <span class="lang-en">kW Price (COP)</span>
             </label>
             <input type="number" id="new-precio" step="0.01" required>
+          </div>
+
+          <div class="field" style="margin-top:0.5rem;background:rgba(255,255,255,0.02);padding:0.75rem;border-radius:0.5rem;border:1px solid rgba(255,255,255,0.05);">
+            <label style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;">
+              <input type="checkbox" id="new-inverter-reset" style="margin-top:0.25rem;">
+              <div style="display:flex;flex-direction:column;gap:0.25rem;">
+                <span class="lang-es" style="font-weight:600;color:#e2e8f0;">Reinicio de inversor (Nuevo equipo)</span>
+                <span class="lang-en" style="font-weight:600;color:#e2e8f0;">Inverter reset (New equipment)</span>
+                <span class="lang-es" style="font-size:0.75rem;color:#94a3b8;font-weight:400;text-transform:none;">Marca esta opción si cambiaste el inversor y la lectura vuelve a empezar desde cero.</span>
+                <span class="lang-en" style="font-size:0.75rem;color:#94a3b8;font-weight:400;text-transform:none;">Check this if the inverter was replaced and the reading restarts from zero.</span>
+              </div>
+            </label>
           </div>
 
           <button type="submit" id="btn-save" class="btn btn-accent" style="width:100%;margin-top:.5rem;">

@@ -44,7 +44,10 @@ export function processData(rawData) {
     const prevSolar = prev.lecturaSolar ?? prev.inversores ?? 0;
 
     const consumoRed = Math.max(0, currRed - prevRed);
-    const prodBruta = Math.max(0, currSolar - prevSolar);
+    
+    // If the inverter was reset, the current reading is exactly the generation since the reset
+    const prodBruta = curr.inverter_reset ? currSolar : Math.max(0, currSolar - prevSolar);
+    
     const consumoTotal = consumoRed + prodBruta;
     const autonomia = consumoTotal > 0 ? (prodBruta / consumoTotal) * 100 : 0;
     const precioKw = curr.precioKw || 0;
