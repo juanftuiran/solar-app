@@ -262,12 +262,6 @@ async function loadProjectData(projectId) {
     const readings = await fetchProjectReadings(projectId);
     state.rawData = (readings || []).sort((a, b) => a.year !== b.year ? a.year - b.year : (a.monthIdx || 0) - (b.monthIdx || 0));
 
-    // If no project-specific readings, try legacy readings
-    if (state.rawData.length === 0) {
-      const allReadings = await fetchAllReadings();
-      state.rawData = (allReadings || []).sort((a, b) => a.year !== b.year ? a.year - b.year : (a.monthIdx || 0) - (b.monthIdx || 0));
-    }
-
     // Process data
     state.processedData = processData(state.rawData);
 
@@ -284,10 +278,6 @@ async function reloadProjectData() {
   if (!state.activeProject) return;
   const readings = await fetchProjectReadings(state.activeProject.id);
   state.rawData = (readings || []).sort((a, b) => a.year !== b.year ? a.year - b.year : (a.monthIdx || 0) - (b.monthIdx || 0));
-  if (state.rawData.length === 0) {
-    const allReadings = await fetchAllReadings();
-    state.rawData = (allReadings || []).sort((a, b) => a.year !== b.year ? a.year - b.year : (a.monthIdx || 0) - (b.monthIdx || 0));
-  }
   state.processedData = processData(state.rawData);
 }
 
