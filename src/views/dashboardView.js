@@ -1,7 +1,7 @@
 /**
  * @module dashboardView
  * @description Main dashboard view for JF Solar Cloud with ROI progress bar,
- * live preview in record modal, CSV export, and predictive eco-metrics.
+ * segmented dynamic chart controls, econometric tariff forecasting, and CSV export.
  */
 
 import { state } from '../modules/state.js';
@@ -77,7 +77,7 @@ export function init(callbacks) {
     onYearChange,
     onSaveRecord,
     onOpenNewRecord,
-    onToggleChart,
+    onToggleChartMode,
     onLogout,
     onNavigate,
     onLangChange,
@@ -160,15 +160,16 @@ export function init(callbacks) {
     });
   }
 
-  // Chart toggle buttons
-  const toggleEnergia = document.getElementById('btn-toggle-energy-chart');
-  const togglePrecio = document.getElementById('btn-toggle-price-chart');
-  if (toggleEnergia && onToggleChart) {
-    toggleEnergia.addEventListener('click', () => onToggleChart('energia'));
-  }
-  if (togglePrecio && onToggleChart) {
-    togglePrecio.addEventListener('click', () => onToggleChart('precio'));
-  }
+  // Segmented Chart Toggle buttons
+  document.querySelectorAll('.segmented-btn[data-chart-key]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const chartKey = btn.dataset.chartKey;
+      const mode = btn.dataset.mode;
+      if (onToggleChartMode) {
+        onToggleChartMode(chartKey, mode);
+      }
+    });
+  });
 
   // Projection table toggle
   const projToggle = document.getElementById('projection-table-toggle');
@@ -226,10 +227,6 @@ export function init(callbacks) {
   }
 }
 
-/**
- * Bind live calculation preview in the record modal.
- * Calculates delta kWh and estimated savings COP dynamically.
- */
 function _bindModalLivePreview() {
   const redInput = document.getElementById('new-lectura-red');
   const solarInput = document.getElementById('new-lectura-solar');
@@ -243,7 +240,6 @@ function _bindModalLivePreview() {
     const curPrice = parseFloat(priceInput?.value) || 0;
     const isReset = resetCheckbox?.checked || false;
 
-    // Find previous reading from rawData
     const rawData = state.rawData || [];
     const prev = rawData.length > 0 ? rawData[rawData.length - 1] : null;
 
@@ -277,13 +273,6 @@ function _bindModalLivePreview() {
   });
 }
 
-/**
- * Render table body rows from processed data.
- *
- * @param {Array<Object>} data - Array of processed reading records
- * @param {boolean} [isAdmin=false] - Whether to show admin action buttons
- * @returns {string} HTML string for `<tbody>` content
- */
 export function renderTableRows(data, isAdmin = false) {
   if (!data || data.length === 0) {
     return `
@@ -540,65 +529,80 @@ function _renderAIPanel() {
       <div class="ai-inner">
         <div class="ai-header">
           <div style="display:flex;align-items:center;gap:.5rem;">
-            <i class="fa-solid fa-brain" style="color:var(--ai);font-size:1.1rem;"></i>
-            <h3 style="font-size:.95rem;font-weight:800;color:#fff;">
-              <span class="lang-es">Inteligencia Predictiva & Pronóstico</span>
-              <span class="lang-en">Predictive Intelligence & Forecast</span>
-            </h3>
+            <i class="fa-solid fa-brain" style="color:var(--ai);font-size:1.15rem;"></i>
+            <div>
+              <h3 style="font-size:.95rem;font-weight:800;color:#fff;">
+                <span class="lang-es">Pronóstico Econométrico & Analítica Tarifaria</span>
+                <span class="lang-en">Econometric Forecasting & Tariff Intelligence</span>
+              </h3>
+              <p style="font-size:.7rem;color:var(--muted-light);">
+                <span class="lang-es">Modelo ponderado WLS + regresión exponencial con banda de confianza</span>
+                <span class="lang-en">Weighted WLS model + exponential regression with confidence band</span>
+              </p>
+            </div>
           </div>
-          <span class="ai-badge">AI Forecast Engine</span>
+          <span class="ai-badge" id="ai-model-badge">R² 92% Confianza</span>
         </div>
 
         <div class="ai-grid">
-          <!-- Future price -->
+          <!-- Future price (t+1) -->
           <div class="ai-item">
             <span class="ai-item-lbl">
-              <span class="lang-es">Precio Proyectado kW</span>
-              <span class="lang-en">Projected kW Price</span>
+              <span class="lang-es">Tarifa Estimada Próx. Mes</span>
+              <span class="lang-en">Next Month Est. Tariff</span>
             </span>
             <span id="ai-precio-futuro" class="ai-item-val" style="color:var(--ai);">--</span>
+            <span class="ai-item-sub" id="ai-rango-confianza">Banda: ± $0 COP</span>
           </div>
 
-          <!-- Trend -->
+          <!-- Trend & CAGR -->
           <div class="ai-item">
             <span class="ai-item-lbl">
-              <span class="lang-es">Tendencia Tarifaria</span>
-              <span class="lang-en">Tariff Trend</span>
+              <span class="lang-es">Tendencia & Inflación (CAGR)</span>
+              <span class="lang-en">Trend & Inflation (CAGR)</span>
             </span>
             <span id="ai-tendencia" class="ai-item-val">--</span>
+            <span class="ai-item-sub" id="ai-cagr">CAGR: +0.0% anual</span>
           </div>
 
-          <!-- Best month -->
+          <!-- 6-Month Horizon -->
           <div class="ai-item">
             <span class="ai-item-lbl">
-              <span class="lang-es">Pico de Mayor Gen.</span>
-              <span class="lang-en">Peak Gen Month</span>
+              <span class="lang-es">Proyección a 6 Meses</span>
+              <span class="lang-en">6-Month Forecast</span>
             </span>
-            <span id="ai-mejor-mes" class="ai-item-val" style="color:#fff;">--</span>
+            <span id="ai-precio-6m" class="ai-item-val" style="color:#fff;">--</span>
+            <span class="ai-item-sub">Horizonte medio plazo</span>
           </div>
 
-          <!-- Avoided Carbon -->
+          <!-- Estimated Monthly Savings -->
           <div class="ai-item">
             <span class="ai-item-lbl">
-              <span class="lang-es">CO₂ Evitado</span>
-              <span class="lang-en">Avoided CO₂</span>
+              <span class="lang-es">Ahorro Estimado Próx. Mes</span>
+              <span class="lang-en">Est. Next Month Savings</span>
             </span>
-            <span id="ai-co2" class="ai-item-val" style="color:var(--solar);">-- kg</span>
+            <span id="ai-ahorro-mes" class="ai-item-val" style="color:var(--solar);">--</span>
+            <span class="ai-item-sub">Basado en producción solar esperada</span>
           </div>
         </div>
 
-        <!-- Eco Banner -->
+        <!-- Eco & Peak Generation Banner -->
         <div class="eco-banner">
           <div class="eco-chips">
             <span class="eco-chip">
-              <i class="fa-solid fa-tree" style="color:var(--solar);"></i>
-              <span class="lang-es">Equivalente a: <strong id="eco-trees">--</strong> árboles plantados</span>
-              <span class="lang-en">Equivalent to: <strong id="eco-trees-en">--</strong> trees planted</span>
+              <i class="fa-solid fa-sun" style="color:var(--warning);"></i>
+              <span class="lang-es">Pico Histórico: <strong id="ai-mejor-mes">--</strong></span>
+              <span class="lang-en">Peak Gen Month: <strong id="ai-mejor-mes-en">--</strong></span>
             </span>
             <span class="eco-chip">
               <i class="fa-solid fa-leaf" style="color:var(--solar);"></i>
-              <span class="lang-es">Energía 100% Limpia</span>
-              <span class="lang-en">100% Clean Energy</span>
+              <span class="lang-es">CO₂ Evitado: <strong id="ai-co2">-- kg</strong></span>
+              <span class="lang-en">Avoided CO₂: <strong id="ai-co2-en">-- kg</strong></span>
+            </span>
+            <span class="eco-chip">
+              <i class="fa-solid fa-tree" style="color:var(--solar);"></i>
+              <span class="lang-es">Eq. <strong id="eco-trees">--</strong> árboles plantados</span>
+              <span class="lang-en">Eq. <strong id="eco-trees-en">--</strong> trees planted</span>
             </span>
           </div>
         </div>
@@ -670,6 +674,9 @@ function _renderKPIGrid() {
 }
 
 function _renderChartsGrid() {
+  const energyMode = state.chartModes.energia || 'bar';
+  const priceMode = state.chartModes.precio || 'line';
+
   return `
     <div class="charts-grid">
       <!-- Energy chart -->
@@ -680,11 +687,18 @@ function _renderChartsGrid() {
             <span class="lang-es">Balance Energético (Red vs Solar)</span>
             <span class="lang-en">Energy Balance (Grid vs Solar)</span>
           </h3>
-          <button id="btn-toggle-energy-chart" class="btn btn-ghost btn-sm" title="Cambiar tipo de gráfico">
-            <i class="fa-solid fa-chart-simple" style="margin-right:.3rem;"></i>
-            <span class="lang-es">Alternar</span>
-            <span class="lang-en">Toggle</span>
-          </button>
+
+          <!-- Segmented Control for Energy -->
+          <div class="segmented-control" id="control-chart-energia">
+            <button class="segmented-btn ${energyMode === 'bar' ? 'active' : ''}" data-chart-key="energia" data-mode="bar" type="button" title="Vista de Barras">
+              <i class="fa-solid fa-chart-simple"></i>
+              <span class="lang-es">Barras</span><span class="lang-en">Bars</span>
+            </button>
+            <button class="segmented-btn ${energyMode === 'line' ? 'active' : ''}" data-chart-key="energia" data-mode="line" type="button" title="Vista de Líneas">
+              <i class="fa-solid fa-chart-line"></i>
+              <span class="lang-es">Líneas</span><span class="lang-en">Lines</span>
+            </button>
+          </div>
         </div>
         <div class="chart-container">
           <canvas id="chart-energia"></canvas>
@@ -699,11 +713,18 @@ function _renderChartsGrid() {
             <span class="lang-es">Fluctuación de Tarifa kW (COP)</span>
             <span class="lang-en">kW Tariff Fluctuation (COP)</span>
           </h3>
-          <button id="btn-toggle-price-chart" class="btn btn-ghost btn-sm" title="Cambiar tipo de gráfico">
-            <i class="fa-solid fa-chart-line" style="margin-right:.3rem;"></i>
-            <span class="lang-es">Alternar</span>
-            <span class="lang-en">Toggle</span>
-          </button>
+
+          <!-- Segmented Control for Price -->
+          <div class="segmented-control" id="control-chart-precio">
+            <button class="segmented-btn ${priceMode === 'line' ? 'active' : ''}" data-chart-key="precio" data-mode="line" type="button" title="Vista de Líneas">
+              <i class="fa-solid fa-chart-line"></i>
+              <span class="lang-es">Líneas</span><span class="lang-en">Lines</span>
+            </button>
+            <button class="segmented-btn ${priceMode === 'bar' ? 'active' : ''}" data-chart-key="precio" data-mode="bar" type="button" title="Vista de Barras">
+              <i class="fa-solid fa-chart-simple"></i>
+              <span class="lang-es">Barras</span><span class="lang-en">Bars</span>
+            </button>
+          </div>
         </div>
         <div class="chart-container">
           <canvas id="chart-precio"></canvas>

@@ -9,7 +9,7 @@ import { sb, signIn, signOut, getSession, getUserRole, getUserProjects, getProje
 import { fCOP, fDec, fKwh, fPct, debounce } from './modules/formatters.js';
 import { t, monthName, MONTHS } from './modules/i18n.js';
 import { processData, filterByYear, calcProjections, calcKPIs } from './modules/analytics.js';
-import { renderEnergyChart, renderPriceChart, renderProjectionChart, destroyAllCharts, updateChartIcons } from './modules/charts.js';
+import { renderEnergyChart, renderPriceChart, renderProjectionChart, destroyAllCharts } from './modules/charts.js';
 
 import * as loginView from './views/loginView.js';
 import * as projectSelectorView from './views/projectSelectorView.js';
@@ -114,7 +114,7 @@ async function renderDashboardView(subView) {
     onDeleteRecord: handleDeleteRecord,
     onEditRecord: (id) => openRecordModal('edit', id),
     onOpenNewRecord: () => openRecordModal('new'),
-    onToggleChart: handleToggleChart,
+    onToggleChartMode: handleToggleChartMode,
     onLogout: handleLogout,
     onNavigate: handleSidebarNavigate,
     onLangChange: changeLang,
@@ -198,22 +198,23 @@ function renderDashboardData() {
   if (progressBarFill) progressBarFill.style.width = `${progressPct.toFixed(1)}%`;
   if (progressPercentText) progressPercentText.innerText = `${progressPct.toFixed(1)}% (${fCOP(totalSavingsAll)})`;
 
-  // Update Projections & Eco-Metrics
+  // Update Econometric Projections & Eco-Metrics
   const proj = calcProjections(state.viewData);
   setText('ai-precio-futuro', fCOP(proj.projectedPrice));
+  setText('ai-rango-confianza', `Banda: ± ${fCOP(proj.confidenceMargin)}`);
+  setText('ai-cagr', `CAGR: ${proj.cagrPct > 0 ? '+' : ''}${proj.cagrPct}% anual`);
+  setText('ai-precio-6m', fCOP(proj.projectedPrice6m));
+  setText('ai-ahorro-mes', fCOP(proj.projectedMonthlySavings));
   setText('ai-mejor-mes', proj.bestMonth);
   setText('ai-co2', `${proj.co2} kg`);
+  setText('eco-trees', String(proj.trees));
+  setText('eco-trees-en', String(proj.trees));
+
+  const modelBadge = document.getElementById('ai-model-badge');
+  if (modelBadge) modelBadge.innerText = `R² ${proj.rSquared}% Confianza`;
+
   const tEl = document.getElementById('ai-tendencia');
   if (tEl) tEl.innerHTML = `<span class="${proj.trendColor}"><i class="fa-solid ${proj.trendIcon}"></i> ${proj.trend}</span>`;
-
-  // Eco Trees calculation (approx 22 kg CO2 / tree / year)
-  const totalGenAll = state.processedData.reduce((s, d) => s + (d.prodBruta || 0), 0);
-  const totalCO2Kg = totalGenAll * 0.38;
-  const treesEq = Math.round(totalCO2Kg / 22);
-  setText('eco-trees', String(treesEq));
-  setText('eco-trees-en', String(treesEq));
-
-  updateChartIcons();
 }
 
 function bindTableEvents(tbody) {
@@ -257,6 +258,23 @@ function bindTableEvents(tbody) {
       if (det) det.classList.toggle('hidden');
     });
   });
+}
+
+// ── Segmented Chart Mode Toggle ───────────────────────────────────────────────
+function handleToggleChartMode(chartKey, mode) {
+  if (chartKey === 'energia') {
+    state.chartModes.energia = mode;
+    renderEnergyChart(state.viewData);
+    document.querySelectorAll('#control-chart-energia .segmented-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+  } else if (chartKey === 'precio') {
+    state.chartModes.precio = mode;
+    renderPriceChart(state.viewData);
+    document.querySelectorAll('#control-chart-precio .segmented-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+  }
 }
 
 // ── Export CSV Handler ────────────────────────────────────────────────────────
@@ -345,7 +363,7 @@ async function reloadProjectData() {
   state.processedData = processData(state.rawData);
 }
 
-// ── Event Handlers ────────────────────────────────────────────────────────────
+// ── Event Handlers ────────────────────────────────────────────────────
 async function handleLogin(email, password) {
   const btn = document.getElementById('btn-login');
   const orig = btn?.innerHTML;
@@ -520,9 +538,7 @@ function openRecordModal(action = 'new', id = null) {
     }
   }
 
-  // Trigger live calculation update
   document.getElementById('new-lectura-red')?.dispatchEvent(new Event('input'));
-
   modal.classList.remove('hidden');
 }
 
@@ -586,17 +602,6 @@ async function handleDeleteRecord(id, fecha) {
       }
     }
   });
-}
-
-function handleToggleChart(type) {
-  if (type === 'energia') {
-    state.chartModes.energia = state.chartModes.energia === 'bar' ? 'line' : 'bar';
-    renderEnergyChart(state.viewData);
-  } else {
-    state.chartModes.precio = state.chartModes.precio === 'line' ? 'bar' : 'line';
-    renderPriceChart(state.viewData);
-  }
-  updateChartIcons();
 }
 
 // ── Settings Handlers ─────────────────────────────────────────────────────────
@@ -738,7 +743,7 @@ window.__logout = handleLogout;
 window.__changeLang = changeLang;
 window.__openRecordModal = (action, id) => openRecordModal(action, id);
 window.__closeRecordModal = () => document.getElementById('add-record-modal')?.classList.add('hidden');
-window.__toggleChart = handleToggleChart;
+window.__handleToggleChartMode = handleToggleChartMode;
 window.__selectProject = handleSelectProject;
 window.__createProject = handleCreateProject;
 window.__toggleLangMenu = () => document.getElementById('lang-menu')?.classList.toggle('hidden');

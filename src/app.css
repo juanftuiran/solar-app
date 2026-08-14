@@ -118,7 +118,6 @@ body[data-lang="en"] .lang-es { display: none !important; }
 @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes slideInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
-@keyframes shimmerGlow { 0% { opacity: 0.4; } 50% { opacity: 0.9; } 100% { opacity: 0.4; } }
 
 .spin { animation: spin .85s linear infinite; }
 .pulse { animation: pulse 2s ease-in-out infinite; }
@@ -174,7 +173,7 @@ body[data-lang="en"] .lang-es { display: none !important; }
 
 /* ── Modal Overlay & Box ──────────────────────────────────────────────────── */
 .modal-overlay {
-  position: fixed; inset: 0; z-index: 100;
+  position: fixed; inset: 0; z-index: 200;
   display: flex; align-items: center; justify-content: center;
   background: rgba(7, 12, 24, 0.85);
   backdrop-filter: blur(12px);
@@ -372,6 +371,42 @@ body[data-lang="en"] .lang-es { display: none !important; }
 .btn-sm { padding: .35rem .75rem; font-size: .8rem; }
 .btn-lg { padding: .75rem 1.5rem; font-size: 1rem; }
 
+/* ── Segmented Control Tabs (Chart Toggles) ───────────────────────────────── */
+.segmented-control {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(13, 21, 39, 0.85);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 3px;
+}
+.segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .35rem .75rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted-light);
+  font-size: .75rem;
+  font-weight: 700;
+  font-family: var(--font);
+  border-radius: calc(var(--radius-sm) - 3px);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+.segmented-btn:hover {
+  color: #fff;
+}
+.segmented-btn.active {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.3), rgba(14, 165, 233, 0.15));
+  color: #fff;
+  border-color: rgba(14, 165, 233, 0.5);
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
+}
+
 /* ── App Layout ───────────────────────────────────────────────────────────── */
 .app-layout {
   display: flex;
@@ -389,7 +424,7 @@ body[data-lang="en"] .lang-es { display: none !important; }
   flex-direction: column;
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: 40;
   transition: transform var(--transition);
 }
 .sidebar-brand {
@@ -470,7 +505,7 @@ body[data-lang="en"] .lang-es { display: none !important; }
 /* Mobile sidebar */
 .sidebar-toggle {
   display: none;
-  position: fixed; top: .75rem; left: .75rem; z-index: 45;
+  position: fixed; top: .75rem; left: .75rem; z-index: 80;
   width: 2.5rem; height: 2.5rem;
   background: var(--card-solid); border: 1px solid var(--border-medium);
   border-radius: var(--radius-sm);
@@ -481,7 +516,7 @@ body[data-lang="en"] .lang-es { display: none !important; }
 }
 .sidebar-overlay {
   display: none;
-  position: fixed; inset: 0; z-index: 25;
+  position: fixed; inset: 0; z-index: 70;
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(4px);
 }
@@ -490,7 +525,7 @@ body[data-lang="en"] .lang-es { display: none !important; }
   .sidebar {
     position: fixed; left: 0; top: 0;
     transform: translateX(-100%);
-    z-index: 40;
+    z-index: 75;
     box-shadow: var(--shadow-lg);
   }
   .sidebar.open, .sidebar.sidebar--open {
@@ -519,13 +554,16 @@ body[data-lang="en"] .lang-es { display: none !important; }
   animation: fadeIn .3s ease-out;
 }
 @media (min-width: 1024px) { .content-area { padding: 2rem; } }
-@media (max-width: 860px) { .content-area { padding-top: 4rem; } }
+@media (max-width: 860px) { .content-area { padding-top: 4.5rem; } }
 
-/* ── App Header (Topbar) ──────────────────────────────────────────────────── */
+/* ── App Header (Topbar with Stacking Context) ────────────────────────────── */
 .app-header {
+  position: relative;
+  z-index: 50; /* Higher stacking context to ensure dropdowns overlap cards */
   display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem;
-  background: rgba(17, 27, 49, 0.6);
+  background: rgba(17, 27, 49, 0.7);
   backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem 1.25rem;
@@ -543,7 +581,10 @@ body[data-lang="en"] .lang-es { display: none !important; }
   color: var(--muted-light); text-decoration: none; transition: color var(--transition-fast);
 }
 .header-breadcrumbs a:hover { color: var(--accent); }
-.header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; }
+.header-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .625rem;
+  position: relative;
+}
 
 /* Status pill indicator */
 .status-pill {
@@ -773,25 +814,25 @@ body[data-lang="en"] .lang-es { display: none !important; }
   font-variant-numeric: tabular-nums;
 }
 
-/* ── AI / Predictive Intelligence & Eco Panel ─────────────────────────────── */
+/* ── AI / Predictive Intelligence & Econometric Panel ─────────────────────── */
 .ai-panel {
   padding: 1px;
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(14, 165, 233, 0.2), rgba(16, 185, 129, 0.3));
   border-radius: var(--radius);
 }
 .ai-inner {
-  padding: 1.25rem;
+  padding: 1.35rem;
   background: var(--bg-elevated);
   border-radius: calc(var(--radius) - 1px);
 }
 .ai-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 1rem; flex-wrap: wrap; gap: .5rem;
+  margin-bottom: 1.25rem; flex-wrap: wrap; gap: .5rem;
 }
 .ai-badge {
   font-size: .65rem; background: var(--ai-subtle); color: #c084fc;
   border: 1px solid rgba(139, 92, 246, 0.3);
-  padding: .2rem .5rem; border-radius: var(--radius-xs);
+  padding: .25rem .6rem; border-radius: var(--radius-xs);
   font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
 }
 .ai-grid {
@@ -799,7 +840,10 @@ body[data-lang="en"] .lang-es { display: none !important; }
   grid-template-columns: 1fr;
   gap: 1.25rem;
 }
-@media (min-width: 768px) {
+@media (min-width: 640px) {
+  .ai-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) {
   .ai-grid { grid-template-columns: repeat(4, 1fr); }
 }
 .ai-item {
@@ -811,11 +855,14 @@ body[data-lang="en"] .lang-es { display: none !important; }
   font-size: .65rem; color: var(--muted-light); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .25rem;
 }
 .ai-item-val {
-  font-size: 1.15rem; font-weight: 900;
+  font-size: 1.2rem; font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
+.ai-item-sub {
+  font-size: .7rem; color: var(--muted-light); margin-top: .15rem;
+}
 .eco-banner {
-  margin-top: 1rem; padding-top: .875rem;
+  margin-top: 1.25rem; padding-top: 1rem;
   border-top: 1px solid var(--border);
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
   gap: .75rem;
@@ -934,8 +981,11 @@ tbody td {
   letter-spacing: .05em; color: var(--accent); margin-bottom: .25rem;
 }
 
-/* ── Language Dropdown ────────────────────────────────────────────────────── */
-.lang-dropdown { position: relative; }
+/* ── Language Dropdown (Ensuring High Stacking z-index) ────────────────────── */
+.lang-dropdown {
+  position: relative;
+  z-index: 100;
+}
 .lang-btn {
   display: flex; align-items: center; gap: .4rem;
   background: rgba(30, 41, 59, 0.7); border: 1px solid var(--border-medium); color: #fff;
@@ -951,8 +1001,9 @@ tbody td {
   position: absolute; right: 0; top: calc(100% + .5rem);
   background: var(--bg-elevated); border: 1px solid var(--border-medium);
   border-radius: var(--radius-sm); overflow: hidden;
-  min-width: 9.5rem; z-index: 55;
-  box-shadow: var(--shadow-lg);
+  min-width: 9.5rem;
+  z-index: 150; /* Always renders in front of subsequent cards */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
   animation: fadeIn .15s ease-out;
 }
 .lang-option {
@@ -1004,7 +1055,7 @@ tbody td {
 
 /* ── Toast Notifications ──────────────────────────────────────────────────── */
 .toast {
-  position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 120;
+  position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 250;
   background: var(--bg-elevated); border: 1px solid var(--border-medium);
   border-radius: var(--radius-sm); padding: .85rem 1.25rem;
   box-shadow: var(--shadow-lg);

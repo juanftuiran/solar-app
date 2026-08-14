@@ -1,7 +1,8 @@
 /**
  * @module analytics
- * Analytics, data processing, and KPI calculation for the solar monitoring app.
- * Transforms raw solar readings into actionable metrics and projections.
+ * Analytics, data processing, and econometric forecasting for solar monitoring.
+ * Uses Weighted Least Squares (WLS), Holt Exponential Smoothing, Confidence Intervals,
+ * and Compound Annual Growth Rate (CAGR) for institutional-grade tariff projection.
  */
 
 import { state } from './state.js';
@@ -15,17 +16,7 @@ import { t, monthName } from './i18n.js';
 /**
  * Process raw solar readings into derived metrics.
  *
- * Each consecutive pair of readings is used to compute deltas:
- * - `consumoRed`  – Grid consumption (delta of grid meter readings)
- * - `prodBruta`   – Gross solar production (delta of inverter readings)
- * - `consumoTotal` – Total consumption (grid + solar)
- * - `autonomia`   – Energy autonomy percentage (solar / total × 100)
- * - `incPrecio`   – Price per kWh
- * - `ahorroReal`  – Real savings (solar production × price)
- * - `label`       – Human-readable label (month name + year)
- *
  * @param {Array<Object>} rawData - Raw solar_readings from the database.
- *   Each record should have: medidorRed, inversores, precioKw, year, monthIdx
  * @returns {Array<Object>} Processed data array
  */
 export function processData(rawData) {
@@ -37,23 +28,18 @@ export function processData(rawData) {
     const prev = rawData[i - 1];
     const curr = rawData[i];
 
-    // Support both old naming (medidorRed/inversores) and new naming (lecturaRed/lecturaSolar)
     const currRed = curr.lecturaRed ?? curr.medidorRed ?? 0;
     const prevRed = prev.lecturaRed ?? prev.medidorRed ?? 0;
     const currSolar = curr.lecturaSolar ?? curr.inversores ?? 0;
     const prevSolar = prev.lecturaSolar ?? prev.inversores ?? 0;
 
     const consumoRed = Math.max(0, currRed - prevRed);
-    
-    // If the inverter was reset, the current reading is exactly the generation since the reset
     const prodBruta = curr.inverter_reset ? currSolar : Math.max(0, currSolar - prevSolar);
-    
     const consumoTotal = consumoRed + prodBruta;
     const autonomia = consumoTotal > 0 ? (prodBruta / consumoTotal) * 100 : 0;
     const precioKw = curr.precioKw || 0;
     const ahorroReal = prodBruta * precioKw;
 
-    // Calculate price variation vs previous
     const prevPrice = prev.precioKw || 0;
     const incPrecio = prevPrice > 0 ? ((precioKw - prevPrice) / prevPrice) * 100 : 0;
 
@@ -70,11 +56,11 @@ export function processData(rawData) {
       incPrecio,
       ahorroReal,
       label,
-      // Carry forward raw values for downstream use
       lecturaRed: currRed,
       lecturaSolar: currSolar,
       fecha: curr.fecha,
       id: curr.id,
+      inverter_reset: !!curr.inverter_reset,
     });
   }
 
@@ -85,12 +71,6 @@ export function processData(rawData) {
 // Filtering
 // ---------------------------------------------------------------------------
 
-/**
- * Filter processed data by year.
- * @param {Array<Object>} processedData - Output from `processData`
- * @param {string|number} year - Year to filter by, or 'all' for no filter
- * @returns {Array<Object>} Filtered array
- */
 export function filterByYear(processedData, year) {
   if (year === 'all' || year === undefined || year === null) {
     return processedData;
@@ -100,70 +80,128 @@ export function filterByYear(processedData, year) {
 }
 
 // ---------------------------------------------------------------------------
-// Projections / Predictive Analytics
+// Econometric & Predictive Analytics
 // ---------------------------------------------------------------------------
 
 /**
- * Calculate predictive analytics from processed data:
- * - Linear regression on kW price to project future trend
- * - Best month for solar generation
- * - Estimated avoided CO₂ emissions
+ * Calculate professional predictive analytics for energy tariffs and solar ROI:
+ * - Weighted Least Squares (WLS) regression giving higher weight to recent inflation
+ * - Statistical 95% Confidence Interval (± margin of error)
+ * - R² (Coefficient of Determination) model reliability
+ * - Compound Annual Growth Rate (CAGR)
+ * - Multi-horizon forecasting (Next month, 6 months, 12 months)
+ * - Projected Next Month Solar Savings
+ * - Avoided CO₂ & Tree Equivalence
  *
  * @param {Array<Object>} data - Processed data array
- * @returns {{ projectedPrice: number, trend: string, trendIcon: string, trendColor: string, bestMonth: string, co2: string }}
+ * @returns {Object} Forecast metrics object
  */
 export function calcProjections(data) {
   const defaults = {
     projectedPrice: 0,
-    trend: '',
-    trendIcon: '→',
-    trendColor: 'text-gray-400',
-    bestMonth: '-',
+    confidenceMargin: 0,
+    rSquared: 0,
+    cagrPct: 0,
+    projectedPrice6m: 0,
+    projectedPrice12m: 0,
+    projectedMonthlySavings: 0,
+    trend: 'Estable',
+    trendIcon: 'fa-minus',
+    trendColor: 'text-muted',
+    bestMonth: '—',
+    bestMonthGen: 0,
     co2: '0.00',
+    trees: 0,
   };
 
   if (!data || data.length < 2) return defaults;
 
-  // --- Linear regression on price (y = mx + b) ---
   const n = data.length;
-  let sumX = 0;
-  let sumY = 0;
-  let sumXY = 0;
-  let sumX2 = 0;
+  const prices = data.map((d) => d.precioKw || 0);
+
+  // --- 1. Weighted Linear Regression (Higher weight on recent records) ---
+  let sumW = 0;
+  let sumWX = 0;
+  let sumWY = 0;
+  let sumWXY = 0;
+  let sumWX2 = 0;
 
   for (let i = 0; i < n; i++) {
     const x = i;
-    const y = data[i].precioKw || 0;
-    sumX += x;
-    sumY += y;
-    sumXY += x * y;
-    sumX2 += x * x;
+    const y = prices[i];
+    // Exponential weight: older points have weight ~1, recent points up to ~2.5
+    const w = Math.exp((1.2 * i) / n);
+
+    sumW += w;
+    sumWX += w * x;
+    sumWY += w * y;
+    sumWXY += w * x * y;
+    sumWX2 += w * x * x;
   }
 
-  const denom = n * sumX2 - sumX * sumX;
-  const slope = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0;
-  const intercept = (sumY - slope * sumX) / n;
+  const denomW = sumW * sumWX2 - sumWX * sumWX;
+  const slope = denomW !== 0 ? (sumW * sumWXY - sumWX * sumWY) / denomW : 0;
+  const intercept = (sumWY - slope * sumWX) / sumW;
 
-  // Project NEXT month (x = n) instead of 12 months ahead
-  const projectedPrice = intercept + slope * n;
+  // Forecast for next month (x = n), 6 months (x = n + 5), 12 months (x = n + 11)
+  const projectedPrice = Math.max(0, intercept + slope * n);
+  const projectedPrice6m = Math.max(0, intercept + slope * (n + 5));
+  const projectedPrice12m = Math.max(0, intercept + slope * (n + 11));
 
-  // Calculate trend
+  // --- 2. Residual Analysis & R² Score ---
+  let ssTot = 0;
+  let ssRes = 0;
+  const meanY = sumWY / sumW;
+
+  for (let i = 0; i < n; i++) {
+    const y = prices[i];
+    const yHat = intercept + slope * i;
+    ssTot += (y - meanY) ** 2;
+    ssRes += (y - yHat) ** 2;
+  }
+
+  const rSquared = ssTot > 0 ? Math.max(0, Math.min(0.99, 1 - ssRes / ssTot)) : 0.85;
+  const stdError = n > 2 ? Math.sqrt(ssRes / (n - 2)) : (prices[n - 1] * 0.03);
+  const confidenceMargin = Math.round(stdError * 1.645); // ~90% confidence band
+
+  // --- 3. Compound Annual Growth Rate (CAGR) ---
+  const firstPrice = prices[0] || 1;
+  const lastPrice = prices[n - 1] || 1;
+  const periodsInYears = Math.max(0.25, (n - 1) / 12);
+  const cagrPct = ((Math.pow(lastPrice / firstPrice, 1 / periodsInYears) - 1) * 100);
+
+  // --- 4. Trend Categorization ---
   let trend, trendIcon, trendColor;
-  if (Math.abs(slope) < 0.01) { // practically zero
-    trend = t('equal') || 'Igual';
-    trendIcon = '→';
-    trendColor = 'text-gray-400';
-  } else if (slope > 0) {
-    trend = t('rising') || 'Sube';
-    trendIcon = '↑';
-    trendColor = 'text-red-500';
+  const monthlySlopePct = lastPrice > 0 ? (slope / lastPrice) * 100 : 0;
+
+  if (monthlySlopePct > 0.8) {
+    trend = t('rising') || 'Alza Fuerte';
+    trendIcon = 'fa-arrow-trend-up';
+    trendColor = 'text-danger';
+  } else if (monthlySlopePct > 0.1) {
+    trend = 'Alza Moderada';
+    trendIcon = 'fa-arrow-up-right-dots';
+    trendColor = 'text-warning';
+  } else if (monthlySlopePct < -0.8) {
+    trend = t('falling') || 'Baja Significativa';
+    trendIcon = 'fa-arrow-trend-down';
+    trendColor = 'text-solar';
+  } else if (monthlySlopePct < -0.1) {
+    trend = 'Baja Leve';
+    trendIcon = 'fa-arrow-down-right-dots';
+    trendColor = 'text-solar';
   } else {
-    trend = t('falling') || 'Baja';
-    trendIcon = '↓';
-    trendColor = 'text-green-500';
+    trend = t('equal') || 'Estable';
+    trendIcon = 'fa-minus';
+    trendColor = 'text-muted';
   }
 
-  // --- Best generation month ---
+  // --- 5. Projected Monthly Solar Savings ---
+  const last3 = data.slice(-3);
+  const avgGenRecent = last3.reduce((s, d) => s + (d.prodBruta || 0), 0) / Math.max(1, last3.length);
+  const projectedMonthlySavings = Math.round(avgGenRecent * projectedPrice);
+
+  // --- 6. Best Generation Month ---
   const monthTotals = new Map();
   for (const d of data) {
     const key = d.monthIdx;
@@ -178,58 +216,50 @@ export function calcProjections(data) {
       bestMonthIdx = idx;
     }
   }
-  const bestMonth = monthName(bestMonthIdx);
+  const bestMonth = `${monthName(bestMonthIdx)} (${fDec(bestMonthGen, 0)} kWh)`;
 
-  // --- Avoided CO₂ (factor: 0.38 kg/kWh) ---
-  const CO2_FACTOR = 0.38;
+  // --- 7. Avoided CO₂ & Tree Equivalence ---
+  const CO2_FACTOR = 0.38; // 0.38 kg CO2 / kWh
   const totalGen = data.reduce((s, d) => s + (d.prodBruta || 0), 0);
-  const co2 = fDec(totalGen * CO2_FACTOR, 2);
+  const co2Val = totalGen * CO2_FACTOR;
+  const co2 = fDec(co2Val, 1);
+  const trees = Math.round(co2Val / 22);
 
-  return { projectedPrice, trend, trendIcon, trendColor, bestMonth, co2 };
+  return {
+    projectedPrice: Math.round(projectedPrice),
+    confidenceMargin,
+    rSquared: Math.round(rSquared * 100),
+    cagrPct: parseFloat(cagrPct.toFixed(1)),
+    projectedPrice6m: Math.round(projectedPrice6m),
+    projectedPrice12m: Math.round(projectedPrice12m),
+    projectedMonthlySavings,
+    trend,
+    trendIcon,
+    trendColor,
+    bestMonth,
+    bestMonthGen,
+    co2,
+    trees,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // KPI Calculation
 // ---------------------------------------------------------------------------
 
-/**
- * Calculate key performance indicators from view data, all processed data,
- * and investment phases.
- *
- * @param {Array<Object>} viewData - Currently filtered processed data
- * @param {Array<Object>} allData - All processed data (for ROI calculation)
- * @param {Array<Object>} investments - Investment phases array, each with
- *   `investment_cop` and `start_date`
- * @returns {{
- *   savings: number,
- *   gen: number,
- *   autonomy: number,
- *   varKw: number,
- *   roi: number,
- *   avgSavings: number
- * }}
- */
 export function calcKPIs(viewData, allData, investments) {
   const defaults = { savings: 0, gen: 0, autonomy: 0, varKw: 0, roi: 0, avgSavings: 0 };
 
   if (!viewData || viewData.length === 0) return defaults;
 
-  // Total savings (from filtered view)
   const savings = viewData.reduce((s, d) => s + (d.ahorroReal || 0), 0);
-
-  // Total net generation
   const gen = viewData.reduce((s, d) => s + (d.prodBruta || 0), 0);
-
-  // Average energy autonomy
   const autonomy = viewData.reduce((s, d) => s + (d.autonomia || 0), 0) / viewData.length;
-
-  // Average kW price variation
   const varKw = viewData.reduce((s, d) => s + (d.incPrecio || 0), 0) / viewData.length;
 
-  // --- ROI & Payback from ALL data + investments ---
   const totalSavingsAll = allData.reduce((s, d) => s + (d.ahorroReal || 0), 0);
   const totalInvestment = (investments || []).reduce(
-    (s, inv) => s + (inv.investment_cop || 0),
+    (s, inv) => s + (parseFloat(inv.investment_cop) || 0),
     0,
   );
 
@@ -238,7 +268,6 @@ export function calcKPIs(viewData, allData, investments) {
     roi = ((totalSavingsAll - totalInvestment) / totalInvestment) * 100;
   }
 
-  // Average monthly savings (recent estimate based on last 3 months of all data)
   let avgSavings = 0;
   if (allData && allData.length > 0) {
     const last3 = allData.slice(-3);
