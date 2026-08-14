@@ -1,106 +1,93 @@
 /**
  * @module projectCard
- * @description Project card component for the JF Solar Cloud project selector.
- * Renders a glass-style card displaying project metadata with role-based styling.
+ * @description Modern enterprise project card component for JF Solar Cloud.
  */
 
 /**
  * Render a project card HTML string.
  *
  * @param {Object} project - Project data object
- * @param {string} project.id - Unique project identifier
- * @param {string} project.name - Display name
- * @param {string} [project.location] - Geographic location
- * @param {number} [project.capacity_kw] - Installed capacity in kW
- * @param {string} [project.slug] - URL-friendly slug
  * @param {string} role - User's role for this project: 'admin' | 'observer'
  * @param {number} investmentCount - Number of investment phases
- * @param {string} onSelect - Name of the global callback registered on `window`, called with project.id
+ * @param {string} onSelect - Name of the global callback registered on `window`
  * @returns {string} HTML string for the project card
  */
 export function renderProjectCard(project, role, investmentCount, onSelect) {
-  const borderColor = role === 'admin' ? '#0ea5e9' : '#10b981';
-  const roleLabelEs = role === 'admin' ? 'Administrador' : 'Observador';
-  const roleLabelEn = role === 'admin' ? 'Administrator' : 'Observer';
-  const roleBg = role === 'admin' ? 'rgba(14,165,233,.15)' : 'rgba(16,185,129,.15)';
-  const roleColor = role === 'admin' ? '#0ea5e9' : '#10b981';
+  const isAdmin = role === 'admin';
+  const roleLabelEs = isAdmin ? 'Administrador' : 'Observador';
+  const roleLabelEn = isAdmin ? 'Administrator' : 'Observer';
 
-  const capacity = project.capacity_kw
-    ? `${parseFloat(project.capacity_kw).toFixed(1)} kW`
-    : '—';
+  const capacityVal = project.capacity_kw ? parseFloat(project.capacity_kw) : 0;
+  const capacityStr = capacityVal > 0 ? `${capacityVal.toFixed(1)} kW` : '—';
+  const panelsStr = project.panel_count ? `${project.panel_count}` : '—';
 
   return `
     <div
-      class="card project-card"
+      class="card card-interactive project-card role-${role}"
       data-project-id="${project.id}"
-      style="
-        border-left:4px solid ${borderColor};
-        padding:1.25rem;
-        cursor:pointer;
-        transition:transform .2s,box-shadow .2s;
-      "
-      onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.3)';"
-      onmouseleave="this.style.transform='';this.style.boxShadow='';"
+      tabindex="0"
+      role="button"
+      aria-label="${_escapeHTML(project.name)}"
     >
-      <!-- Header: name + role badge -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem;">
-        <h3 style="font-size:1rem;font-weight:700;color:#e2e8f0;line-height:1.3;">
-          ${_escapeHTML(project.name)}
-        </h3>
-        <span style="
-          font-size:.625rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
-          padding:.2rem .5rem;border-radius:.25rem;white-space:nowrap;
-          background:${roleBg};color:${roleColor};
-        ">
-          <span class="lang-es">${roleLabelEs}</span>
-          <span class="lang-en">${roleLabelEn}</span>
-        </span>
+      <div>
+        <!-- Card Header -->
+        <div class="project-card-header">
+          <div style="display:flex;align-items:center;gap:.5rem;min-width:0;">
+            <span class="online-dot" style="flex-shrink:0;"></span>
+            <h3 class="project-card-name" title="${_escapeHTML(project.name)}">
+              ${_escapeHTML(project.name)}
+            </h3>
+          </div>
+          <span class="role-badge ${role}">
+            <span class="lang-es">${roleLabelEs}</span>
+            <span class="lang-en">${roleLabelEn}</span>
+          </span>
+        </div>
+
+        <!-- Location -->
+        <div class="project-card-location">
+          <i class="fa-solid fa-location-dot" style="color:var(--muted-light);font-size:.75rem;"></i>
+          <span>${project.location ? _escapeHTML(project.location) : '<em style="opacity:.6">Sin ubicación</em>'}</span>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="project-card-stats">
+          <div>
+            <span class="project-card-stat-lbl">
+              <span class="lang-es">Capacidad</span><span class="lang-en">Capacity</span>
+            </span>
+            <span class="project-card-stat-val text-solar">
+              <i class="fa-solid fa-bolt" style="font-size:.75rem;"></i> ${capacityStr}
+            </span>
+          </div>
+
+          <div>
+            <span class="project-card-stat-lbl">
+              <span class="lang-es">Paneles / Fases</span><span class="lang-en">Panels / Phases</span>
+            </span>
+            <span class="project-card-stat-val text-accent">
+              <i class="fa-solid fa-solar-panel" style="font-size:.75rem;"></i> ${panelsStr} <span style="opacity:.4;font-weight:400">/</span> ${investmentCount}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <!-- Location -->
-      ${project.location ? `
-        <div style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;color:#94a3b8;margin-bottom:.5rem;">
-          <i class="fa-solid fa-location-dot" style="font-size:.7rem;"></i>
-          <span>${_escapeHTML(project.location)}</span>
-        </div>
-      ` : ''}
-
-      <!-- Stats row -->
-      <div style="display:flex;gap:1rem;margin-top:.75rem;">
-        <!-- Capacity -->
-        <div style="flex:1;">
-          <p style="font-size:.625rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">
-            <span class="lang-es">Capacidad</span>
-            <span class="lang-en">Capacity</span>
-          </p>
-          <p style="font-size:.9rem;font-weight:700;color:#10b981;">
-            <i class="fa-solid fa-solar-panel" style="font-size:.7rem;margin-right:.25rem;"></i>${capacity}
-          </p>
-        </div>
-
-        <!-- Investment phases -->
-        <div style="flex:1;">
-          <p style="font-size:.625rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">
-            <span class="lang-es">Fases</span>
-            <span class="lang-en">Phases</span>
-          </p>
-          <p style="font-size:.9rem;font-weight:700;color:#0ea5e9;">
-            <i class="fa-solid fa-layer-group" style="font-size:.7rem;margin-right:.25rem;"></i>${investmentCount}
-          </p>
-        </div>
+      <!-- Footer CTA -->
+      <div class="project-card-footer">
+        <span style="font-size:.75rem;color:var(--muted-light);">
+          <span class="lang-es">Acceder al panel</span>
+          <span class="lang-en">Open dashboard</span>
+        </span>
+        <span class="project-card-enter">
+          <span class="lang-es">Entrar</span>
+          <span class="lang-en">Enter</span>
+          <i class="fa-solid fa-arrow-right" style="font-size:.75rem;"></i>
+        </span>
       </div>
     </div>
   `;
 }
 
-/* ── Private helpers ──────────────────────────────────────────────────────── */
-
-/**
- * Escape HTML special characters to prevent XSS.
- * @param {string} str
- * @returns {string}
- * @private
- */
 function _escapeHTML(str) {
   if (!str) return '';
   return str

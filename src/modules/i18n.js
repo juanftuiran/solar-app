@@ -133,6 +133,28 @@ export const T = {
   // Limits
   maxProjectsReached: { es: 'Máximo de proyectos alcanzado', en: 'Maximum projects reached' },
   limitIs20:          { es: 'El límite es de 20 proyectos', en: 'The limit is 20 projects' },
+
+  // Enhanced features
+  exportCsv:             { es: 'Exportar CSV', en: 'Export CSV' },
+  exportData:            { es: 'Exportar Datos', en: 'Export Data' },
+  searchProjects:        { es: 'Buscar proyecto por nombre o ubicación...', en: 'Search projects by name or location...' },
+  searchRecords:         { es: 'Buscar registros...', en: 'Search records...' },
+  paybackProgress:       { es: 'Progreso de Retorno de Inversión', en: 'Investment Payback Progress' },
+  recovered:             { es: 'Recuperado', en: 'Recovered' },
+  remaining:             { es: 'Restante', en: 'Remaining' },
+  treesEquivalent:       { es: 'Árboles Plantados Eq.', en: 'Equiv. Trees Planted' },
+  estimatedNextMonth:    { es: 'Ahorro Próximo Mes', en: 'Next Month Savings' },
+  livePreview:           { es: 'Vista Previa en Vivo', en: 'Live Calculation Preview' },
+  calculatedConsumption: { es: 'Consumo Red Calc.', en: 'Calc. Grid Usage' },
+  calculatedSolar:       { es: 'Gen. Solar Calc.', en: 'Calc. Solar Gen.' },
+  calculatedSavings:     { es: 'Ahorro Estimado', en: 'Estimated Savings' },
+  inverterResetNotice:   { es: 'Reinicio de Inversor', en: 'Inverter Reset' },
+  confirmTitle:          { es: 'Confirmar Acción', en: 'Confirm Action' },
+  confirmDelete:         { es: '¿Deseas eliminar este elemento permanentemente?', en: 'Do you want to permanently delete this item?' },
+  confirmBtn:            { es: 'Eliminar', en: 'Delete' },
+  cancelBtn:             { es: 'Cancelar', en: 'Cancel' },
+  systemOnline:          { es: 'Sistema En Línea', en: 'System Online' },
+  allYears:              { es: 'Todos los Años', en: 'All Years' },
 };
 
 /**

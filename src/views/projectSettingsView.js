@@ -1,8 +1,6 @@
 /**
  * @module projectSettingsView
- * @description Project settings and investment phases management view.
- * Renders project detail form, investment timeline, and phase add/edit modal.
- * Displayed inside the dashboard layout's main-content area.
+ * @description Modern enterprise project settings & investment phases view.
  */
 
 import { state } from '../modules/state.js';
@@ -23,77 +21,110 @@ export function render() {
     <div id="project-settings-view" style="display:flex;flex-direction:column;gap:1.5rem;">
 
       <!-- ═══ SECTION 1: Project Details ═══ -->
-      <div class="card" style="padding:1.5rem;">
-        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1.25rem;">
-          <i class="fa-solid fa-gear" style="color:#0ea5e9;"></i>
-          <h2 style="font-size:1rem;font-weight:700;color:#e2e8f0;">
-            <span class="lang-es">Detalles del Proyecto</span>
-            <span class="lang-en">Project Details</span>
-          </h2>
+      <div class="card" style="padding:1.75rem;">
+        <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);">
+          <i class="fa-solid fa-gear" style="color:var(--accent);font-size:1.25rem;"></i>
+          <div>
+            <h2 style="font-size:1.1rem;font-weight:800;color:#fff;">
+              <span class="lang-es">Configuración General del Proyecto</span>
+              <span class="lang-en">General Project Settings</span>
+            </h2>
+            <p style="font-size:.75rem;color:var(--muted-light);">
+              <span class="lang-es">Especificaciones técnicas y parámetros operativos del sistema</span>
+              <span class="lang-en">Technical specifications and operating parameters</span>
+            </p>
+          </div>
         </div>
 
-        <form id="project-settings-form" style="display:flex;flex-direction:column;gap:1rem;">
-          <!-- Name -->
-          <div class="field">
-            <label for="setting-name">
-              <span class="lang-es">Nombre</span>
-              <span class="lang-en">Name</span>
-            </label>
-            <input
-              type="text"
-              id="setting-name"
-              value="${_escapeAttr(project.name || '')}"
-              ${isAdmin ? '' : 'disabled'}
-              required
-            >
-          </div>
+        <form id="project-settings-form" style="display:flex;flex-direction:column;gap:1.25rem;">
+          <!-- Name & Slug -->
+          <div class="field-row">
+            <div class="field">
+              <label for="setting-name">
+                <i class="fa-solid fa-signature" style="color:var(--accent);"></i>
+                <span class="lang-es">Nombre del Proyecto</span>
+                <span class="lang-en">Project Name</span>
+              </label>
+              <input
+                type="text"
+                id="setting-name"
+                value="${_escapeAttr(project.name || '')}"
+                ${isAdmin ? '' : 'disabled'}
+                required
+              >
+            </div>
 
-          <!-- Slug (read-only) -->
-          <div class="field">
-            <label for="setting-slug">Slug</label>
-            <input
-              type="text"
-              id="setting-slug"
-              value="${_escapeAttr(project.slug || '')}"
-              disabled
-              style="opacity:.6;cursor:not-allowed;"
-            >
+            <div class="field">
+              <label for="setting-slug">
+                <i class="fa-solid fa-link" style="color:var(--muted-light);"></i>
+                <span>Slug (URL)</span>
+              </label>
+              <input
+                type="text"
+                id="setting-slug"
+                value="${_escapeAttr(project.slug || '')}"
+                disabled
+                style="opacity:.6;cursor:not-allowed;"
+              >
+            </div>
           </div>
 
           <!-- Description -->
           <div class="field">
             <label for="setting-description">
-              <span class="lang-es">Descripción</span>
-              <span class="lang-en">Description</span>
+              <i class="fa-solid fa-align-left" style="color:var(--muted-light);"></i>
+              <span class="lang-es">Descripción / Notas</span>
+              <span class="lang-en">Description / Notes</span>
             </label>
             <input
               type="text"
               id="setting-description"
+              placeholder="Descripción breve de la instalación..."
               value="${_escapeAttr(project.description || '')}"
               ${isAdmin ? '' : 'disabled'}
             >
           </div>
 
-          <!-- Location -->
-          <div class="field">
-            <label for="setting-location">
-              <span class="lang-es">Ubicación</span>
-              <span class="lang-en">Location</span>
-            </label>
-            <input
-              type="text"
-              id="setting-location"
-              value="${_escapeAttr(project.location || '')}"
-              ${isAdmin ? '' : 'disabled'}
-            >
+          <!-- Location & Inverter -->
+          <div class="field-row">
+            <div class="field">
+              <label for="setting-location">
+                <i class="fa-solid fa-location-dot" style="color:var(--solar);"></i>
+                <span class="lang-es">Ubicación Geográfica</span>
+                <span class="lang-en">Geographic Location</span>
+              </label>
+              <input
+                type="text"
+                id="setting-location"
+                placeholder="Ciudad, País"
+                value="${_escapeAttr(project.location || '')}"
+                ${isAdmin ? '' : 'disabled'}
+              >
+            </div>
+
+            <div class="field">
+              <label for="setting-inverter">
+                <i class="fa-solid fa-microchip" style="color:var(--warning);"></i>
+                <span class="lang-es">Modelo del Inversor</span>
+                <span class="lang-en">Inverter Model</span>
+              </label>
+              <input
+                type="text"
+                id="setting-inverter"
+                placeholder="Ej: DEYE SUN-5K-SG03LP1"
+                value="${_escapeAttr(project.inverter_model || '')}"
+                ${isAdmin ? '' : 'disabled'}
+              >
+            </div>
           </div>
 
           <!-- Capacity + Panels -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+          <div class="field-row">
             <div class="field">
               <label for="setting-capacity">
-                <span class="lang-es">Capacidad (kW)</span>
-                <span class="lang-en">Capacity (kW)</span>
+                <i class="fa-solid fa-bolt" style="color:var(--solar);"></i>
+                <span class="lang-es">Capacidad Nominal (kW)</span>
+                <span class="lang-en">Nominal Capacity (kW)</span>
               </label>
               <input
                 type="number"
@@ -101,77 +132,75 @@ export function render() {
                 value="${project.capacity_kw || ''}"
                 step="0.1"
                 min="0"
+                placeholder="Ej: 3.5"
                 ${isAdmin ? '' : 'disabled'}
               >
             </div>
+
             <div class="field">
               <label for="setting-panels">
-                <span class="lang-es">Paneles</span>
-                <span class="lang-en">Panels</span>
+                <i class="fa-solid fa-solar-panel" style="color:var(--accent);"></i>
+                <span class="lang-es">Cantidad de Paneles</span>
+                <span class="lang-en">Panel Count</span>
               </label>
               <input
                 type="number"
                 id="setting-panels"
                 value="${project.panel_count || ''}"
                 min="0"
+                placeholder="Ej: 6"
                 ${isAdmin ? '' : 'disabled'}
               >
             </div>
           </div>
 
-          <!-- Inverter model -->
-          <div class="field">
-            <label for="setting-inverter">
-              <span class="lang-es">Modelo Inversor</span>
-              <span class="lang-en">Inverter Model</span>
-            </label>
-            <input
-              type="text"
-              id="setting-inverter"
-              value="${_escapeAttr(project.inverter_model || '')}"
-              ${isAdmin ? '' : 'disabled'}
-            >
-          </div>
-
           <!-- Monitoring URL -->
           <div class="field">
             <label for="setting-monitoring-url">
-              <span class="lang-es">URL de Monitoreo</span>
-              <span class="lang-en">Monitoring URL</span>
+              <i class="fa-solid fa-arrow-up-right-from-square" style="color:var(--accent);"></i>
+              <span class="lang-es">URL Portal de Monitoreo Remoto</span>
+              <span class="lang-en">Remote Monitoring URL</span>
             </label>
             <input
               type="url"
               id="setting-monitoring-url"
               value="${_escapeAttr(project.monitoring_url || '')}"
-              placeholder="https://..."
+              placeholder="https://www.dessmonitor.com/..."
               ${isAdmin ? '' : 'disabled'}
             >
           </div>
 
           ${isAdmin ? `
-            <button type="submit" class="btn btn-accent" style="align-self:flex-start;margin-top:.5rem;">
-              <i class="fa-solid fa-floppy-disk"></i>
-              <span class="lang-es">Guardar Cambios</span>
-              <span class="lang-en">Save Changes</span>
-            </button>
+            <div style="display:flex;justify-content:flex-end;margin-top:.5rem;">
+              <button type="submit" class="btn btn-accent btn-lg">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span class="lang-es">Guardar Cambios</span>
+                <span class="lang-en">Save Changes</span>
+              </button>
+            </div>
           ` : ''}
         </form>
       </div>
 
       <!-- ═══ SECTION 2: Investment Phases Timeline ═══ -->
-      <div class="card" style="padding:1.5rem;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:.75rem;">
-          <div style="display:flex;align-items:center;gap:.5rem;">
-            <i class="fa-solid fa-layer-group" style="color:#10b981;"></i>
-            <h2 style="font-size:1rem;font-weight:700;color:#e2e8f0;">
-              <span class="lang-es">Fases de Inversión</span>
-              <span class="lang-en">Investment Phases</span>
-            </h2>
-            <span style="font-size:.7rem;color:#64748b;">(${investments.length})</span>
+      <div class="card" style="padding:1.75rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.75rem;">
+          <div style="display:flex;align-items:center;gap:.6rem;">
+            <i class="fa-solid fa-layer-group" style="color:var(--solar);font-size:1.25rem;"></i>
+            <div>
+              <h2 style="font-size:1.1rem;font-weight:800;color:#fff;">
+                <span class="lang-es">Fases de Inversión y Expansión</span>
+                <span class="lang-en">Investment & Expansion Phases</span>
+              </h2>
+              <p style="font-size:.75rem;color:var(--muted-light);">
+                <span class="lang-es">Historial de desembolsos para el cálculo del retorno de inversión (ROI)</span>
+                <span class="lang-en">Capital outlays for ROI payback computation</span>
+              </p>
+            </div>
           </div>
 
           ${isAdmin ? `
-            <button id="btn-new-phase" class="btn btn-solar" style="font-size:.8rem;padding:.4rem .75rem;">
+            <button id="btn-new-phase" class="btn btn-solar" style="font-size:.85rem;">
               <i class="fa-solid fa-plus"></i>
               <span class="lang-es">Nueva Fase</span>
               <span class="lang-en">New Phase</span>
@@ -185,26 +214,26 @@ export function render() {
       <!-- ═══ SECTION 3: Add/Edit Phase Modal ═══ -->
       <div id="phase-modal" class="modal-overlay hidden">
         <div class="modal-box" style="max-width:28rem;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
-            <h2 style="font-size:1rem;font-weight:700;color:#e2e8f0;">
-              <i class="fa-solid fa-layer-group" style="color:#10b981;margin-right:.4rem;"></i>
+          <div class="modal-header">
+            <h2 class="modal-title">
+              <i class="fa-solid fa-layer-group" style="color:var(--solar);"></i>
               <span class="lang-es" id="phase-modal-title-es">Nueva Fase de Inversión</span>
               <span class="lang-en" id="phase-modal-title-en">New Investment Phase</span>
             </h2>
-            <button id="close-phase-modal" type="button" style="background:none;border:none;color:#64748b;font-size:1.25rem;cursor:pointer;">
+            <button id="close-phase-modal" class="modal-close-btn" type="button" aria-label="Close">
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
 
-          <form id="phase-form" style="display:flex;flex-direction:column;gap:1rem;">
+          <form id="phase-form" style="display:flex;flex-direction:column;gap:1.15rem;">
             <input type="hidden" id="phase-id" value="">
 
             <div class="field">
               <label for="phase-name">
-                <span class="lang-es">Nombre de Fase</span>
+                <span class="lang-es">Nombre de la Fase</span>
                 <span class="lang-en">Phase Name</span>
               </label>
-              <input type="text" id="phase-name" required placeholder="Ej: Fase 1 — Instalación inicial">
+              <input type="text" id="phase-name" required placeholder="Ej: Fase 1 — Instalación Inicial">
             </div>
 
             <div class="field">
@@ -212,44 +241,44 @@ export function render() {
                 <span class="lang-es">Descripción</span>
                 <span class="lang-en">Description</span>
               </label>
-              <input type="text" id="phase-description" placeholder="Opcional">
+              <input type="text" id="phase-description" placeholder="Ej: 6 paneles 550W + inversor Deye">
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+            <div class="field-row">
               <div class="field">
                 <label for="phase-investment">
                   <span class="lang-es">Inversión (COP)</span>
                   <span class="lang-en">Investment (COP)</span>
                 </label>
-                <input type="number" id="phase-investment" min="0" step="1000" required>
+                <input type="number" id="phase-investment" min="0" step="1000" placeholder="15000000" required>
               </div>
               <div class="field">
                 <label for="phase-start-date">
-                  <span class="lang-es">Fecha Inicio</span>
+                  <span class="lang-es">Fecha de Inicio</span>
                   <span class="lang-en">Start Date</span>
                 </label>
                 <input type="date" id="phase-start-date" required>
               </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+            <div class="field-row">
               <div class="field">
                 <label for="phase-capacity">
-                  <span class="lang-es">Capacidad (kW)</span>
-                  <span class="lang-en">Capacity (kW)</span>
+                  <span class="lang-es">Capacidad Agregada (kW)</span>
+                  <span class="lang-en">Added Capacity (kW)</span>
                 </label>
-                <input type="number" id="phase-capacity" min="0" step="0.1" required>
+                <input type="number" id="phase-capacity" min="0" step="0.1" placeholder="3.3" required>
               </div>
               <div class="field">
                 <label for="phase-panels">
-                  <span class="lang-es">Paneles</span>
-                  <span class="lang-en">Panels</span>
+                  <span class="lang-es">Paneles Agregados</span>
+                  <span class="lang-en">Added Panels</span>
                 </label>
-                <input type="number" id="phase-panels" min="0" required>
+                <input type="number" id="phase-panels" min="0" placeholder="6" required>
               </div>
             </div>
 
-            <button type="submit" id="btn-save-phase" class="btn btn-solar" style="width:100%;margin-top:.5rem;">
+            <button type="submit" id="btn-save-phase" class="btn btn-solar btn-lg" style="width:100%;margin-top:.5rem;">
               <i class="fa-solid fa-floppy-disk"></i>
               <span class="lang-es">Guardar Fase</span>
               <span class="lang-en">Save Phase</span>
@@ -266,15 +295,10 @@ export function render() {
  * Initialise project settings event listeners.
  *
  * @param {Object} callbacks
- * @param {Function} callbacks.onSaveSettings - Called with form data when project settings are saved
- * @param {Function} callbacks.onCreatePhase - Called to open the new phase modal
- * @param {Function} callbacks.onEditPhase - Called with `(phaseId: string)` when edit is clicked
- * @param {Function} callbacks.onDeletePhase - Called with `(phaseId: string)` when delete is clicked
  */
 export function init(callbacks) {
   const { onSaveSettings, onCreatePhase, onEditPhase, onDeletePhase } = callbacks || {};
 
-  // Project settings form submission
   const settingsForm = document.getElementById('project-settings-form');
   if (settingsForm && onSaveSettings) {
     settingsForm.addEventListener('submit', (e) => {
@@ -292,7 +316,6 @@ export function init(callbacks) {
     });
   }
 
-  // New phase button
   const newPhaseBtn = document.getElementById('btn-new-phase');
   if (newPhaseBtn) {
     newPhaseBtn.addEventListener('click', () => {
@@ -300,7 +323,6 @@ export function init(callbacks) {
     });
   }
 
-  // Phase form submission
   const phaseForm = document.getElementById('phase-form');
   if (phaseForm) {
     phaseForm.addEventListener('submit', (e) => {
@@ -321,10 +343,10 @@ export function init(callbacks) {
       } else if (typeof onCreatePhase === 'function') {
         onCreatePhase(data);
       }
+      _closePhaseModal();
     });
   }
 
-  // Close phase modal
   const closePhaseBtn = document.getElementById('close-phase-modal');
   if (closePhaseBtn) {
     closePhaseBtn.addEventListener('click', _closePhaseModal);
@@ -336,7 +358,6 @@ export function init(callbacks) {
     });
   }
 
-  // Timeline edit buttons
   document.querySelectorAll('.timeline-edit-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const phaseId = btn.dataset.phaseId;
@@ -345,7 +366,6 @@ export function init(callbacks) {
     });
   });
 
-  // Timeline delete buttons
   document.querySelectorAll('.timeline-delete-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const phaseId = btn.dataset.phaseId;
@@ -354,13 +374,6 @@ export function init(callbacks) {
   });
 }
 
-/* ── Private helpers ──────────────────────────────────────────────────────── */
-
-/**
- * Open the phase modal, optionally pre-filled with existing phase data.
- * @param {Object} [phase] - Existing phase data for editing
- * @private
- */
 function _openPhaseModal(phase) {
   const modal = document.getElementById('phase-modal');
   if (!modal) return;
@@ -396,20 +409,10 @@ function _openPhaseModal(phase) {
   modal.classList.remove('hidden');
 }
 
-/**
- * Close the phase modal.
- * @private
- */
 function _closePhaseModal() {
   document.getElementById('phase-modal')?.classList.add('hidden');
 }
 
-/**
- * Escape a string for safe use inside an HTML attribute.
- * @param {string} str
- * @returns {string}
- * @private
- */
 function _escapeAttr(str) {
   if (!str) return '';
   return str

@@ -1,14 +1,11 @@
 /**
  * @module projectSelectorView
- * @description Project selector view for JF Solar Cloud.
- * Displays a responsive grid of project cards with branding, logout, and
- * optional "new project" action for admins.
+ * @description Modern enterprise project selector view for JF Solar Cloud with real-time search.
  */
 
 import { state } from '../modules/state.js';
 import { renderProjectCard } from '../components/projectCard.js';
 
-/** Maximum number of projects allowed per user */
 const MAX_PROJECTS = 20;
 
 /**
@@ -21,35 +18,34 @@ export function render() {
   const projects = state.projects || [];
   const isAdmin = state.isAdmin || false;
   const count = projects.length;
+  const userInitials = (user.email || 'JS').slice(0, 2).toUpperCase();
 
-  // Project cards grid
   let cardsHTML = '';
   if (count === 0) {
     cardsHTML = `
-      <div style="grid-column:1/-1;text-align:center;padding:3rem;color:#64748b;">
-        <i class="fa-solid fa-folder-open" style="font-size:2.5rem;margin-bottom:1rem;display:block;opacity:.3;"></i>
-        <p style="font-size:.9rem;">
-          <span class="lang-es">No tienes proyectos asignados.</span>
-          <span class="lang-en">You have no assigned projects.</span>
+      <div style="grid-column:1/-1;text-align:center;padding:4rem 1.5rem;color:var(--muted-light);">
+        <i class="fa-solid fa-solar-panel" style="font-size:3rem;margin-bottom:1.25rem;display:block;opacity:.3;color:var(--solar);"></i>
+        <h3 style="font-size:1.15rem;font-weight:700;color:#fff;margin-bottom:.5rem;">
+          <span class="lang-es">No tienes proyectos asignados</span>
+          <span class="lang-en">No assigned projects</span>
+        </h3>
+        <p style="font-size:.85rem;color:var(--muted-light);max-width:26rem;margin:0 auto;">
+          <span class="lang-es">Crea tu primer proyecto solar para comenzar a monitorear la producción y ahorro.</span>
+          <span class="lang-en">Create your first solar project to start monitoring generation and savings.</span>
         </p>
       </div>
     `;
   } else {
     cardsHTML = projects.map(p => {
-      const role = p._role || 'observer';
+      const role = p._role || (isAdmin ? 'admin' : 'observer');
       const invCount = p._investmentCount || 0;
       return renderProjectCard(p, role, invCount, 'window.__selectProject');
     }).join('');
   }
 
-  // New project button (admin only, under limit)
   const newProjectBtn = isAdmin && count < MAX_PROJECTS
     ? `
-      <button
-        id="btn-new-project"
-        class="btn btn-solar"
-        style="gap:.5rem;"
-      >
+      <button id="btn-new-project" class="btn btn-solar btn-lg" style="gap:.5rem;">
         <i class="fa-solid fa-plus"></i>
         <span class="lang-es">Nuevo Proyecto</span>
         <span class="lang-en">New Project</span>
@@ -58,22 +54,27 @@ export function render() {
     : '';
 
   return `
-    <div id="project-selector-view" style="min-height:100vh;padding:1rem;">
-      <!-- Header -->
-      <header style="
-        display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;
-        max-width:72rem;margin:0 auto;padding:1rem 0;gap:1rem;
-      ">
-        <div style="display:flex;align-items:center;gap:.625rem;">
-          <i class="fa-solid fa-solar-panel" style="color:#10b981;font-size:1.375rem;"></i>
-          <span style="font-size:1.125rem;font-weight:900;color:#e2e8f0;">JF Solar Cloud</span>
+    <div id="project-selector-view" class="project-selector">
+      <!-- Topbar Header -->
+      <header class="project-selector-header">
+        <div class="project-selector-brand">
+          <i class="fa-solid fa-solar-panel"></i>
+          <div>
+            <h1>JF Solar Cloud</h1>
+            <span style="font-size:.65rem;color:var(--solar);font-weight:800;letter-spacing:.08em;text-transform:uppercase;">
+              Enterprise Monitoring
+            </span>
+          </div>
         </div>
 
-        <div style="display:flex;align-items:center;gap:.75rem;">
-          <span style="font-size:.75rem;color:#94a3b8;">
-            <i class="fa-solid fa-circle-user" style="margin-right:.3rem;"></i>${_escapeHTML(user.email || '')}
-          </span>
-          <button id="btn-logout-selector" class="btn btn-ghost" style="font-size:.8rem;padding:.4rem .75rem;">
+        <div style="display:flex;align-items:center;gap:1rem;">
+          <div style="display:flex;align-items:center;gap:.6rem;">
+            <div class="avatar-pill">${userInitials}</div>
+            <span style="font-size:.8rem;color:var(--text-secondary);font-weight:600;" class="hide-mobile">
+              ${_escapeHTML(user.email || '')}
+            </span>
+          </div>
+          <button id="btn-logout-selector" class="btn btn-ghost btn-sm">
             <i class="fa-solid fa-right-from-bracket"></i>
             <span class="lang-es">Salir</span>
             <span class="lang-en">Logout</span>
@@ -81,62 +82,83 @@ export function render() {
         </div>
       </header>
 
-      <!-- Title + new project action -->
-      <div style="
-        max-width:72rem;margin:1.5rem auto .75rem;
-        display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:1rem;
-      ">
-        <div>
-          <h1 style="font-size:1.375rem;font-weight:900;color:#e2e8f0;">
-            <span class="lang-es">Mis Proyectos</span>
-            <span class="lang-en">My Projects</span>
-            <span style="font-size:.9rem;font-weight:600;color:#64748b;"> (${count}/${MAX_PROJECTS})</span>
-          </h1>
-          <p style="font-size:.8rem;color:#64748b;margin-top:.2rem;">
-            <span class="lang-es">Selecciona un proyecto para continuar</span>
-            <span class="lang-en">Select a project to continue</span>
-          </p>
+      <!-- Main Body -->
+      <main class="project-selector-body">
+        <div class="project-selector-toolbar">
+          <div>
+            <div style="display:flex;align-items:center;gap:.75rem;">
+              <h2 style="font-size:1.5rem;font-weight:900;color:#fff;letter-spacing:-.02em;">
+                <span class="lang-es">Proyectos Solares</span>
+                <span class="lang-en">Solar Projects</span>
+              </h2>
+              <span style="background:var(--accent-subtle);color:var(--accent);border:1px solid rgba(14,165,233,0.3);padding:.2rem .6rem;border-radius:var(--radius-full);font-size:.75rem;font-weight:800;" class="tabular-nums">
+                ${count} / ${MAX_PROJECTS}
+              </span>
+            </div>
+            <p style="font-size:.85rem;color:var(--muted-light);margin-top:.25rem;">
+              <span class="lang-es">Selecciona una planta solar para acceder a su telemetría y analítica.</span>
+              <span class="lang-en">Select a solar plant to access telemetry and analytics.</span>
+            </p>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+            <!-- Real-time search filter -->
+            <div class="search-input-wrap">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input
+                type="text"
+                id="project-search-input"
+                placeholder="Buscar por nombre o ubicación..."
+                aria-label="Buscar proyectos"
+              />
+            </div>
+            ${newProjectBtn}
+          </div>
         </div>
-        ${newProjectBtn}
-      </div>
 
-      <!-- Projects grid -->
-      <div
-        id="projects-grid"
-        style="
-          max-width:72rem;margin:0 auto;
-          display:grid;gap:1rem;
-          grid-template-columns:1fr;
-        "
-      >
-        ${cardsHTML}
-      </div>
+        <!-- Project Grid -->
+        <div
+          id="projects-grid"
+          style="
+            display:grid;gap:1.25rem;
+            grid-template-columns:1fr;
+          "
+        >
+          ${cardsHTML}
+        </div>
 
-      <style>
-        @media (min-width: 640px)  { #projects-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (min-width: 1024px) { #projects-grid { grid-template-columns: repeat(3, 1fr); } }
-      </style>
+        <style>
+          @media (min-width: 640px)  { #projects-grid { grid-template-columns: repeat(2, 1fr); } }
+          @media (min-width: 1100px) { #projects-grid { grid-template-columns: repeat(3, 1fr); } }
+          @media (max-width: 640px) { .hide-mobile { display: none; } }
+        </style>
+      </main>
     </div>
   `;
 }
 
 /**
- * Initialise project selector event listeners.
+ * Initialise project selector event listeners with real-time search filter.
  *
  * @param {Function} onSelectProject - Called with `(projectId: string)` when a card is clicked
  * @param {Function} onCreateProject - Called when the "New Project" button is clicked
  * @param {Function} onLogout - Called when the logout button is clicked
  */
 export function init(onSelectProject, onCreateProject, onLogout) {
-  // Project card clicks
-  document.querySelectorAll('.project-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const projectId = card.dataset.projectId;
-      if (projectId && typeof onSelectProject === 'function') {
-        onSelectProject(projectId);
-      }
+  // Bind card clicks
+  _bindCardClicks(onSelectProject);
+
+  // Search filter
+  const searchInput = document.getElementById('project-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      document.querySelectorAll('#projects-grid .project-card').forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = text.includes(q) ? 'flex' : 'none';
+      });
     });
-  });
+  }
 
   // New project button
   const newBtn = document.getElementById('btn-new-project');
@@ -151,14 +173,27 @@ export function init(onSelectProject, onCreateProject, onLogout) {
   }
 }
 
-/* ── Private helpers ──────────────────────────────────────────────────────── */
+function _bindCardClicks(onSelectProject) {
+  document.querySelectorAll('.project-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const projectId = card.dataset.projectId;
+      if (projectId && typeof onSelectProject === 'function') {
+        onSelectProject(projectId);
+      }
+    });
+    // Keyboard access
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        const projectId = card.dataset.projectId;
+        if (projectId && typeof onSelectProject === 'function') {
+          onSelectProject(projectId);
+        }
+      }
+    });
+  });
+}
 
-/**
- * Escape HTML special characters.
- * @param {string} str
- * @returns {string}
- * @private
- */
 function _escapeHTML(str) {
   if (!str) return '';
   return str

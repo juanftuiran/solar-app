@@ -1,5 +1,6 @@
 /**
- * JF Solar Cloud — Multi-Project App v3.0
+ * @module app
+ * JF Solar Cloud — Multi-Project App v3.5
  * Main entry point, router, and orchestrator
  */
 import './app.css';
@@ -16,7 +17,7 @@ import * as dashboardView from './views/dashboardView.js';
 import * as projectSettingsView from './views/projectSettingsView.js';
 import * as membersView from './views/membersView.js';
 
-import { showModal, closeModal as closeGlobalModal } from './components/modal.js';
+import { showModal, showConfirmModal, closeModal as closeGlobalModal } from './components/modal.js';
 
 // ── App Container ─────────────────────────────────────────────────────────────
 const app = () => document.getElementById('app');
@@ -27,7 +28,7 @@ function showToast(message, type = 'info', duration = 3000) {
   if (existing) existing.remove();
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${message}`;
+  toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-triangle-exclamation' : 'fa-info-circle'}" style="color:${type === 'success' ? 'var(--solar)' : type === 'error' ? 'var(--danger)' : 'var(--accent)'};font-size:1.1rem;"></i> <span>${message}</span>`;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), duration);
 }
@@ -38,12 +39,11 @@ function changeLang(lang, flagCode, text) {
   document.body.setAttribute('data-lang', lang);
   const flagEl = document.getElementById('current-flag');
   const txtEl = document.getElementById('current-lang-text');
-  if (flagEl) flagEl.innerHTML = `<img src="https://flagcdn.com/w20/${flagCode}.png" class="flag-img">`;
+  if (flagEl) flagEl.innerHTML = `<img src="https://flagcdn.com/w20/${flagCode}.png" class="flag-img" alt="flag">`;
   if (txtEl) txtEl.innerText = text;
   document.activeElement?.blur();
-  // Close lang menu
   document.getElementById('lang-menu')?.classList.add('hidden');
-  // Re-render if we have data
+
   if (state.processedData.length) {
     state.processedData = processData(state.rawData);
     renderDashboardData();
@@ -68,7 +68,6 @@ async function navigate(view, opts = {}) {
       break;
 
     case 'dashboard':
-      // If entering dashboard, load project data
       if (opts.projectId) {
         await loadProjectData(opts.projectId);
       }
@@ -119,6 +118,7 @@ async function renderDashboardView(subView) {
     onLogout: handleLogout,
     onNavigate: handleSidebarNavigate,
     onLangChange: changeLang,
+    onExportCsv: handleExportCsv,
   });
 
   // Init subview specific events
@@ -157,7 +157,7 @@ function renderDashboardData() {
   state.viewData = filterByYear(state.processedData, year);
 
   const curYear = new Date().getFullYear();
-  const tableYear = year === 'all' ? curYear : parseInt(year);
+  const tableYear = year === 'all' ? curYear : parseInt(year, 10);
   const tableData = state.processedData.filter(d => d.year === tableYear);
 
   // Render charts
@@ -169,8 +169,7 @@ function renderDashboardData() {
   const tbody = document.getElementById('table-body');
   if (tbody) {
     if (dashboardView.renderTableRows) {
-      tbody.innerHTML = dashboardView.renderTableRows(tableData);
-      // Bind edit/delete events on table
+      tbody.innerHTML = dashboardView.renderTableRows(tableData, state.isAdmin || state.activeProjectRole === 'admin');
       bindTableEvents(tbody);
     }
   }
@@ -178,7 +177,6 @@ function renderDashboardData() {
   // Update KPIs
   const kpis = calcKPIs(state.viewData, state.processedData, state.investments);
   
-  // Total Investment
   const totalInv = (state.investments || []).reduce((a, i) => a + (parseFloat(i.investment_cop) || 0), 0);
   
   setText('kpi-ahorro', fCOP(kpis.savings));
@@ -188,55 +186,125 @@ function renderDashboardData() {
   
   const paybackMonths = kpis.avgSavings > 0 ? (totalInv / kpis.avgSavings) : 0;
   const paybackYears = paybackMonths / 12;
-  setText('roi-time', paybackYears > 0 ? fDec(paybackYears, 1) : 0);
+  setText('roi-time', paybackYears > 0 ? fDec(paybackYears, 1) : '0');
   setText('roi-avg-savings', fCOP(kpis.avgSavings));
   setText('roi-total-investment', fCOP(totalInv));
 
-  // Update projections
+  // Update ROI Progress bar
+  const totalSavingsAll = state.processedData.reduce((s, d) => s + (d.ahorroReal || 0), 0);
+  const progressPct = totalInv > 0 ? Math.min(100, Math.max(0, (totalSavingsAll / totalInv) * 100)) : 0;
+  const progressBarFill = document.getElementById('roi-progress-bar-fill');
+  const progressPercentText = document.getElementById('roi-progress-percent');
+  if (progressBarFill) progressBarFill.style.width = `${progressPct.toFixed(1)}%`;
+  if (progressPercentText) progressPercentText.innerText = `${progressPct.toFixed(1)}% (${fCOP(totalSavingsAll)})`;
+
+  // Update Projections & Eco-Metrics
   const proj = calcProjections(state.viewData);
   setText('ai-precio-futuro', fCOP(proj.projectedPrice));
   setText('ai-mejor-mes', proj.bestMonth);
-  setText('ai-co2', proj.co2);
+  setText('ai-co2', `${proj.co2} kg`);
   const tEl = document.getElementById('ai-tendencia');
   if (tEl) tEl.innerHTML = `<span class="${proj.trendColor}"><i class="fa-solid ${proj.trendIcon}"></i> ${proj.trend}</span>`;
+
+  // Eco Trees calculation (approx 22 kg CO2 / tree / year)
+  const totalGenAll = state.processedData.reduce((s, d) => s + (d.prodBruta || 0), 0);
+  const totalCO2Kg = totalGenAll * 0.38;
+  const treesEq = Math.round(totalCO2Kg / 22);
+  setText('eco-trees', String(treesEq));
+  setText('eco-trees-en', String(treesEq));
 
   updateChartIcons();
 }
 
 function bindTableEvents(tbody) {
   if (!state.isAdmin && state.activeProjectRole !== 'admin') return;
+
   tbody.querySelectorAll('.edit-btn').forEach(btn =>
     btn.addEventListener('click', e => {
       e.stopPropagation();
       openRecordModal('edit', btn.dataset.id);
     })
   );
+
   tbody.querySelectorAll('.del-btn').forEach(btn =>
-    btn.addEventListener('click', async e => {
+    btn.addEventListener('click', e => {
       e.stopPropagation();
-      if (!confirm(t('deleteConfirm'))) return;
-      const origHtml = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-circle-notch spin"></i>`;
-      btn.disabled = true;
-      try {
-        await deleteRecord(btn.dataset.id, btn.dataset.fecha);
-        await reloadProjectData();
-        renderDashboardData();
-        showToast(state.lang === 'es' ? 'Registro eliminado' : 'Record deleted', 'success');
-      } catch (err) {
-        showToast(`${t('error')}: ${err.message}`, 'error');
-        btn.innerHTML = origHtml;
-        btn.disabled = false;
-      }
+      showConfirmModal({
+        titleEs: 'Eliminar Registro Solar',
+        titleEn: 'Delete Solar Record',
+        messageEs: `¿Confirmas que deseas eliminar el registro de ${btn.dataset.fecha}? Esta acción recalculará los balances del período.`,
+        messageEn: `Are you sure you want to delete the record for ${btn.dataset.fecha}? This will recalculate period balances.`,
+        confirmBtnEs: 'Eliminar Registro',
+        confirmBtnEn: 'Delete Record',
+        isDanger: true,
+        onConfirm: async () => {
+          try {
+            await deleteRecord(btn.dataset.id, btn.dataset.fecha);
+            await reloadProjectData();
+            renderDashboardData();
+            showToast(state.lang === 'es' ? 'Registro eliminado exitosamente' : 'Record deleted successfully', 'success');
+          } catch (err) {
+            showToast(`${t('error')}: ${err.message}`, 'error');
+          }
+        }
+      });
     })
   );
-  // Row click for detail toggle
+
   tbody.querySelectorAll('tr[data-row-id]').forEach(tr => {
     tr.addEventListener('click', () => {
       const det = document.getElementById(`det-${tr.dataset.rowId}`);
       if (det) det.classList.toggle('hidden');
     });
   });
+}
+
+// ── Export CSV Handler ────────────────────────────────────────────────────────
+function handleExportCsv() {
+  if (!state.processedData || state.processedData.length === 0) {
+    showToast(state.lang === 'es' ? 'No hay lecturas registradas para exportar' : 'No readings available to export', 'error');
+    return;
+  }
+
+  const headers = [
+    'Periodo',
+    'Fecha',
+    'Lectura Red (Medidor)',
+    'Lectura Solar (Inversor)',
+    'Consumo Red (kWh)',
+    'Generacion Solar (kWh)',
+    'Consumo Total (kWh)',
+    'Autonomia (%)',
+    'Tarifa kW (COP)',
+    'Ahorro Generado (COP)',
+    'Reinicio Inversor'
+  ];
+
+  const rows = state.processedData.map(d => [
+    `"${d.label}"`,
+    `"${d.fecha}"`,
+    d.lecturaRed ?? 0,
+    d.lecturaSolar ?? 0,
+    (d.consumoRed ?? 0).toFixed(2),
+    (d.prodBruta ?? 0).toFixed(2),
+    (d.consumoTotal ?? 0).toFixed(2),
+    (d.autonomia ?? 0).toFixed(2),
+    d.precioKw ?? 0,
+    (d.ahorroReal ?? 0).toFixed(2),
+    d.inverter_reset ? 'SI' : 'NO'
+  ]);
+
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const slug = (state.activeProject?.name || 'solar-app').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${slug}-reporte-solar-${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast(state.lang === 'es' ? 'Reporte CSV descargado correctamente' : 'CSV Report downloaded successfully', 'success');
 }
 
 // ── Data Loading ──────────────────────────────────────────────────────────────
@@ -258,14 +326,10 @@ async function loadProjectData(projectId) {
     const role = state.isAdmin ? 'admin' : await getUserProjectRole(projectId, state.user.id);
     setActiveProject(project, role || 'observer');
 
-    // Load readings
     const readings = await fetchProjectReadings(projectId);
     state.rawData = (readings || []).sort((a, b) => a.year !== b.year ? a.year - b.year : (a.monthIdx || 0) - (b.monthIdx || 0));
-
-    // Process data
     state.processedData = processData(state.rawData);
 
-    // Load investments
     const investments = await getProjectInvestments(projectId);
     state.investments = investments || [];
   } catch (e) {
@@ -298,16 +362,13 @@ async function handleLogin(email, password) {
     const role = await getUserRole(state.user.email);
     state.isAdmin = role === 'admin';
 
-    // Route based on role
     if (state.isAdmin) {
       await navigate('projects');
     } else {
-      // Observer: load their projects
       await loadProjects();
       if (state.projects.length === 1) {
         await navigate('dashboard', { projectId: state.projects[0].id });
       } else if (state.projects.length === 0) {
-        // No projects assigned — show message
         app().innerHTML = `
           <div class="empty-state" style="min-height:100vh">
             <i class="fa-solid fa-folder-open"></i>
@@ -319,7 +380,6 @@ async function handleLogin(email, password) {
           </div>`;
         window.__logout = handleLogout;
       } else {
-        // Multiple projects (shouldn't happen for observer per spec, but handle gracefully)
         await navigate('projects');
       }
     }
@@ -344,7 +404,6 @@ async function handleSelectProject(projectId) {
 }
 
 async function handleCreateProject() {
-  // Check limit
   const count = await getProjectCount();
   if (count >= 20) {
     showToast(t('maxProjectsReached'), 'error');
@@ -352,10 +411,10 @@ async function handleCreateProject() {
   }
 
   const bodyHTML = `
-    <form id="create-project-form" class="create-project-form">
+    <form id="create-project-form" class="create-project-form" style="display:flex;flex-direction:column;gap:1.15rem;">
       <div class="field">
         <label><span class="lang-es">Nombre del Proyecto</span><span class="lang-en">Project Name</span></label>
-        <input type="text" id="cp-name" required placeholder="Mi Sistema Solar">
+        <input type="text" id="cp-name" required placeholder="Mi Planta Solar Residencial">
       </div>
       <div class="field-row">
         <div class="field">
@@ -364,16 +423,16 @@ async function handleCreateProject() {
         </div>
         <div class="field">
           <label><span class="lang-es">Capacidad (kW)</span><span class="lang-en">Capacity (kW)</span></label>
-          <input type="number" id="cp-capacity" step="0.1" placeholder="3.2">
+          <input type="number" id="cp-capacity" step="0.1" placeholder="3.5">
         </div>
       </div>
       <div class="field">
         <label><span class="lang-es">Descripción</span><span class="lang-en">Description</span></label>
-        <textarea id="cp-description" rows="2" placeholder="Descripción del proyecto..."></textarea>
+        <textarea id="cp-description" rows="2" placeholder="Sistema solar fotovoltaico interconectado a la red..."></textarea>
       </div>
       <div class="field-row">
         <div class="field">
-          <label><span class="lang-es">Paneles</span><span class="lang-en">Panels</span></label>
+          <label><span class="lang-es">Cantidad Paneles</span><span class="lang-en">Panels</span></label>
           <input type="number" id="cp-panels" placeholder="6">
         </div>
         <div class="field">
@@ -382,18 +441,17 @@ async function handleCreateProject() {
         </div>
       </div>
       <div class="field">
-        <label><span class="lang-es">URL de Monitoreo</span><span class="lang-en">Monitoring URL</span></label>
+        <label><span class="lang-es">URL Portal de Monitoreo</span><span class="lang-en">Monitoring URL</span></label>
         <input type="url" id="cp-monitoring" placeholder="https://www.dessmonitor.com/">
       </div>
       <button type="submit" class="btn btn-solar btn-lg" style="margin-top:.5rem">
         <i class="fa-solid fa-plus"></i>
-        <span class="lang-es">Crear Proyecto</span><span class="lang-en">Create Project</span>
+        <span class="lang-es">Crear Proyecto Solar</span><span class="lang-en">Create Solar Project</span>
       </button>
     </form>`;
 
   showModal('Nuevo Proyecto Solar', 'New Solar Project', bodyHTML);
 
-  // Bind form
   setTimeout(() => {
     document.getElementById('create-project-form')?.addEventListener('submit', async e => {
       e.preventDefault();
@@ -415,7 +473,7 @@ async function handleCreateProject() {
         }, state.user.email);
         
         closeGlobalModal();
-        showToast(state.lang === 'es' ? 'Proyecto creado' : 'Project created', 'success');
+        showToast(state.lang === 'es' ? 'Proyecto creado exitosamente' : 'Project created successfully', 'success');
         await navigate('projects');
       } catch (err) {
         showToast(`${t('error')}: ${err.message}`, 'error');
@@ -445,25 +503,30 @@ function openRecordModal(action = 'new', id = null) {
   if (action === 'new') {
     if (esTitle) esTitle.innerText = 'Nuevo Registro Cloud';
     if (enTitle) enTitle.innerText = 'New Cloud Record';
+    const now = new Date();
+    const f = document.getElementById('new-fecha');
+    if (f) f.value = now.toISOString().slice(0, 10);
   } else if (action === 'edit' && id) {
-    if (esTitle) esTitle.innerText = 'Editar Registro';
-    if (enTitle) enTitle.innerText = 'Edit Record';
+    if (esTitle) esTitle.innerText = 'Editar Registro Cloud';
+    if (enTitle) enTitle.innerText = 'Edit Cloud Record';
     const rec = state.rawData.find(d => d.id === id);
     if (rec && editId) {
       editId.value = rec.id;
       const f = document.getElementById('new-fecha'); if (f) f.value = rec.fecha;
-      const lr = document.getElementById('new-lectura-red'); if (lr) lr.value = rec.lecturaRed || 0;
-      const ls = document.getElementById('new-lectura-solar'); if (ls) ls.value = rec.lecturaSolar || 0;
+      const lr = document.getElementById('new-lectura-red'); if (lr) lr.value = rec.lecturaRed ?? rec.medidorRed ?? 0;
+      const ls = document.getElementById('new-lectura-solar'); if (ls) ls.value = rec.lecturaSolar ?? rec.inversores ?? 0;
       const p = document.getElementById('new-precio'); if (p) p.value = rec.precioKw || 0;
       const reset = document.getElementById('new-inverter-reset'); if (reset) reset.checked = !!rec.inverter_reset;
     }
   }
+
+  // Trigger live calculation update
+  document.getElementById('new-lectura-red')?.dispatchEvent(new Event('input'));
+
   modal.classList.remove('hidden');
 }
 
 async function handleSaveRecord(dataOrEvent) {
-  // dashboardView.js already calls e.preventDefault() and passes a data object.
-  // Just in case it's called directly with an event, we handle it conditionally.
   if (dataOrEvent && typeof dataOrEvent.preventDefault === 'function') {
     dataOrEvent.preventDefault();
   }
@@ -473,17 +536,14 @@ async function handleSaveRecord(dataOrEvent) {
   if (!fecha) return;
   const [year, month, day] = fecha.split('-');
   
-  // Since input is now 'date', fecha is already in YYYY-MM-DD format
-  const dbFecha = fecha;
-
   const rec = {
     id: editId || `${year}-${month}-${day || '01'}`,
-    year: parseInt(year),
-    monthIdx: parseInt(month),
-    fecha: dbFecha,
-    lecturaRed: parseFloat(document.getElementById('new-lectura-red')?.value),
-    lecturaSolar: parseFloat(document.getElementById('new-lectura-solar')?.value),
-    precioKw: parseFloat(document.getElementById('new-precio')?.value),
+    year: parseInt(year, 10),
+    monthIdx: parseInt(month, 10),
+    fecha,
+    lecturaRed: parseFloat(document.getElementById('new-lectura-red')?.value) || 0,
+    lecturaSolar: parseFloat(document.getElementById('new-lectura-solar')?.value) || 0,
+    precioKw: parseFloat(document.getElementById('new-precio')?.value) || 0,
     project_id: state.activeProject?.id || null,
     inverter_reset: document.getElementById('new-inverter-reset')?.checked || false,
   };
@@ -498,7 +558,7 @@ async function handleSaveRecord(dataOrEvent) {
     document.getElementById('add-record-modal')?.classList.add('hidden');
     await reloadProjectData();
     renderDashboardData();
-    showToast(state.lang === 'es' ? 'Registro guardado' : 'Record saved', 'success');
+    showToast(state.lang === 'es' ? 'Registro guardado exitosamente' : 'Record saved successfully', 'success');
   } catch (err) {
     showToast(`${t('error')}: ${err.message}`, 'error');
   }
@@ -506,16 +566,26 @@ async function handleSaveRecord(dataOrEvent) {
 }
 
 async function handleDeleteRecord(id, fecha) {
-  if (!confirm(t('deleteConfirm'))) return;
-  try {
-    const ok = await deleteRecord(id, fecha);
-    if (!ok) throw new Error('Error al eliminar registro en la BD.');
-    await reloadProjectData();
-    renderDashboardData();
-    showToast(state.lang === 'es' ? 'Registro eliminado' : 'Record deleted', 'success');
-  } catch (err) {
-    showToast(`${t('error')}: ${err.message}`, 'error');
-  }
+  showConfirmModal({
+    titleEs: 'Eliminar Registro',
+    titleEn: 'Delete Record',
+    messageEs: `¿Estás seguro de eliminar el registro de ${fecha}?`,
+    messageEn: `Are you sure you want to delete the record for ${fecha}?`,
+    confirmBtnEs: 'Eliminar',
+    confirmBtnEn: 'Delete',
+    isDanger: true,
+    onConfirm: async () => {
+      try {
+        const ok = await deleteRecord(id, fecha);
+        if (!ok) throw new Error('Error al eliminar registro en la BD.');
+        await reloadProjectData();
+        renderDashboardData();
+        showToast(state.lang === 'es' ? 'Registro eliminado' : 'Record deleted', 'success');
+      } catch (err) {
+        showToast(`${t('error')}: ${err.message}`, 'error');
+      }
+    }
+  });
 }
 
 function handleToggleChart(type) {
@@ -530,22 +600,20 @@ function handleToggleChart(type) {
 }
 
 // ── Settings Handlers ─────────────────────────────────────────────────────────
-async function handleSaveSettings(e) {
-  e.preventDefault();
+async function handleSaveSettings(data) {
   if (!state.activeProject) return;
   try {
     const result = await updateProject(state.activeProject.id, {
-      name: document.getElementById('setting-name')?.value,
-      description: document.getElementById('setting-description')?.value,
-      location: document.getElementById('setting-location')?.value,
-      capacity_kw: parseFloat(document.getElementById('setting-capacity')?.value) || 0,
-      panel_count: parseInt(document.getElementById('setting-panels')?.value) || 0,
-      inverter_model: document.getElementById('setting-inverter')?.value,
-      monitoring_url: document.getElementById('setting-monitoring-url')?.value,
+      name: data.name,
+      description: data.description,
+      location: data.location,
+      capacity_kw: data.capacity_kw,
+      panel_count: data.panel_count,
+      inverter_model: data.inverter_model,
+      monitoring_url: data.monitoring_url,
       updated_at: new Date().toISOString(),
     });
     if (!result) throw new Error('No se pudo guardar la configuración.');
-    // Reload project
     const updated = await getProject(state.activeProject.id);
     if (updated) setActiveProject(updated, state.activeProjectRole);
     showToast(state.lang === 'es' ? 'Configuración guardada' : 'Settings saved', 'success');
@@ -566,8 +634,7 @@ async function handleCreatePhase(data) {
       panels_added: data.panels_added || 0,
       start_date: data.start_date,
     });
-    if (!result) throw new Error('No se pudo crear la fase. Verifica que las tablas existan.');
-    // Reload investments
+    if (!result) throw new Error('No se pudo crear la fase.');
     state.investments = await getProjectInvestments(state.activeProject.id) || [];
     showToast(state.lang === 'es' ? 'Fase de inversión creada' : 'Investment phase created', 'success');
     renderDashboardView(state.currentView);
@@ -591,16 +658,26 @@ async function handleEditPhase(data) {
 }
 
 async function handleDeletePhase(investmentId) {
-  if (!confirm(t('deleteConfirm'))) return;
-  try {
-    const ok = await deleteInvestment(investmentId);
-    if (!ok) throw new Error('No se pudo eliminar la fase.');
-    state.investments = await getProjectInvestments(state.activeProject.id) || [];
-    showToast(state.lang === 'es' ? 'Fase eliminada' : 'Phase deleted', 'success');
-    renderDashboardView(state.currentView);
-  } catch (err) {
-    showToast(`${t('error')}: ${err.message}`, 'error');
-  }
+  showConfirmModal({
+    titleEs: 'Eliminar Fase de Inversión',
+    titleEn: 'Delete Investment Phase',
+    messageEs: '¿Estás seguro de eliminar esta fase de inversión? Afectará el cálculo de ROI y proyección.',
+    messageEn: 'Are you sure you want to delete this phase? This will affect ROI and projection calculations.',
+    confirmBtnEs: 'Eliminar Fase',
+    confirmBtnEn: 'Delete Phase',
+    isDanger: true,
+    onConfirm: async () => {
+      try {
+        const ok = await deleteInvestment(investmentId);
+        if (!ok) throw new Error('No se pudo eliminar la fase.');
+        state.investments = await getProjectInvestments(state.activeProject.id) || [];
+        showToast(state.lang === 'es' ? 'Fase eliminada' : 'Phase deleted', 'success');
+        renderDashboardView(state.currentView);
+      } catch (err) {
+        showToast(`${t('error')}: ${err.message}`, 'error');
+      }
+    }
+  });
 }
 
 // ── Member Handlers ───────────────────────────────────────────────────────────
@@ -609,8 +686,8 @@ async function handleAddMember({ email, role }) {
 
   try {
     const result = await addProjectMember(state.activeProject.id, email, role);
-    if (!result) throw new Error('No se pudo agregar el miembro. Verifica las tablas BD.');
-    showToast(state.lang === 'es' ? 'Miembro agregado' : 'Member added', 'success');
+    if (!result) throw new Error('No se pudo agregar el miembro. Verifica que el usuario exista.');
+    showToast(state.lang === 'es' ? 'Miembro agregado exitosamente' : 'Member added successfully', 'success');
     await loadAndRenderMembers();
   } catch (err) {
     showToast(`${t('error')}: ${err.message}`, 'error');
@@ -618,15 +695,25 @@ async function handleAddMember({ email, role }) {
 }
 
 async function handleRemoveMember(memberId) {
-  if (!confirm(t('deleteConfirm'))) return;
-  try {
-    const ok = await removeProjectMember(memberId);
-    if (!ok) throw new Error('Error al remover miembro.');
-    showToast(state.lang === 'es' ? 'Miembro removido' : 'Member removed', 'success');
-    await loadAndRenderMembers();
-  } catch (err) {
-    showToast(`${t('error')}: ${err.message}`, 'error');
-  }
+  showConfirmModal({
+    titleEs: 'Remover Miembro',
+    titleEn: 'Remove Member',
+    messageEs: '¿Deseas revocar el acceso de este usuario al proyecto?',
+    messageEn: 'Do you want to revoke this user\'s access to the project?',
+    confirmBtnEs: 'Remover',
+    confirmBtnEn: 'Remove',
+    isDanger: true,
+    onConfirm: async () => {
+      try {
+        const ok = await removeProjectMember(memberId);
+        if (!ok) throw new Error('Error al remover miembro.');
+        showToast(state.lang === 'es' ? 'Miembro removido' : 'Member removed', 'success');
+        await loadAndRenderMembers();
+      } catch (err) {
+        showToast(`${t('error')}: ${err.message}`, 'error');
+      }
+    }
+  });
 }
 
 async function handleChangeRole(memberId, newRole) {
@@ -645,7 +732,7 @@ const setText = (id, val) => {
   if (el) el.innerText = val;
 };
 
-// ── Global Handlers (for onclick in HTML) ─────────────────────────────────────
+// ── Global Handlers (for HTML callbacks) ─────────────────────────────────────
 window.__navigate = (view) => handleSidebarNavigate(view);
 window.__logout = handleLogout;
 window.__changeLang = changeLang;
@@ -671,6 +758,7 @@ window.__handleCreatePhase = handleCreatePhase;
 window.__handleSaveSettings = handleSaveSettings;
 window.__handleDeletePhase = handleDeletePhase;
 window.__handleEditPhase = handleEditPhase;
+window.__handleExportCsv = handleExportCsv;
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
