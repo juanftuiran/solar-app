@@ -196,17 +196,26 @@ export function renderProjectionChart() {
   const processed = state.processedData;
   const investments = state.investments || [];
 
+  // Average monthly gross generation across recorded historical readings
   const avgGen =
     processed.length > 0
       ? processed.reduce((s, d) => s + (d.prodBruta || 0), 0) / processed.length
       : 0;
 
+  // Latest tariff price or historical average tariff price
+  const lastPrice =
+    processed.length > 0 ? (processed[processed.length - 1].precioKw || 0) : 0;
   const avgPrice =
-    processed.length > 0
-      ? processed.reduce((s, d) => s + (d.precioKw || 0), 0) / processed.length
-      : 0;
+    lastPrice > 0
+      ? lastPrice
+      : (processed.length > 0
+          ? processed.reduce((s, d) => s + (d.precioKw || 0), 0) / processed.length
+          : 0);
 
-  const totalInvestment = investments.reduce((s, inv) => s + (inv.investment_cop || 0), 0);
+  const totalInvestment = investments.reduce(
+    (s, inv) => s + (parseFloat(inv.investment_cop) || 0),
+    0,
+  );
 
   const firstInvestmentYear = investments.length > 0
     ? new Date(investments[0].start_date).getFullYear()
@@ -219,10 +228,15 @@ export function renderProjectionChart() {
   const phases = investments
     .map((inv) => ({
       year: new Date(inv.start_date).getFullYear(),
-      capacity: inv.capacity_added_kw || 0,
-      amount: inv.investment_cop || 0,
+      capacity: parseFloat(inv.capacity_added_kw) || 0,
+      amount: parseFloat(inv.investment_cop) || 0,
     }))
     .sort((a, b) => a.year - b.year);
+
+  // Determine base installed capacity from initial investment phase
+  const baseCapacity = phases.length > 0 && phases[0].capacity > 0
+    ? phases[0].capacity
+    : 0;
 
   const labels = [];
   const genData = [];
@@ -232,8 +246,6 @@ export function renderProjectionChart() {
   const tableRows = [];
 
   let cumSavings = 0;
-  let cumInvestment = 0;
-  let capacityMultiplier = 1;
 
   const realYears = new Map();
   for (const d of processed) {
@@ -256,34 +268,36 @@ export function renderProjectionChart() {
     const year = firstInvestmentYear + i;
     labels.push(String(year));
 
+    // Cumulative investment and cumulative installed capacity up to the current year
+    let yearInvestment = 0;
+    let yearCapacity = 0;
     for (const phase of phases) {
-      if (phase.year === year) {
-        cumInvestment += phase.amount;
-        if (avgGen > 0 && phase.capacity > 0) {
-          const baseCapacity = investments[0]?.capacity_added_kw || 1;
-          capacityMultiplier += phase.capacity / baseCapacity;
-        }
-      }
-    }
-    if (i === 0) {
-      for (const phase of phases) {
-        if (phase.year < year) {
-          cumInvestment += phase.amount;
-        }
+      if (phase.year <= year) {
+        yearInvestment += phase.amount;
+        yearCapacity += phase.capacity;
       }
     }
 
-    investmentLine.push(cumInvestment || totalInvestment);
+    investmentLine.push(yearInvestment || totalInvestment);
+
+    // Capacity scaling factor relative to the base capacity (where historical avgGen was measured)
+    const capacityMultiplier = (baseCapacity > 0 && yearCapacity > 0)
+      ? yearCapacity / baseCapacity
+      : 1;
 
     const realYear = realYears.get(year);
     let yearGen;
     if (realYear) {
       yearGen = realYear.gen;
-      if (year === currentYear && realYear.count < 12) {
-        yearGen += avgLast3 * (12 - realYear.count);
+      if (year >= currentYear && realYear.count < 12) {
+        yearGen += (avgLast3 || avgGen) * (12 - realYear.count);
       }
     } else {
-      yearGen = avgGen * 12 * capacityMultiplier * Math.pow(1 - DEGRADATION, i);
+      // Annual generation based on historical average * 12 months, scaled by capacity and degradation
+      const baseAnnualGen = avgGen > 0
+        ? avgGen * 12
+        : (baseCapacity > 0 ? baseCapacity * 1200 : 0);
+      yearGen = baseAnnualGen * capacityMultiplier * Math.pow(1 - DEGRADATION, i);
     }
     genData.push(parseFloat(yearGen.toFixed(1)));
 
