@@ -7,10 +7,17 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('[supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variables.');
+}
+
 /** @type {import('@supabase/supabase-js').SupabaseClient} */
 export const sb = createClient(
-  import.meta.env.VITE_SUPABASE_URL || 'https://qoauvsouetyuqqplbfak.supabase.co',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_gPLFAn4uk3YzcbPiMbBPYA_bGRvncMz',
+  supabaseUrl || 'https://qoauvsouetyuqqplbfak.supabase.co',
+  supabaseAnonKey || 'sb_publishable_gPLFAn4uk3YzcbPiMbBPYA_bGRvncMz',
 );
 
 // ---------------------------------------------------------------------------
@@ -90,41 +97,48 @@ export async function getUserRole(email) {
 
 /**
  * Get all projects accessible to the given user.
- * Admins receive ALL projects; non-admins only those linked via `project_members`.
+ * Admins receive ALL projects; non-admins only those linked via `project_members` or owned.
  * @param {string} userId - Auth user id
+ * @param {boolean} [isGlobalAdmin=false] - Whether user has global superadmin privileges
  * @returns {Promise<Array<Object>>}
  */
-export async function getUserProjects(userId) {
+export async function getUserProjects(userId, isGlobalAdmin = false) {
   try {
-    // First try fetching all projects (admin path)
     const { data: allProjects, error: projError } = await sb
       .from('projects')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (projError) {
-      // Table may not exist yet – graceful fallback
       console.warn('[supabase] getUserProjects – projects table error:', projError.message);
       return [];
     }
 
-    // Check if the user is the owner of any project (admin shortcut)
-    const isOwner = allProjects.some((p) => p.owner_id === userId);
-    if (isOwner) return allProjects;
+    if (!allProjects || allProjects.length === 0) return [];
 
-    // Non-owner path: filter through project_members
+    // Global admin path: access to all projects
+    if (isGlobalAdmin) {
+      return allProjects.map((p) => ({ ...p, _role: 'admin' }));
+    }
+
+    // Non-superadmin: strictly filter to owned projects OR linked through project_members
     const { data: memberships, error: memError } = await sb
       .from('project_members')
-      .select('project_id')
+      .select('project_id, role')
       .eq('user_id', userId);
 
     if (memError) {
       console.warn('[supabase] getUserProjects – project_members error:', memError.message);
-      return [];
     }
 
-    const memberProjectIds = new Set((memberships || []).map((m) => m.project_id));
-    return allProjects.filter((p) => memberProjectIds.has(p.id));
+    const memberProjectMap = new Map((memberships || []).map((m) => [m.project_id, m.role]));
+
+    return allProjects
+      .filter((p) => p.owner_id === userId || memberProjectMap.has(p.id))
+      .map((p) => {
+        const role = p.owner_id === userId ? 'admin' : (memberProjectMap.get(p.id) || 'observer');
+        return { ...p, _role: role };
+      });
   } catch (err) {
     console.error('[supabase] getUserProjects error:', err);
     return [];
@@ -513,6 +527,9 @@ export async function fetchProjectReadings(projectId) {
  */
 export async function upsertRecord(rec) {
   try {
+    if (!rec.project_id) {
+      throw new Error('project_id es obligatorio para registrar lecturas solares.');
+    }
     const { data, error } = await sb
       .from('solar_readings')
       .upsert(rec)

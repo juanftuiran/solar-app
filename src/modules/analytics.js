@@ -14,13 +14,18 @@ import { t, monthName } from './i18n.js';
 // ---------------------------------------------------------------------------
 
 /**
- * Process raw solar readings into derived metrics.
+ * Process raw solar readings into derived metrics according to IEC 61724 solar standards.
  *
  * @param {Array<Object>} rawData - Raw solar_readings from the database.
+ * @param {number|null} [capacityKw=null] - Plant capacity in kW. Defaults to activeProject.capacity_kw.
  * @returns {Array<Object>} Processed data array
  */
-export function processData(rawData) {
+export function processData(rawData, capacityKw = null) {
   if (!rawData || rawData.length < 2) return [];
+
+  const plantCapacity = capacityKw !== null && capacityKw !== undefined
+    ? parseFloat(capacityKw) || 0
+    : (parseFloat(state.activeProject?.capacity_kw) || 0);
 
   const result = [];
 
@@ -33,7 +38,8 @@ export function processData(rawData) {
     const currSolar = curr.lecturaSolar ?? curr.inversores ?? 0;
     const prevSolar = prev.lecturaSolar ?? prev.inversores ?? 0;
 
-    const consumoRed = Math.max(0, currRed - prevRed);
+    // Reset handlers for hardware replacements
+    const consumoRed = curr.meter_reset ? currRed : Math.max(0, currRed - prevRed);
     const prodBruta = curr.inverter_reset ? currSolar : Math.max(0, currSolar - prevSolar);
     const consumoTotal = consumoRed + prodBruta;
     const autonomia = consumoTotal > 0 ? (prodBruta / consumoTotal) * 100 : 0;
@@ -42,6 +48,48 @@ export function processData(rawData) {
 
     const prevPrice = prev.precioKw || 0;
     const incPrecio = prevPrice > 0 ? ((precioKw - prevPrice) / prevPrice) * 100 : 0;
+
+    // Billing cycle days calculation
+    let daysInPeriod = 30;
+    if (curr.fecha && prev.fecha) {
+      const dCurr = new Date(curr.fecha + 'T00:00:00');
+      const dPrev = new Date(prev.fecha + 'T00:00:00');
+      const diffTime = Math.abs(dCurr - dPrev);
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays >= 1 && diffDays <= 90) {
+        daysInPeriod = diffDays;
+      }
+    }
+
+    // Solar Engineering Metrics (IEC 61724 Standard)
+    // Specific Yield (Yf): Energy per installed capacity (kWh/kWp)
+    const specificYield = plantCapacity > 0 ? prodBruta / plantCapacity : 0;
+
+    // Equivalent Peak Sun Hours (HSP): Daily average peak sunshine (h/day)
+    const hsp = (plantCapacity > 0 && daysInPeriod > 0)
+      ? prodBruta / (plantCapacity * daysInPeriod)
+      : 0;
+
+    // Normalized daily rates
+    const prodDiaria = daysInPeriod > 0 ? prodBruta / daysInPeriod : 0;
+    const consumoDiario = daysInPeriod > 0 ? consumoRed / daysInPeriod : 0;
+    const consumoTotalDiario = daysInPeriod > 0 ? consumoTotal / daysInPeriod : 0;
+
+    // Operational Health Classification
+    let healthScore = 'optimo';
+    let healthLabel = 'Óptimo';
+    if (hsp > 0) {
+      if (hsp >= 4.0) {
+        healthScore = 'optimo';
+        healthLabel = 'Óptimo';
+      } else if (hsp >= 3.2) {
+        healthScore = 'normal';
+        healthLabel = 'Normal';
+      } else {
+        healthScore = 'atencion';
+        healthLabel = 'Revisar';
+      }
+    }
 
     const label = `${monthName(curr.monthIdx)} ${curr.year}`;
 
@@ -53,6 +101,7 @@ export function processData(rawData) {
       consumoTotal,
       autonomia,
       precioKw,
+      prevPrice,
       incPrecio,
       ahorroReal,
       label,
@@ -61,6 +110,15 @@ export function processData(rawData) {
       fecha: curr.fecha,
       id: curr.id,
       inverter_reset: !!curr.inverter_reset,
+      meter_reset: !!curr.meter_reset,
+      daysInPeriod,
+      specificYield,
+      hsp,
+      prodDiaria,
+      consumoDiario,
+      consumoTotalDiario,
+      healthScore,
+      healthLabel,
     });
   }
 
@@ -247,8 +305,25 @@ export function calcProjections(data) {
 // KPI Calculation
 // ---------------------------------------------------------------------------
 
-export function calcKPIs(viewData, allData, investments) {
-  const defaults = { savings: 0, gen: 0, autonomy: 0, varKw: 0, roi: 0, avgSavings: 0 };
+export function calcKPIs(viewData, allData, investments, plantCapacityKw = null) {
+  const capacity = plantCapacityKw !== null && plantCapacityKw !== undefined
+    ? parseFloat(plantCapacityKw) || 0
+    : (parseFloat(state.activeProject?.capacity_kw) || 0);
+
+  const defaults = {
+    savings: 0,
+    gen: 0,
+    autonomy: 0,
+    varKw: 0,
+    roi: 0,
+    avgSavings: 0,
+    specificYield: 0,
+    avgHsp: 0,
+    avgDailyGen: 0,
+    avgDailyConsumption: 0,
+    healthScore: 'optimo',
+    healthLabel: 'Óptimo',
+  };
 
   if (!viewData || viewData.length === 0) return defaults;
 
@@ -257,7 +332,7 @@ export function calcKPIs(viewData, allData, investments) {
   const autonomy = viewData.reduce((s, d) => s + (d.autonomia || 0), 0) / viewData.length;
   const varKw = viewData.reduce((s, d) => s + (d.incPrecio || 0), 0) / viewData.length;
 
-  const totalSavingsAll = allData.reduce((s, d) => s + (d.ahorroReal || 0), 0);
+  const totalSavingsAll = (allData || []).reduce((s, d) => s + (d.ahorroReal || 0), 0);
   const totalInvestment = (investments || []).reduce(
     (s, inv) => s + (parseFloat(inv.investment_cop) || 0),
     0,
@@ -275,5 +350,39 @@ export function calcKPIs(viewData, allData, investments) {
     avgSavings = sumLast3 / last3.length;
   }
 
-  return { savings, gen, autonomy, varKw, roi, avgSavings };
+  // Solar engineering metrics
+  const specificYield = capacity > 0 ? (gen / capacity) : 0;
+  const avgHsp = viewData.reduce((s, d) => s + (d.hsp || 0), 0) / viewData.length;
+  const avgDailyGen = viewData.reduce((s, d) => s + (d.prodDiaria || 0), 0) / viewData.length;
+  const avgDailyConsumption = viewData.reduce((s, d) => s + (d.consumoTotalDiario || 0), 0) / viewData.length;
+
+  let healthScore = 'optimo';
+  let healthLabel = 'Óptimo';
+  if (avgHsp > 0) {
+    if (avgHsp >= 4.0) {
+      healthScore = 'optimo';
+      healthLabel = 'Óptimo';
+    } else if (avgHsp >= 3.2) {
+      healthScore = 'normal';
+      healthLabel = 'Normal';
+    } else {
+      healthScore = 'atencion';
+      healthLabel = 'Revisar';
+    }
+  }
+
+  return {
+    savings,
+    gen,
+    autonomy,
+    varKw,
+    roi,
+    avgSavings,
+    specificYield,
+    avgHsp,
+    avgDailyGen,
+    avgDailyConsumption,
+    healthScore,
+    healthLabel,
+  };
 }

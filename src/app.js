@@ -6,7 +6,7 @@
 import './app.css';
 import { state, setUser, setActiveProject, clearProjectData, setView } from './modules/state.js';
 import { sb, signIn, signOut, getSession, getUserRole, getUserProjects, getProject, createProject, updateProject, getProjectMembers, addProjectMember, removeProjectMember, updateMemberRole, getUserProjectRole, getProjectInvestments, createInvestment, updateInvestment, deleteInvestment, fetchProjectReadings, upsertRecord, deleteRecord, fetchAllReadings, getProjectCount } from './modules/supabase.js';
-import { fCOP, fDec, fKwh, fPct, debounce } from './modules/formatters.js';
+import { fCOP, fDec, fKwh, fPct, fYield, fHsp, fDailyRate, debounce } from './modules/formatters.js';
 import { t, monthName, MONTHS } from './modules/i18n.js';
 import { processData, filterByYear, calcProjections, calcKPIs } from './modules/analytics.js';
 import { renderEnergyChart, renderPriceChart, renderProjectionChart, destroyAllCharts } from './modules/charts.js';
@@ -175,10 +175,25 @@ function renderDashboardData() {
   }
 
   // Update KPIs
-  const kpis = calcKPIs(state.viewData, state.processedData, state.investments);
+  const capacity = state.activeProject?.capacity_kw || 0;
+  const kpis = calcKPIs(state.viewData, state.processedData, state.investments, capacity);
   
   const totalInv = (state.investments || []).reduce((a, i) => a + (parseFloat(i.investment_cop) || 0), 0);
   
+  // Update Solar Engineering Telemetry Banner
+  setText('sh-specific-yield', fYield(kpis.specificYield));
+  setText('sh-avg-hsp', fHsp(kpis.avgHsp));
+  setText('sh-daily-gen', fDailyRate(kpis.avgDailyGen));
+  
+  const healthPill = document.getElementById('sh-health-pill');
+  const healthText = document.getElementById('sh-health-text');
+  if (healthPill) {
+    healthPill.className = `health-pill ${kpis.healthScore}`;
+  }
+  if (healthText) {
+    healthText.innerText = kpis.healthLabel;
+  }
+
   setText('kpi-ahorro', fCOP(kpis.savings));
   setText('kpi-produccion', fKwh(kpis.gen));
   setText('kpi-autonomia', fPct(kpis.autonomy));
@@ -287,29 +302,39 @@ function handleExportCsv() {
   const headers = [
     'Periodo',
     'Fecha',
+    'Dias Facturados',
     'Lectura Red (Medidor)',
     'Lectura Solar (Inversor)',
     'Consumo Red (kWh)',
     'Generacion Solar (kWh)',
+    'Rendimiento Especifico (kWh/kWp)',
+    'Horas Sol Pico (HSP)',
+    'Generacion Diaria (kWh/dia)',
     'Consumo Total (kWh)',
     'Autonomia (%)',
     'Tarifa kW (COP)',
     'Ahorro Generado (COP)',
-    'Reinicio Inversor'
+    'Reinicio Inversor',
+    'Reinicio Medidor Red'
   ];
 
   const rows = state.processedData.map(d => [
     `"${d.label}"`,
     `"${d.fecha}"`,
+    d.daysInPeriod || 30,
     d.lecturaRed ?? 0,
     d.lecturaSolar ?? 0,
     (d.consumoRed ?? 0).toFixed(2),
     (d.prodBruta ?? 0).toFixed(2),
+    (d.specificYield ?? 0).toFixed(2),
+    (d.hsp ?? 0).toFixed(2),
+    (d.prodDiaria ?? 0).toFixed(2),
     (d.consumoTotal ?? 0).toFixed(2),
     (d.autonomia ?? 0).toFixed(2),
     d.precioKw ?? 0,
     (d.ahorroReal ?? 0).toFixed(2),
-    d.inverter_reset ? 'SI' : 'NO'
+    d.inverter_reset ? 'SI' : 'NO',
+    d.meter_reset ? 'SI' : 'NO'
   ]);
 
   const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -329,7 +354,7 @@ function handleExportCsv() {
 async function loadProjects() {
   if (!state.user) return;
   try {
-    const projects = await getUserProjects(state.user.id);
+    const projects = await getUserProjects(state.user.id, state.isAdmin);
     state.projects = projects || [];
   } catch (e) {
     state.projects = [];
@@ -535,6 +560,7 @@ function openRecordModal(action = 'new', id = null) {
       const ls = document.getElementById('new-lectura-solar'); if (ls) ls.value = rec.lecturaSolar ?? rec.inversores ?? 0;
       const p = document.getElementById('new-precio'); if (p) p.value = rec.precioKw || 0;
       const reset = document.getElementById('new-inverter-reset'); if (reset) reset.checked = !!rec.inverter_reset;
+      const mreset = document.getElementById('new-meter-reset'); if (mreset) mreset.checked = !!rec.meter_reset;
     }
   }
 
@@ -562,6 +588,7 @@ async function handleSaveRecord(dataOrEvent) {
     precioKw: parseFloat(document.getElementById('new-precio')?.value) || 0,
     project_id: state.activeProject?.id || null,
     inverter_reset: document.getElementById('new-inverter-reset')?.checked || false,
+    meter_reset: document.getElementById('new-meter-reset')?.checked || false,
   };
 
   const btn = document.getElementById('btn-save');

@@ -104,7 +104,16 @@ export function renderEnergyChart(data) {
       plugins: {
         tooltip: {
           callbacks: {
-            label: (tip) => `  ${tip.dataset.label}: ${fDec(tip.raw, 1)} kWh`,
+            label: (tip) => {
+              const base = `  ${tip.dataset.label}: ${fDec(tip.raw, 1)} kWh`;
+              if (tip.datasetIndex === 1) {
+                const item = data[tip.dataIndex];
+                if (item?.hsp > 0) {
+                  return [base, `    ↳ ${fDec(item.specificYield, 1)} kWh/kWp • ${fDec(item.hsp, 2)} HSP`];
+                }
+              }
+              return base;
+            },
           },
         },
       },

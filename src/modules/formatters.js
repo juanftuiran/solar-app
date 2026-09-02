@@ -33,6 +33,28 @@ export const fDec = (v, d = 2) => parseFloat(v || 0).toFixed(d);
 export const fKwh = (v) => `${fDec(v, 1)} kWh`;
 
 /**
+ * Format a value as specific yield (kWh / kWp).
+ * Standard IEC 61724 metric.
+ * @param {number} v - Value in kWh/kWp
+ * @returns {string} Formatted string (e.g. "124.5 kWh/kWp")
+ */
+export const fYield = (v) => `${fDec(v, 1)} kWh/kWp`;
+
+/**
+ * Format a value as equivalent Peak Sun Hours (HSP).
+ * @param {number} v - Value in hours/day
+ * @returns {string} Formatted string (e.g. "4.35 HSP")
+ */
+export const fHsp = (v) => `${fDec(v, 2)} HSP`;
+
+/**
+ * Format a value as daily rate.
+ * @param {number} v - Daily energy in kWh
+ * @returns {string} Formatted string (e.g. "15.2 kWh/día")
+ */
+export const fDailyRate = (v) => `${fDec(v, 1)} kWh/d`;
+
+/**
  * Format a value as a percentage.
  * @param {number} v - Percentage value
  * @returns {string} Formatted string (e.g. "87.3%")

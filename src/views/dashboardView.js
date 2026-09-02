@@ -6,7 +6,7 @@
 
 import { state } from '../modules/state.js';
 import { renderSidebar, initSidebar } from '../components/sidebar.js';
-import { fCOP, fDec, fKwh, fPct } from '../modules/formatters.js';
+import { fCOP, fDec, fKwh, fPct, fYield, fHsp, fDailyRate } from '../modules/formatters.js';
 import { t } from '../modules/i18n.js';
 
 /**
@@ -27,6 +27,8 @@ export function render(contentHTML = null) {
     ? renderSidebar(state.currentView || 'dashboard')
     : '';
 
+  const activeTab = state.activeTab || 'telemetry';
+
   return `
     <div class="app-layout">
       ${sidebarHTML}
@@ -37,23 +39,54 @@ export function render(contentHTML = null) {
 
           <div id="dashboard-content-area" style="display:flex;flex-direction:column;gap:1.5rem;">
             ${contentHTML !== null ? contentHTML : `
-              <!-- ═══ ROI Panel ═══ -->
-              ${_renderROIPanel(totalInvestment)}
+              <!-- ═══ Context Navigation Tabs ═══ -->
+              <div class="dashboard-tabs" id="dashboard-tab-bar">
+                <button class="tab-btn ${activeTab === 'telemetry' ? 'active' : ''}" data-tab="telemetry" type="button">
+                  <i class="fa-solid fa-solar-panel"></i>
+                  <span class="lang-es">Telemetría & Balance</span>
+                  <span class="lang-en">Telemetry & Balance</span>
+                </button>
+                <button class="tab-btn ${activeTab === 'finance' ? 'active' : ''}" data-tab="finance" type="button">
+                  <i class="fa-solid fa-chart-pie"></i>
+                  <span class="lang-es">Finanzas & Retorno</span>
+                  <span class="lang-en">Finance & ROI</span>
+                </button>
+                <button class="tab-btn ${activeTab === 'audit' ? 'active' : ''}" data-tab="audit" type="button">
+                  <i class="fa-solid fa-cloud"></i>
+                  <span class="lang-es">Historial Cloud</span>
+                  <span class="lang-en">Cloud Log</span>
+                </button>
+              </div>
 
-              <!-- ═══ AI / Predictive Panel ═══ -->
-              ${_renderAIPanel()}
+              <!-- ═══ Tab 1: Telemetría & Operación ═══ -->
+              <div class="tab-pane ${activeTab === 'telemetry' ? 'active' : ''}" id="pane-telemetry">
+                <!-- Solar Health & Telemetry Strip -->
+                ${_renderSolarHealthBanner()}
 
-              <!-- ═══ KPI Grid ═══ -->
-              ${_renderKPIGrid()}
+                <!-- KPI Grid -->
+                ${_renderKPIGrid()}
 
-              <!-- ═══ Charts Grid ═══ -->
-              ${_renderChartsGrid()}
+                <!-- Charts Grid -->
+                ${_renderChartsGrid()}
+              </div>
 
-              <!-- ═══ 25-Year Projection ═══ -->
-              ${_renderProjectionSection()}
+              <!-- ═══ Tab 2: Finanzas & Retorno ═══ -->
+              <div class="tab-pane ${activeTab === 'finance' ? 'active' : ''}" id="pane-finance">
+                <!-- ROI Panel -->
+                ${_renderROIPanel(totalInvestment)}
 
-              <!-- ═══ Data Table ═══ -->
-              ${_renderDataTable(isAdmin)}
+                <!-- AI / Predictive Panel -->
+                ${_renderAIPanel()}
+
+                <!-- 25-Year Projection -->
+                ${_renderProjectionSection()}
+              </div>
+
+              <!-- ═══ Tab 3: Historial Cloud & Auditoría ═══ -->
+              <div class="tab-pane ${activeTab === 'audit' ? 'active' : ''}" id="pane-audit">
+                <!-- Data Table -->
+                ${_renderDataTable(isAdmin)}
+              </div>
             `}
           </div>
 
@@ -107,6 +140,19 @@ export function init(callbacks) {
     exportBtn.addEventListener('click', onExportCsv);
   }
 
+  // Context Tab switching
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabKey = btn.dataset.tab;
+      state.activeTab = tabKey;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabKey));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === `pane-${tabKey}`));
+      setTimeout(() => {
+        Object.values(state.charts).forEach(c => c?.resize?.());
+      }, 50);
+    });
+  });
+
   // Table search filter
   const tableSearch = document.getElementById('table-search-input');
   if (tableSearch) {
@@ -136,6 +182,7 @@ export function init(callbacks) {
         lecturaSolar: parseFloat(document.getElementById('new-lectura-solar')?.value) || 0,
         precioKw: parseFloat(document.getElementById('new-precio')?.value) || 0,
         inverter_reset: document.getElementById('new-inverter-reset')?.checked || false,
+        meter_reset: document.getElementById('new-meter-reset')?.checked || false,
       };
       onSaveRecord(data);
     });
@@ -231,43 +278,69 @@ function _bindModalLivePreview() {
   const redInput = document.getElementById('new-lectura-red');
   const solarInput = document.getElementById('new-lectura-solar');
   const priceInput = document.getElementById('new-precio');
-  const resetCheckbox = document.getElementById('new-inverter-reset');
+  const inverterResetCheckbox = document.getElementById('new-inverter-reset');
+  const meterResetCheckbox = document.getElementById('new-meter-reset');
   const dateInput = document.getElementById('new-fecha');
+  const alertBox = document.getElementById('modal-reading-alert');
 
   const updatePreview = () => {
     const curRed = parseFloat(redInput?.value) || 0;
     const curSolar = parseFloat(solarInput?.value) || 0;
     const curPrice = parseFloat(priceInput?.value) || 0;
-    const isReset = resetCheckbox?.checked || false;
+    const isInverterReset = inverterResetCheckbox?.checked || false;
+    const isMeterReset = meterResetCheckbox?.checked || false;
 
     const rawData = state.rawData || [];
     const prev = rawData.length > 0 ? rawData[rawData.length - 1] : null;
 
     let calcGrid = 0;
     let calcSolar = 0;
+    const warnings = [];
 
     if (prev) {
       const prevRed = prev.lecturaRed ?? prev.medidorRed ?? 0;
       const prevSolar = prev.lecturaSolar ?? prev.inversores ?? 0;
-      calcGrid = Math.max(0, curRed - prevRed);
-      calcSolar = isReset ? curSolar : Math.max(0, curSolar - prevSolar);
+
+      if (curRed < prevRed && !isMeterReset && curRed > 0) {
+        warnings.push(`Lectura de red (${curRed}) menor que la anterior (${prevRed}). Si el medidor fue cambiado por el operador, marca "Reinicio de Medidor de Red".`);
+      }
+      if (curSolar < prevSolar && !isInverterReset && curSolar > 0) {
+        warnings.push(`Lectura solar (${curSolar}) menor que la anterior (${prevSolar}). Si el inversor fue cambiado, marca "Reinicio de Inversor".`);
+      }
+
+      calcGrid = isMeterReset ? curRed : Math.max(0, curRed - prevRed);
+      calcSolar = isInverterReset ? curSolar : Math.max(0, curSolar - prevSolar);
     } else {
       calcGrid = curRed;
       calcSolar = curSolar;
     }
 
     const calcSavings = calcSolar * curPrice;
+    const capacity = parseFloat(state.activeProject?.capacity_kw) || 0;
+    const calcYield = capacity > 0 ? calcSolar / capacity : 0;
+    const calcHsp = capacity > 0 ? calcSolar / (capacity * 30) : 0;
 
     const prevGridEl = document.getElementById('prev-calc-grid');
     const prevSolarEl = document.getElementById('prev-calc-solar');
     const prevSavingsEl = document.getElementById('prev-calc-savings');
+    const prevYieldEl = document.getElementById('prev-calc-yield');
 
     if (prevGridEl) prevGridEl.innerText = `${fDec(calcGrid, 1)} kWh`;
     if (prevSolarEl) prevSolarEl.innerText = `${fDec(calcSolar, 1)} kWh`;
     if (prevSavingsEl) prevSavingsEl.innerText = fCOP(calcSavings);
+    if (prevYieldEl) prevYieldEl.innerText = `${fDec(calcYield, 1)} kWh/kWp (${fDec(calcHsp, 2)} HSP)`;
+
+    if (alertBox) {
+      if (warnings.length > 0) {
+        alertBox.classList.remove('hidden');
+        alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="font-size:1rem;color:var(--warning);"></i> <span>${warnings.join('<br>')}</span>`;
+      } else {
+        alertBox.classList.add('hidden');
+      }
+    }
   };
 
-  [redInput, solarInput, priceInput, resetCheckbox, dateInput].forEach(el => {
+  [redInput, solarInput, priceInput, inverterResetCheckbox, meterResetCheckbox, dateInput].forEach(el => {
     el?.addEventListener('input', updatePreview);
     el?.addEventListener('change', updatePreview);
   });
@@ -277,10 +350,10 @@ export function renderTableRows(data, isAdmin = false) {
   if (!data || data.length === 0) {
     return `
       <tr>
-        <td colspan="7" style="text-align:center;padding:3rem;color:var(--muted-light);">
+        <td colspan="${isAdmin ? 8 : 7}" style="text-align:center;padding:3rem;color:var(--muted-light);">
           <i class="fa-solid fa-inbox" style="font-size:2rem;margin-bottom:.5rem;display:block;opacity:.3;"></i>
-          <span class="lang-es">No hay registros para este período.</span>
-          <span class="lang-en">No readings found for this period.</span>
+          <span class="lang-es">No hay registros para este período o búsqueda.</span>
+          <span class="lang-en">No readings found for this period or search.</span>
         </td>
       </tr>
     `;
@@ -308,8 +381,20 @@ export function renderTableRows(data, isAdmin = false) {
       `
       : '';
 
-    const resetBadge = row.inverter_reset
-      ? `<span class="badge-reset"><i class="fa-solid fa-rotate"></i> Reset</span>`
+    const resetBadges = [];
+    if (row.inverter_reset) {
+      resetBadges.push(`<span class="badge-reset"><i class="fa-solid fa-rotate"></i> Inversor</span>`);
+    }
+    if (row.meter_reset) {
+      resetBadges.push(`<span class="badge-reset" style="background:rgba(239,68,68,0.15);color:#f87171;border-color:rgba(239,68,68,0.3);"><i class="fa-solid fa-rotate"></i> Red</span>`);
+    }
+
+    const yieldStr = (row.specificYield && row.specificYield > 0)
+      ? `${fDec(row.specificYield, 1)} <span style="font-size:.65rem;color:var(--muted-light);">kWh/kWp</span>`
+      : '—';
+
+    const hspPill = (row.hsp && row.hsp > 0)
+      ? `<span class="health-pill ${row.healthScore || 'optimo'}" style="font-size:.65rem;padding:.1rem .4rem;margin-top:.2rem;">${fDec(row.hsp, 2)} HSP</span>`
       : '';
 
     return `
@@ -317,16 +402,24 @@ export function renderTableRows(data, isAdmin = false) {
         <td style="padding:.75rem 1rem;">
           <div style="font-weight:700;color:var(--accent);">${row.label}</div>
           <div style="font-size:.75rem;color:var(--muted-light);">${row.fecha}</div>
-          ${resetBadge}
+          <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.2rem;">
+            ${resetBadges.join('')}
+          </div>
         </td>
         <td style="padding:.75rem 1rem;text-align:center;font-size:.8rem;color:var(--muted-light);">
           ${(row.lecturaRed || 0).toFixed(0)} <span style="opacity:.3;">|</span> ${(row.lecturaSolar || 0).toFixed(0)}
         </td>
         <td style="padding:.75rem 1rem;text-align:center;font-weight:700;color:#fff;">
           ${fDec(row.consumoRed, 1)} <span style="font-size:.75rem;color:var(--muted-light);font-weight:400;">kWh</span>
+          <div style="font-size:.7rem;color:var(--muted);">${fDec(row.consumoDiario || 0, 1)} kWh/d</div>
         </td>
         <td style="padding:.75rem 1rem;text-align:center;font-weight:700;color:var(--solar);">
           ${fDec(row.prodBruta, 1)} <span style="font-size:.75rem;color:var(--muted-light);font-weight:400;">kWh</span>
+          <div style="font-size:.7rem;color:var(--muted);">${fDec(row.prodDiaria || 0, 1)} kWh/d</div>
+        </td>
+        <td style="padding:.75rem 1rem;text-align:center;">
+          <div style="font-weight:700;color:var(--accent);">${yieldStr}</div>
+          ${hspPill}
         </td>
         <td style="padding:.75rem 1rem;text-align:right;">
           <div style="font-weight:700;color:#fff;">${fCOP(row.precioKw || 0)}</div>
@@ -342,31 +435,34 @@ export function renderTableRows(data, isAdmin = false) {
 
       <!-- Expandable detail row -->
       <tr id="det-${row.id}" class="hidden detail-row">
-        <td colspan="7">
+        <td colspan="${isAdmin ? 8 : 7}">
           <div class="detail-inner">
             <div class="detail-section">
               <span class="detail-section-title">
-                <span class="lang-es">Eficiencia Energética</span>
-                <span class="lang-en">Energy Efficiency</span>
+                <span class="lang-es">Eficiencia Fotovoltaica</span>
+                <span class="lang-en">PV Efficiency</span>
               </span>
               <div>Consumo Total: <strong style="color:#fff;">${fDec(row.consumoTotal, 1)} kWh</strong></div>
               <div>Autonomía Solar: <strong style="color:#a78bfa;">${fDec(row.autonomia, 1)}%</strong></div>
+              <div>Rendimiento: <strong style="color:var(--accent);">${fDec(row.specificYield || 0, 1)} kWh/kWp</strong></div>
             </div>
             <div class="detail-section">
               <span class="detail-section-title">
-                <span class="lang-es">Promedio Diario (30d)</span>
-                <span class="lang-en">Daily Average (30d)</span>
+                <span class="lang-es">Desglose Diario (${row.daysInPeriod || 30} días)</span>
+                <span class="lang-en">Daily Breakdown (${row.daysInPeriod || 30} days)</span>
               </span>
-              <div>Red: <strong style="color:#fff;">${fDec((row.consumoRed || 0) / 30, 1)} kWh/día</strong></div>
-              <div>Solar: <strong style="color:var(--solar);">${fDec((row.prodBruta || 0) / 30, 1)} kWh/día</strong></div>
+              <div>Red: <strong style="color:#fff;">${fDec(row.consumoDiario || 0, 1)} kWh/día</strong></div>
+              <div>Solar: <strong style="color:var(--solar);">${fDec(row.prodDiaria || 0, 1)} kWh/día</strong></div>
+              <div>Equivalente HSP: <strong style="color:var(--warning);">${fDec(row.hsp || 0, 2)} HSP/día</strong></div>
             </div>
             <div class="detail-section">
               <span class="detail-section-title">
-                <span class="lang-es">Impacto Económico</span>
-                <span class="lang-en">Economic Impact</span>
+                <span class="lang-es">Impacto Económico & Ecológico</span>
+                <span class="lang-en">Economic & Eco Impact</span>
               </span>
-              <div>Tarifa Anterior: <strong style="color:#fff;">${fCOP(row.prevPrecio)}</strong></div>
+              <div>Tarifa Anterior: <strong style="color:#fff;">${fCOP(row.prevPrice || 0)}</strong></div>
               <div>Ahorro Generado: <strong style="color:var(--solar);">${fCOP(row.ahorroReal)}</strong></div>
+              <div>CO₂ Evitado: <strong style="color:var(--solar);">${fDec((row.prodBruta || 0) * 0.38, 1)} kg</strong></div>
             </div>
           </div>
         </td>
@@ -379,8 +475,68 @@ export function renderTableRows(data, isAdmin = false) {
    Private Render Helpers
    ═══════════════════════════════════════════════════════════════════════════ */
 
+function _renderSolarHealthBanner() {
+  return `
+    <div class="solar-health-banner" id="solar-health-banner">
+      <div class="solar-metric-item">
+        <div class="solar-metric-icon" style="background:var(--solar-subtle);color:var(--solar);">
+          <i class="fa-solid fa-heart-pulse"></i>
+        </div>
+        <div class="solar-metric-info">
+          <span class="solar-metric-lbl">
+            <span class="lang-es">Salud Operativa</span><span class="lang-en">Plant Health</span>
+          </span>
+          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.2rem;">
+            <span class="health-pill optimo" id="sh-health-pill">
+              <span class="health-pulse-dot"></span>
+              <span id="sh-health-text">Óptimo</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="solar-metric-item">
+        <div class="solar-metric-icon" style="background:var(--accent-subtle);color:var(--accent);">
+          <i class="fa-solid fa-bolt-lightning"></i>
+        </div>
+        <div class="solar-metric-info">
+          <span class="solar-metric-lbl">
+            <span class="lang-es">Rendimiento ($Y_f$)</span><span class="lang-en">Specific Yield</span>
+          </span>
+          <span class="solar-metric-val text-accent" id="sh-specific-yield">--</span>
+        </div>
+      </div>
+
+      <div class="solar-metric-item">
+        <div class="solar-metric-icon" style="background:rgba(245,158,11,0.12);color:var(--warning);">
+          <i class="fa-solid fa-sun"></i>
+        </div>
+        <div class="solar-metric-info">
+          <span class="solar-metric-lbl">
+            <span class="lang-es">Horas Sol Pico (HSP)</span><span class="lang-en">Peak Sun Hours</span>
+          </span>
+          <span class="solar-metric-val" style="color:var(--warning);" id="sh-avg-hsp">--</span>
+        </div>
+      </div>
+
+      <div class="solar-metric-item">
+        <div class="solar-metric-icon" style="background:rgba(139,92,246,0.12);color:var(--ai);">
+          <i class="fa-solid fa-calendar-day"></i>
+        </div>
+        <div class="solar-metric-info">
+          <span class="solar-metric-lbl">
+            <span class="lang-es">Gen. Media Diaria</span><span class="lang-en">Daily Gen Rate</span>
+          </span>
+          <span class="solar-metric-val" style="color:var(--ai);" id="sh-daily-gen">--</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function _renderHeader(user, project, isAdmin) {
   const currentYear = new Date().getFullYear();
+  const capacityStr = project.capacity_kw ? `${fDec(project.capacity_kw, 1)} kWp` : '';
 
   return `
     <header class="app-header">
@@ -392,7 +548,7 @@ function _renderHeader(user, project, isAdmin) {
           <i class="fa-solid fa-chevron-right" style="font-size:.6rem;opacity:.5;"></i>
           <span>${_escapeHTML(project.name || 'JF Solar Cloud')}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:.6rem;margin-top:.15rem;">
+        <div style="display:flex;align-items:center;gap:.6rem;margin-top:.15rem;flex-wrap:wrap;">
           <h2 class="header-project-name">
             ${_escapeHTML(project.name || 'JF Solar Cloud')}
           </h2>
@@ -401,6 +557,16 @@ function _renderHeader(user, project, isAdmin) {
             <span class="lang-es">En Línea</span>
             <span class="lang-en">Online</span>
           </span>
+          ${capacityStr ? `
+            <span class="badge-solar-metric" title="Capacidad Instalada">
+              <i class="fa-solid fa-bolt"></i> ${capacityStr}
+            </span>
+          ` : ''}
+          ${project.inverter_model ? `
+            <span class="badge-solar-metric" title="Modelo Inversor" style="background:rgba(245,158,11,0.12);color:var(--warning);border-color:rgba(245,158,11,0.25);">
+              <i class="fa-solid fa-microchip"></i> ${_escapeHTML(project.inverter_model)}
+            </span>
+          ` : ''}
         </div>
       </div>
 
@@ -826,10 +992,11 @@ function _renderDataTable(isAdmin) {
         <table>
           <thead>
             <tr>
-              <th><span class="lang-es">Período</span><span class="lang-en">Period</span></th>
+              <th><span class="lang-es">Período / Fecha</span><span class="lang-en">Period / Date</span></th>
               <th style="text-align:center;"><span class="lang-es">Lecturas Red / Solar</span><span class="lang-en">Readings Grid / Solar</span></th>
               <th style="text-align:center;"><span class="lang-es">Consumo Red</span><span class="lang-en">Grid Usage</span></th>
               <th style="text-align:center;"><span class="lang-es">Gen. Solar</span><span class="lang-en">Solar Gen</span></th>
+              <th style="text-align:center;"><span class="lang-es">Rendimiento (Yf)</span><span class="lang-en">Yield (Yf)</span></th>
               <th style="text-align:right;"><span class="lang-es">Tarifa kW</span><span class="lang-en">kW Tariff</span></th>
               <th style="text-align:right;"><span class="lang-es">Ahorro</span><span class="lang-en">Savings</span></th>
               ${adminTh}
@@ -845,7 +1012,7 @@ function _renderDataTable(isAdmin) {
 function _renderRecordModal() {
   return `
     <div id="add-record-modal" class="modal-overlay hidden">
-      <div class="modal-box" style="max-width:28rem;">
+      <div class="modal-box" style="max-width:30rem;">
         <!-- Header -->
         <div class="modal-header">
           <h2 class="modal-title">
@@ -861,6 +1028,9 @@ function _renderRecordModal() {
         <!-- Form -->
         <form id="add-record-form" style="display:flex;flex-direction:column;gap:1rem;">
           <input type="hidden" id="edit-id" value="">
+
+          <!-- Warning Alert Box -->
+          <div id="modal-reading-alert" class="modal-reading-alert hidden"></div>
 
           <div class="field">
             <label for="new-fecha">
@@ -899,18 +1069,32 @@ function _renderRecordModal() {
             <input type="number" id="new-precio" step="0.01" placeholder="Ej: 950.50" required>
           </div>
 
-          <!-- Inverter Reset Checkbox -->
-          <div style="background:rgba(245,158,11,0.06);padding:.875rem;border-radius:var(--radius-sm);border:1px solid rgba(245,158,11,0.2);">
+          <!-- Hardware Reset Checkboxes -->
+          <div style="background:rgba(245,158,11,0.06);padding:.875rem;border-radius:var(--radius-sm);border:1px solid rgba(245,158,11,0.2);display:flex;flex-direction:column;gap:.75rem;">
             <label style="display:flex;align-items:flex-start;gap:.75rem;cursor:pointer;">
               <input type="checkbox" id="new-inverter-reset" style="margin-top:.25rem;width:1.1rem;height:1.1rem;accent-color:var(--warning);">
               <div style="display:flex;flex-direction:column;gap:.2rem;">
                 <span style="font-weight:700;color:#fff;font-size:.85rem;">
-                  <span class="lang-es">Reinicio de inversor (Nuevo equipo)</span>
-                  <span class="lang-en">Inverter reset (New equipment)</span>
+                  <span class="lang-es">Reinicio de inversor (Nuevo equipo solar)</span>
+                  <span class="lang-en">Inverter reset (New solar equipment)</span>
                 </span>
                 <span style="font-size:.75rem;color:var(--muted-light);line-height:1.4;">
                   <span class="lang-es">Marca si cambiaste el inversor y la lectura reinició desde 0.</span>
-                  <span class="lang-en">Check if the inverter was replaced and reading started from 0.</span>
+                  <span class="lang-en">Check if inverter was replaced and reading started from 0.</span>
+                </span>
+              </div>
+            </label>
+
+            <label style="display:flex;align-items:flex-start;gap:.75rem;cursor:pointer;padding-top:.5rem;border-top:1px solid rgba(245,158,11,0.15);">
+              <input type="checkbox" id="new-meter-reset" style="margin-top:.25rem;width:1.1rem;height:1.1rem;accent-color:var(--danger);">
+              <div style="display:flex;flex-direction:column;gap:.2rem;">
+                <span style="font-weight:700;color:#fff;font-size:.85rem;">
+                  <span class="lang-es">Reinicio de medidor de red (Cambio por operador)</span>
+                  <span class="lang-en">Grid meter reset (Utility replacement)</span>
+                </span>
+                <span style="font-size:.75rem;color:var(--muted-light);line-height:1.4;">
+                  <span class="lang-es">Marca si la empresa de energía reemplazó el medidor de red.</span>
+                  <span class="lang-en">Check if utility company replaced the grid meter.</span>
                 </span>
               </div>
             </label>
@@ -922,7 +1106,7 @@ function _renderRecordModal() {
               <span><i class="fa-solid fa-bolt" style="margin-right:.3rem;"></i> Cálculo en tiempo real</span>
               <span style="font-size:.65rem;opacity:.7;">Vista previa</span>
             </div>
-            <div class="live-calc-grid">
+            <div class="live-calc-grid" style="grid-template-columns:repeat(2, 1fr);gap:.75rem;">
               <div class="live-calc-item">
                 <span class="lbl">Consumo Red:</span>
                 <span class="val" id="prev-calc-grid">0.0 kWh</span>
@@ -932,8 +1116,12 @@ function _renderRecordModal() {
                 <span class="val text-solar" id="prev-calc-solar">0.0 kWh</span>
               </div>
               <div class="live-calc-item">
+                <span class="lbl">Rendimiento ($Y_f$):</span>
+                <span class="val text-accent" id="prev-calc-yield">0.0 kWh/kWp</span>
+              </div>
+              <div class="live-calc-item">
                 <span class="lbl">Ahorro Est.:</span>
-                <span class="val text-accent" id="prev-calc-savings">$0</span>
+                <span class="val text-solar" id="prev-calc-savings">$0</span>
               </div>
             </div>
           </div>

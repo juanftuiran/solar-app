@@ -14,10 +14,16 @@ const puppeteer = require('puppeteer');
   // Wait for email input
   await page.waitForSelector('#login-email', { timeout: 5000 }).catch(() => console.log("Login email not found, maybe already logged in?"));
   
-  if (await page.$('#login-email')) {
-    console.log("Typing credentials...");
-    await page.type('#login-email', 'juanftuiran@gmail.com');
-    await page.type('#login-password', 'Kesawea1771+');
+    const email = process.env.TEST_USER_EMAIL;
+    const password = process.env.TEST_USER_PASSWORD;
+    if (!email || !password) {
+      console.warn("Please provide TEST_USER_EMAIL and TEST_USER_PASSWORD environment variables.");
+      await browser.close();
+      return;
+    }
+    console.log("Typing credentials from environment variables...");
+    await page.type('#login-email', email);
+    await page.type('#login-password', password);
     await page.click('#btn-login');
     console.log("Waiting for login to complete (project card)...");
     await page.waitForSelector('.project-card', { timeout: 10000 }).catch(e => console.log("Timeout waiting for project card"));

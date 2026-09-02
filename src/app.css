@@ -1074,3 +1074,157 @@ tbody td {
   color: rgba(100, 116, 139, 0.5); font-size: .65rem;
   letter-spacing: .15em; text-transform: uppercase; font-weight: 800;
 }
+
+/* ── Dashboard Context Tabs ───────────────────────────────────────────────── */
+.dashboard-tabs {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  background: rgba(13, 21, 39, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: .35rem;
+  overflow-x: auto;
+}
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem 1.15rem;
+  border-radius: calc(var(--radius-sm) - 2px);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted-light);
+  font-size: .85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+.tab-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+}
+.tab-btn.active {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(14, 165, 233, 0.15));
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.2);
+}
+.tab-btn.active i {
+  color: var(--solar);
+}
+.tab-pane {
+  display: none;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fadeIn .25s ease-out;
+}
+.tab-pane.active {
+  display: flex;
+}
+
+/* ── Solar Telemetry & Health Banner ──────────────────────────────────────── */
+.solar-health-banner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1rem;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(14, 165, 233, 0.06), rgba(245, 158, 11, 0.04));
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: var(--radius);
+  padding: 1.15rem 1.35rem;
+}
+.solar-metric-item {
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+}
+.solar-metric-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.solar-metric-info {
+  display: flex;
+  flex-direction: column;
+}
+.solar-metric-lbl {
+  font-size: .65rem;
+  font-weight: 700;
+  color: var(--muted-light);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.solar-metric-val {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.health-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .2rem .6rem;
+  border-radius: var(--radius-full);
+  font-size: .7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.health-pill.optimo {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--solar);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+.health-pill.normal {
+  background: rgba(14, 165, 233, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(14, 165, 233, 0.35);
+}
+.health-pill.atencion {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.health-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+  animation: pulse 1.8s infinite;
+}
+
+/* ── Modal & Table Solar Enhancements ─────────────────────────────────────── */
+.badge-solar-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  font-size: .7rem;
+  font-weight: 800;
+  background: rgba(14, 165, 233, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  padding: .15rem .45rem;
+  border-radius: var(--radius-xs);
+}
+.modal-reading-alert {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fcd34d;
+  font-size: .75rem;
+  line-height: 1.4;
+}
+

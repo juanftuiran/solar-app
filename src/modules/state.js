@@ -35,6 +35,12 @@ export const state = {
   /** @type {Object<string, import('chart.js').Chart>} Active Chart.js instances keyed by canvas id */
   charts: {},
 
+  // Dashboard Tab state
+  /** @type {'telemetry'|'finance'|'audit'} Active tab in dashboard */
+  activeTab: 'telemetry',
+  /** @type {string} Global search query for table/records */
+  searchQuery: '',
+
   // Current view
   /** @type {string} The currently displayed view/screen */
   currentView: 'login',

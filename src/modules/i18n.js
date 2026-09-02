@@ -134,11 +134,27 @@ export const T = {
   maxProjectsReached: { es: 'Máximo de proyectos alcanzado', en: 'Maximum projects reached' },
   limitIs20:          { es: 'El límite es de 20 proyectos', en: 'The limit is 20 projects' },
 
+  // Solar Engineering (IEC 61724 standard)
+  specificYield:         { es: 'Rendimiento Específico', en: 'Specific Yield' },
+  peakSunHours:          { es: 'Horas Sol Pico (HSP)', en: 'Peak Sun Hours (PSH)' },
+  dailyGeneration:       { es: 'Gen. Diaria Promedio', en: 'Avg Daily Generation' },
+  dailyConsumption:      { es: 'Consumo Diario Prom.', en: 'Avg Daily Usage' },
+  plantHealth:           { es: 'Estado Operativo', en: 'Plant Health' },
+  healthOptimo:          { es: 'Rendimiento Óptimo', en: 'Optimal Performance' },
+  healthNormal:          { es: 'Rendimiento Normal', en: 'Normal Performance' },
+  healthAttention:       { es: 'Revisar / Atención', en: 'Attention Needed' },
+  meterResetNotice:      { es: 'Reinicio Medidor Red', en: 'Grid Meter Reset' },
+
+  // Dashboard Tabs
+  tabOverview:           { es: 'Telemetría & Balance', en: 'Telemetry & Balance' },
+  tabFinance:            { es: 'Finanzas & Retorno', en: 'Finance & ROI' },
+  tabAudit:              { es: 'Historial Cloud', en: 'Cloud Historical Log' },
+
   // Enhanced features
   exportCsv:             { es: 'Exportar CSV', en: 'Export CSV' },
   exportData:            { es: 'Exportar Datos', en: 'Export Data' },
-  searchProjects:        { es: 'Buscar proyecto por nombre o ubicación...', en: 'Search projects by name or location...' },
-  searchRecords:         { es: 'Buscar registros...', en: 'Search records...' },
+  searchProjects:        { es: 'Buscar proyecto por nombre, ubicación o capacidad...', en: 'Search projects by name, location or capacity...' },
+  searchRecords:         { es: 'Buscar por período, fecha o lecturas...', en: 'Search by period, date or readings...' },
   paybackProgress:       { es: 'Progreso de Retorno de Inversión', en: 'Investment Payback Progress' },
   recovered:             { es: 'Recuperado', en: 'Recovered' },
   remaining:             { es: 'Restante', en: 'Remaining' },

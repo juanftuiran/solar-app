@@ -18,8 +18,11 @@ export function renderProjectCard(project, role, investmentCount, onSelect) {
   const roleLabelEn = isAdmin ? 'Administrator' : 'Observer';
 
   const capacityVal = project.capacity_kw ? parseFloat(project.capacity_kw) : 0;
-  const capacityStr = capacityVal > 0 ? `${capacityVal.toFixed(1)} kW` : '—';
+  const capacityStr = capacityVal > 0 ? `${capacityVal.toFixed(1)} kWp` : '—';
   const panelsStr = project.panel_count ? `${project.panel_count}` : '—';
+  const inverterBadge = project.inverter_model
+    ? `<span class="badge-solar-metric" style="font-size:.65rem;margin-top:.35rem;display:inline-flex;" title="Inversor"><i class="fa-solid fa-microchip"></i> ${_escapeHTML(project.inverter_model)}</span>`
+    : '';
 
   return `
     <div
@@ -44,17 +47,20 @@ export function renderProjectCard(project, role, investmentCount, onSelect) {
           </span>
         </div>
 
-        <!-- Location -->
-        <div class="project-card-location">
-          <i class="fa-solid fa-location-dot" style="color:var(--muted-light);font-size:.75rem;"></i>
-          <span>${project.location ? _escapeHTML(project.location) : '<em style="opacity:.6">Sin ubicación</em>'}</span>
+        <!-- Location & Inverter Specs -->
+        <div class="project-card-location" style="display:flex;flex-direction:column;gap:.25rem;align-items:flex-start;">
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <i class="fa-solid fa-location-dot" style="color:var(--muted-light);font-size:.75rem;"></i>
+            <span>${project.location ? _escapeHTML(project.location) : '<em style="opacity:.6">Sin ubicación</em>'}</span>
+          </div>
+          ${inverterBadge}
         </div>
 
         <!-- Stats Grid -->
         <div class="project-card-stats">
           <div>
             <span class="project-card-stat-lbl">
-              <span class="lang-es">Capacidad</span><span class="lang-en">Capacity</span>
+              <span class="lang-es">Potencia Pico</span><span class="lang-en">Peak Power</span>
             </span>
             <span class="project-card-stat-val text-solar">
               <i class="fa-solid fa-bolt" style="font-size:.75rem;"></i> ${capacityStr}
