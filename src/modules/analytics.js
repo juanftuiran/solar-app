@@ -319,6 +319,8 @@ export function calcKPIs(viewData, allData, investments, plantCapacityKw = null)
     avgSavings: 0,
     specificYield: 0,
     avgHsp: 0,
+    lastHsp: 0,
+    hsp: 0,
     avgDailyGen: 0,
     avgDailyConsumption: 0,
     healthScore: 'optimo',
@@ -327,9 +329,22 @@ export function calcKPIs(viewData, allData, investments, plantCapacityKw = null)
 
   if (!viewData || viewData.length === 0) return defaults;
 
+  // Ordenar cronológicamente para garantizar secuencia temporal exacta
+  const sortedViewData = [...viewData].sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    if ((a.monthIdx || 0) !== (b.monthIdx || 0)) return (a.monthIdx || 0) - (b.monthIdx || 0);
+    return (a.fecha || '').localeCompare(b.fecha || '');
+  });
+
   const savings = viewData.reduce((s, d) => s + (d.ahorroReal || 0), 0);
   const gen = viewData.reduce((s, d) => s + (d.prodBruta || 0), 0);
-  const autonomy = viewData.reduce((s, d) => s + (d.autonomia || 0), 0) / viewData.length;
+
+  // Autonomía Solar: promedio de los últimos 3 registros (no el promedio de todo el año)
+  const last3Autonomy = sortedViewData.slice(-3);
+  const autonomy = last3Autonomy.length > 0
+    ? last3Autonomy.reduce((s, d) => s + (d.autonomia || 0), 0) / last3Autonomy.length
+    : 0;
+
   const varKw = viewData.reduce((s, d) => s + (d.incPrecio || 0), 0) / viewData.length;
 
   const totalSavingsAll = (allData || []).reduce((s, d) => s + (d.ahorroReal || 0), 0);
@@ -352,17 +367,29 @@ export function calcKPIs(viewData, allData, investments, plantCapacityKw = null)
 
   // Solar engineering metrics
   const specificYield = capacity > 0 ? (gen / capacity) : 0;
-  const avgHsp = viewData.reduce((s, d) => s + (d.hsp || 0), 0) / viewData.length;
+
+  // HSP (Horas Sol Pico): cálculo del último mes, calculado con el último registro del mes (no promedio)
+  const lastRecordOfMonth = sortedViewData[sortedViewData.length - 1];
+  let lastHsp = 0;
+  if (lastRecordOfMonth) {
+    if (capacity > 0 && lastRecordOfMonth.daysInPeriod > 0 && lastRecordOfMonth.prodBruta !== undefined) {
+      lastHsp = lastRecordOfMonth.prodBruta / (capacity * lastRecordOfMonth.daysInPeriod);
+    } else {
+      lastHsp = lastRecordOfMonth.hsp || 0;
+    }
+  }
+
   const avgDailyGen = viewData.reduce((s, d) => s + (d.prodDiaria || 0), 0) / viewData.length;
   const avgDailyConsumption = viewData.reduce((s, d) => s + (d.consumoTotalDiario || 0), 0) / viewData.length;
 
+  // Clasificación de Salud Operativa basada en el HSP del último mes
   let healthScore = 'optimo';
   let healthLabel = 'Óptimo';
-  if (avgHsp > 0) {
-    if (avgHsp >= 4.0) {
+  if (lastHsp > 0) {
+    if (lastHsp >= 4.0) {
       healthScore = 'optimo';
       healthLabel = 'Óptimo';
-    } else if (avgHsp >= 3.2) {
+    } else if (lastHsp >= 3.2) {
       healthScore = 'normal';
       healthLabel = 'Normal';
     } else {
@@ -379,7 +406,9 @@ export function calcKPIs(viewData, allData, investments, plantCapacityKw = null)
     roi,
     avgSavings,
     specificYield,
-    avgHsp,
+    avgHsp: lastHsp, // Conserva compatibilidad con referencias a avgHsp
+    lastHsp,
+    hsp: lastHsp,
     avgDailyGen,
     avgDailyConsumption,
     healthScore,

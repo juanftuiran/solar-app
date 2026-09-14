@@ -507,7 +507,8 @@ export async function fetchProjectReadings(projectId) {
       .select('*')
       .eq('project_id', projectId)
       .order('year', { ascending: true })
-      .order('monthIdx', { ascending: true });
+      .order('monthIdx', { ascending: true })
+      .order('fecha', { ascending: true });
     if (error) {
       console.error('[supabase] fetchProjectReadings error:', error);
       return [];

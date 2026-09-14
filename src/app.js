@@ -182,7 +182,7 @@ function renderDashboardData() {
   
   // Update Solar Engineering Telemetry Banner
   setText('sh-specific-yield', fYield(kpis.specificYield));
-  setText('sh-avg-hsp', fHsp(kpis.avgHsp));
+  setText('sh-avg-hsp', fHsp(kpis.lastHsp ?? kpis.avgHsp));
   setText('sh-daily-gen', fDailyRate(kpis.avgDailyGen));
   
   const healthPill = document.getElementById('sh-health-pill');
@@ -370,7 +370,11 @@ async function loadProjectData(projectId) {
     setActiveProject(project, role || 'observer');
 
     const readings = await fetchProjectReadings(projectId);
-    state.rawData = (readings || []).sort((a, b) => a.year !== b.year ? a.year - b.year : (a.monthIdx || 0) - (b.monthIdx || 0));
+    state.rawData = (readings || []).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      if ((a.monthIdx || 0) !== (b.monthIdx || 0)) return (a.monthIdx || 0) - (b.monthIdx || 0);
+      return (a.fecha || '').localeCompare(b.fecha || '');
+    });
     state.processedData = processData(state.rawData);
 
     const investments = await getProjectInvestments(projectId);
@@ -384,7 +388,11 @@ async function loadProjectData(projectId) {
 async function reloadProjectData() {
   if (!state.activeProject) return;
   const readings = await fetchProjectReadings(state.activeProject.id);
-  state.rawData = (readings || []).sort((a, b) => a.year !== b.year ? a.year - b.year : (a.monthIdx || 0) - (b.monthIdx || 0));
+  state.rawData = (readings || []).sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    if ((a.monthIdx || 0) !== (b.monthIdx || 0)) return (a.monthIdx || 0) - (b.monthIdx || 0);
+    return (a.fecha || '').localeCompare(b.fecha || '');
+  });
   state.processedData = processData(state.rawData);
 }
 

@@ -786,7 +786,8 @@ function _renderKPIGrid() {
       bg: 'var(--solar-subtle)',
       labelEs: 'Ahorro Período',
       labelEn: 'Period Savings',
-      sub: 'Ahorro económico neto',
+      subEs: 'Ahorro económico neto',
+      subEn: 'Net economic savings',
     },
     {
       id: 'kpi-produccion',
@@ -795,7 +796,8 @@ function _renderKPIGrid() {
       bg: 'var(--accent-subtle)',
       labelEs: 'Producción Solar',
       labelEn: 'Solar Production',
-      sub: 'Generación total bruta',
+      subEs: 'Generación total bruta',
+      subEn: 'Gross total generation',
     },
     {
       id: 'kpi-autonomia',
@@ -804,7 +806,8 @@ function _renderKPIGrid() {
       bg: 'var(--ai-subtle)',
       labelEs: 'Autonomía Solar',
       labelEn: 'Solar Autonomy',
-      sub: '% energía autosuficiente',
+      subEs: 'Promedio últimos 3 registros',
+      subEn: 'Last 3 records average',
     },
     {
       id: 'kpi-var-kw',
@@ -813,7 +816,8 @@ function _renderKPIGrid() {
       bg: 'var(--warning-subtle)',
       labelEs: 'Var. Tarifa Red',
       labelEn: 'Grid Tariff Var.',
-      sub: 'Fluctuación intermensual',
+      subEs: 'Fluctuación intermensual',
+      subEn: 'Month-over-month fluctuation',
     },
   ];
 
@@ -831,7 +835,10 @@ function _renderKPIGrid() {
       <div class="kpi-value" id="${kpi.id}">--</div>
       <div class="kpi-subtext">
         <i class="fa-solid fa-circle-info" style="font-size:.65rem;"></i>
-        <span>${kpi.sub}</span>
+        <span>
+          <span class="lang-es">${kpi.subEs}</span>
+          <span class="lang-en">${kpi.subEn}</span>
+        </span>
       </div>
     </div>
   `).join('');
