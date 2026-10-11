@@ -9,7 +9,17 @@ import { sb, signIn, signOut, getSession, getUserRole, getUserProjects, getProje
 import { fCOP, fDec, fKwh, fPct, fYield, fHsp, fDailyRate, debounce } from './modules/formatters.js';
 import { t, monthName, MONTHS } from './modules/i18n.js';
 import { processData, filterByYear, calcProjections, calcKPIs } from './modules/analytics.js';
-import { renderEnergyChart, renderPriceChart, renderProjectionChart, destroyAllCharts } from './modules/charts.js';
+import {
+  renderEnergyChart,
+  renderMixChart,
+  renderPerformanceChart,
+  renderPriceChart,
+  renderPaybackChart,
+  renderProjectionChart,
+  renderSparkline,
+  destroyAllCharts,
+  CHART_COLORS,
+} from './modules/charts.js';
 
 import * as loginView from './views/loginView.js';
 import * as projectSelectorView from './views/projectSelectorView.js';
@@ -23,14 +33,21 @@ import { showModal, showConfirmModal, closeModal as closeGlobalModal } from './c
 const app = () => document.getElementById('app');
 
 // ── Toast Notification ────────────────────────────────────────────────────────
-function showToast(message, type = 'info', duration = 3000) {
+function showToast(message, type = 'info', duration = 3200) {
   const existing = document.querySelector('.toast');
   if (existing) existing.remove();
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-triangle-exclamation' : 'fa-info-circle'}" style="color:${type === 'success' ? 'var(--solar)' : type === 'error' ? 'var(--danger)' : 'var(--accent)'};font-size:1.1rem;"></i> <span>${message}</span>`;
+  const icon = type === 'success' ? 'fa-check' : type === 'error' ? 'fa-triangle-exclamation' : 'fa-info';
+  toast.innerHTML = `
+    <div class="toast-icon"><i class="fa-solid ${icon}"></i></div>
+    <span>${message}</span>
+  `;
   document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), duration);
+  setTimeout(() => {
+    toast.classList.add('leaving');
+    setTimeout(() => toast.remove(), 220);
+  }, duration);
 }
 
 // ── Language ──────────────────────────────────────────────────────────────────
@@ -119,6 +136,11 @@ async function renderDashboardView(subView) {
     onNavigate: handleSidebarNavigate,
     onLangChange: changeLang,
     onExportCsv: handleExportCsv,
+    onTabChange: (tab) => {
+      if (tab === 'telemetry' || tab === 'finance') {
+        renderDashboardData();
+      }
+    },
   });
 
   // Init subview specific events
@@ -160,10 +182,19 @@ function renderDashboardData() {
   const tableYear = year === 'all' ? curYear : parseInt(year, 10);
   const tableData = state.processedData.filter(d => d.year === tableYear);
 
-  // Render charts
+  // Render main & secondary charts
   renderEnergyChart(state.viewData);
+  renderMixChart(state.viewData);
+  renderPerformanceChart(state.viewData);
   renderPriceChart(state.viewData);
+  renderPaybackChart();
   renderProjectionChart();
+
+  // Render KPI Sparklines
+  renderSparkline('spark-kpi-ahorro', state.viewData.map(d => d.ahorroReal), CHART_COLORS.solar);
+  renderSparkline('spark-kpi-produccion', state.viewData.map(d => d.prodBruta), CHART_COLORS.accent);
+  renderSparkline('spark-kpi-autonomia', state.viewData.map(d => d.autonomia), CHART_COLORS.ai);
+  renderSparkline('spark-kpi-var-kw', state.viewData.map(d => d.precioKw), CHART_COLORS.warning);
 
   // Render table
   const tbody = document.getElementById('table-body');
@@ -205,13 +236,18 @@ function renderDashboardData() {
   setText('roi-avg-savings', fCOP(kpis.avgSavings));
   setText('roi-total-investment', fCOP(totalInv));
 
-  // Update ROI Progress bar
+  // Update ROI Progress bar & Radial Ring
   const totalSavingsAll = state.processedData.reduce((s, d) => s + (d.ahorroReal || 0), 0);
   const progressPct = totalInv > 0 ? Math.min(100, Math.max(0, (totalSavingsAll / totalInv) * 100)) : 0;
   const progressBarFill = document.getElementById('roi-progress-bar-fill');
   const progressPercentText = document.getElementById('roi-progress-percent');
   if (progressBarFill) progressBarFill.style.width = `${progressPct.toFixed(1)}%`;
   if (progressPercentText) progressPercentText.innerText = `${progressPct.toFixed(1)}% (${fCOP(totalSavingsAll)})`;
+
+  const roiRing = document.getElementById('roi-ring');
+  if (roiRing) roiRing.style.setProperty('--p', progressPct.toFixed(1));
+  setText('roi-ring-value', `${progressPct.toFixed(0)}%`);
+  setText('roi-total-saved-pill', fCOP(totalSavingsAll));
 
   // Update Econometric Projections & Eco-Metrics
   const proj = calcProjections(state.viewData);
@@ -269,6 +305,7 @@ function bindTableEvents(tbody) {
 
   tbody.querySelectorAll('tr[data-row-id]').forEach(tr => {
     tr.addEventListener('click', () => {
+      tr.classList.toggle('expanded');
       const det = document.getElementById(`det-${tr.dataset.rowId}`);
       if (det) det.classList.toggle('hidden');
     });

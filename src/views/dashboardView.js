@@ -1,6 +1,6 @@
 /**
  * @module dashboardView
- * @description Main dashboard view for JF Solar Cloud with ROI progress bar,
+ * @description Modern enterprise dashboard view for JF Solar Cloud with ROI progress bar,
  * segmented dynamic chart controls, econometric tariff forecasting, and CSV export.
  */
 
@@ -30,14 +30,14 @@ export function render(contentHTML = null) {
   const activeTab = state.activeTab || 'telemetry';
 
   return `
-    <div class="app-layout">
+    <div class="app-layout ${isAdmin ? 'has-sidebar' : ''}">
       ${sidebarHTML}
 
       <div class="main-content" id="main-content">
         <div id="dashboard" class="content-area">
           ${_renderHeader(user, project, isAdmin)}
 
-          <div id="dashboard-content-area" style="display:flex;flex-direction:column;gap:1.5rem;">
+          <div id="dashboard-content-area" style="display:flex;flex-direction:column;gap:1.25rem;">
             ${contentHTML !== null ? contentHTML : `
               <!-- ═══ Context Navigation Tabs ═══ -->
               <div class="dashboard-tabs" id="dashboard-tab-bar">
@@ -63,16 +63,16 @@ export function render(contentHTML = null) {
                 <!-- Solar Health & Telemetry Strip -->
                 ${_renderSolarHealthBanner()}
 
-                <!-- KPI Grid -->
+                <!-- KPI Grid with sparklines -->
                 ${_renderKPIGrid()}
 
-                <!-- Charts Grid -->
+                <!-- Charts Grid (Energy Balance + Donut Mix + HSP Performance + kW Price) -->
                 ${_renderChartsGrid()}
               </div>
 
               <!-- ═══ Tab 2: Finanzas & Retorno ═══ -->
               <div class="tab-pane ${activeTab === 'finance' ? 'active' : ''}" id="pane-finance">
-                <!-- ROI Panel -->
+                <!-- ROI Panel with Ring & Payback Chart -->
                 ${_renderROIPanel(totalInvestment)}
 
                 <!-- AI / Predictive Panel -->
@@ -90,7 +90,10 @@ export function render(contentHTML = null) {
             `}
           </div>
 
-          <div class="app-footer">JF SOLAR CLOUD — ENTERPRISE ENERGY PLATFORM</div>
+          <div class="app-footer">
+            <i class="fa-solid fa-leaf" style="color:var(--solar);"></i>
+            <span>JF SOLAR CLOUD · ENTERPRISE CLEAN ENERGY PLATFORM</span>
+          </div>
         </div>
       </div>
     </div>
@@ -115,6 +118,7 @@ export function init(callbacks) {
     onNavigate,
     onLangChange,
     onExportCsv,
+    onTabChange,
   } = callbacks || {};
 
   // Init Sidebar
@@ -147,6 +151,9 @@ export function init(callbacks) {
       state.activeTab = tabKey;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabKey));
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === `pane-${tabKey}`));
+      if (typeof onTabChange === 'function') {
+        onTabChange(tabKey);
+      }
       setTimeout(() => {
         Object.values(state.charts).forEach(c => c?.resize?.());
       }, 50);
@@ -350,10 +357,12 @@ export function renderTableRows(data, isAdmin = false) {
   if (!data || data.length === 0) {
     return `
       <tr>
-        <td colspan="${isAdmin ? 8 : 7}" style="text-align:center;padding:3rem;color:var(--muted-light);">
-          <i class="fa-solid fa-inbox" style="font-size:2rem;margin-bottom:.5rem;display:block;opacity:.3;"></i>
-          <span class="lang-es">No hay registros para este período o búsqueda.</span>
-          <span class="lang-en">No readings found for this period or search.</span>
+        <td colspan="${isAdmin ? 8 : 7}" style="text-align:center;padding:3rem 1.5rem;color:var(--muted-light);">
+          <div class="empty-state" style="padding:1.5rem 0;">
+            <i class="fa-solid fa-inbox" style="margin-bottom:.5rem;"></i>
+            <h3><span class="lang-es">No hay registros</span><span class="lang-en">No readings found</span></h3>
+            <p><span class="lang-es">No encontramos lecturas para este período o búsqueda.</span><span class="lang-en">No records match the current filter or search query.</span></p>
+          </div>
         </td>
       </tr>
     `;
@@ -364,19 +373,19 @@ export function renderTableRows(data, isAdmin = false) {
     const trendIcon = inc > 0
       ? 'fa-arrow-trend-up'
       : inc < 0 ? 'fa-arrow-trend-down' : 'fa-minus';
-    const trendColor = inc > 0
-      ? '#f87171'
-      : inc < 0 ? '#10b981' : '#94a3b8';
+    const trendClass = inc > 0 ? 'down' : inc < 0 ? 'up' : '';
 
     const adminCol = isAdmin
       ? `
-        <td style="padding:.75rem 1rem;text-align:center;">
-          <button class="edit-btn btn-ghost btn-sm" data-id="${row.id}" title="Editar" style="padding:.25rem .5rem;margin-right:.35rem;">
-            <i class="fa-solid fa-pen" style="font-size:.7rem;"></i>
-          </button>
-          <button class="del-btn btn-danger-outline btn-sm" data-id="${row.id}" data-fecha="${row.fecha}" title="Eliminar" style="padding:.25rem .5rem;">
-            <i class="fa-solid fa-trash" style="font-size:.7rem;"></i>
-          </button>
+        <td style="text-align:center;">
+          <div class="cell-actions">
+            <button class="edit-btn btn btn-ghost btn-xs btn-icon" data-id="${row.id}" title="Editar">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button class="del-btn btn btn-danger-outline btn-xs btn-icon" data-id="${row.id}" data-fecha="${row.fecha}" title="Eliminar">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
         </td>
       `
       : '';
@@ -386,49 +395,58 @@ export function renderTableRows(data, isAdmin = false) {
       resetBadges.push(`<span class="badge-reset"><i class="fa-solid fa-rotate"></i> Inversor</span>`);
     }
     if (row.meter_reset) {
-      resetBadges.push(`<span class="badge-reset" style="background:rgba(239,68,68,0.15);color:#f87171;border-color:rgba(239,68,68,0.3);"><i class="fa-solid fa-rotate"></i> Red</span>`);
+      resetBadges.push(`<span class="badge-reset grid"><i class="fa-solid fa-rotate"></i> Red</span>`);
     }
 
     const yieldStr = (row.specificYield && row.specificYield > 0)
-      ? `${fDec(row.specificYield, 1)} <span style="font-size:.65rem;color:var(--muted-light);">kWh/kWp</span>`
+      ? `${fDec(row.specificYield, 1)} <span class="unit">kWh/kWp</span>`
       : '—';
 
     const hspPill = (row.hsp && row.hsp > 0)
-      ? `<span class="health-pill ${row.healthScore || 'optimo'}" style="font-size:.65rem;padding:.1rem .4rem;margin-top:.2rem;">${fDec(row.hsp, 2)} HSP</span>`
+      ? `<span class="health-pill ${row.healthScore || 'optimo'}" style="font-size:.65rem;padding:.12rem .45rem;margin-top:.2rem;">${fDec(row.hsp, 2)} HSP</span>`
       : '';
 
     return `
       <tr class="data-row" data-row-id="${row.id}" data-detail-id="det-${row.id}">
-        <td style="padding:.75rem 1rem;">
-          <div style="font-weight:700;color:var(--accent);">${row.label}</div>
-          <div style="font-size:.75rem;color:var(--muted-light);">${row.fecha}</div>
-          <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.2rem;">
-            ${resetBadges.join('')}
+        <td>
+          <div class="cell-period">
+            <div class="row-chevron"><i class="fa-solid fa-chevron-right"></i></div>
+            <div>
+              <div class="cell-primary text-accent">${row.label}</div>
+              <div class="cell-sub">${row.fecha}</div>
+              ${resetBadges.length > 0 ? `<div class="badges-inline">${resetBadges.join('')}</div>` : ''}
+            </div>
           </div>
         </td>
-        <td style="padding:.75rem 1rem;text-align:center;font-size:.8rem;color:var(--muted-light);">
-          ${(row.lecturaRed || 0).toFixed(0)} <span style="opacity:.3;">|</span> ${(row.lecturaSolar || 0).toFixed(0)}
+        <td style="text-align:center;color:var(--muted-light);font-size:.8rem;">
+          <span style="color:var(--text);font-weight:600;">${(row.lecturaRed || 0).toFixed(0)}</span>
+          <span style="opacity:.3;margin:0 .25rem;">/</span>
+          <span style="color:var(--solar);font-weight:600;">${(row.lecturaSolar || 0).toFixed(0)}</span>
+          <div class="cell-sub">Red / Solar</div>
         </td>
-        <td style="padding:.75rem 1rem;text-align:center;font-weight:700;color:#fff;">
-          ${fDec(row.consumoRed, 1)} <span style="font-size:.75rem;color:var(--muted-light);font-weight:400;">kWh</span>
-          <div style="font-size:.7rem;color:var(--muted);">${fDec(row.consumoDiario || 0, 1)} kWh/d</div>
+        <td style="text-align:center;">
+          <div class="cell-primary">${fDec(row.consumoRed, 1)} <span class="unit">kWh</span></div>
+          <div class="cell-sub">${fDec(row.consumoDiario || 0, 1)} kWh/d</div>
         </td>
-        <td style="padding:.75rem 1rem;text-align:center;font-weight:700;color:var(--solar);">
-          ${fDec(row.prodBruta, 1)} <span style="font-size:.75rem;color:var(--muted-light);font-weight:400;">kWh</span>
-          <div style="font-size:.7rem;color:var(--muted);">${fDec(row.prodDiaria || 0, 1)} kWh/d</div>
+        <td style="text-align:center;">
+          <div class="cell-primary text-solar">${fDec(row.prodBruta, 1)} <span class="unit">kWh</span></div>
+          <div class="cell-sub">${fDec(row.prodDiaria || 0, 1)} kWh/d</div>
         </td>
-        <td style="padding:.75rem 1rem;text-align:center;">
-          <div style="font-weight:700;color:var(--accent);">${yieldStr}</div>
+        <td style="text-align:center;">
+          <div class="cell-primary text-accent">${yieldStr}</div>
           ${hspPill}
         </td>
-        <td style="padding:.75rem 1rem;text-align:right;">
-          <div style="font-weight:700;color:#fff;">${fCOP(row.precioKw || 0)}</div>
-          <div style="font-size:.75rem;color:${trendColor};font-weight:600;">
-            <i class="fa-solid ${trendIcon}" style="margin-right:.15rem;"></i>${Math.abs(inc).toFixed(1)}%
+        <td class="text-right">
+          <div class="cell-primary">${fCOP(row.precioKw || 0)}</div>
+          <div style="margin-top:.15rem;">
+            <span class="delta ${trendClass}">
+              <i class="fa-solid ${trendIcon}"></i> ${Math.abs(inc).toFixed(1)}%
+            </span>
           </div>
         </td>
-        <td style="padding:.75rem 1rem;text-align:right;font-weight:800;color:var(--solar);">
-          ${fCOP(row.ahorroReal)}
+        <td class="text-right">
+          <div class="cell-primary text-solar font-black">${fCOP(row.ahorroReal)}</div>
+          <div class="cell-sub text-solar">${fDec(row.autonomia, 0)}% solar</div>
         </td>
         ${adminCol}
       </tr>
@@ -442,27 +460,27 @@ export function renderTableRows(data, isAdmin = false) {
                 <span class="lang-es">Eficiencia Fotovoltaica</span>
                 <span class="lang-en">PV Efficiency</span>
               </span>
-              <div>Consumo Total: <strong style="color:#fff;">${fDec(row.consumoTotal, 1)} kWh</strong></div>
-              <div>Autonomía Solar: <strong style="color:#a78bfa;">${fDec(row.autonomia, 1)}%</strong></div>
-              <div>Rendimiento: <strong style="color:var(--accent);">${fDec(row.specificYield || 0, 1)} kWh/kWp</strong></div>
+              <div class="kv"><span>Consumo Total:</span><strong>${fDec(row.consumoTotal, 1)} kWh</strong></div>
+              <div class="kv"><span>Autonomía Solar:</span><strong class="text-ai">${fDec(row.autonomia, 1)}%</strong></div>
+              <div class="kv"><span>Rendimiento Yf:</span><strong class="text-accent">${fDec(row.specificYield || 0, 1)} kWh/kWp</strong></div>
             </div>
             <div class="detail-section">
               <span class="detail-section-title">
                 <span class="lang-es">Desglose Diario (${row.daysInPeriod || 30} días)</span>
                 <span class="lang-en">Daily Breakdown (${row.daysInPeriod || 30} days)</span>
               </span>
-              <div>Red: <strong style="color:#fff;">${fDec(row.consumoDiario || 0, 1)} kWh/día</strong></div>
-              <div>Solar: <strong style="color:var(--solar);">${fDec(row.prodDiaria || 0, 1)} kWh/día</strong></div>
-              <div>Equivalente HSP: <strong style="color:var(--warning);">${fDec(row.hsp || 0, 2)} HSP/día</strong></div>
+              <div class="kv"><span>Red eléctrica:</span><strong>${fDec(row.consumoDiario || 0, 1)} kWh/d</strong></div>
+              <div class="kv"><span>Generación solar:</span><strong class="text-solar">${fDec(row.prodDiaria || 0, 1)} kWh/d</strong></div>
+              <div class="kv"><span>Horas Sol Pico:</span><strong class="text-warning">${fDec(row.hsp || 0, 2)} HSP</strong></div>
             </div>
             <div class="detail-section">
               <span class="detail-section-title">
                 <span class="lang-es">Impacto Económico & Ecológico</span>
                 <span class="lang-en">Economic & Eco Impact</span>
               </span>
-              <div>Tarifa Anterior: <strong style="color:#fff;">${fCOP(row.prevPrice || 0)}</strong></div>
-              <div>Ahorro Generado: <strong style="color:var(--solar);">${fCOP(row.ahorroReal)}</strong></div>
-              <div>CO₂ Evitado: <strong style="color:var(--solar);">${fDec((row.prodBruta || 0) * 0.38, 1)} kg</strong></div>
+              <div class="kv"><span>Tarifa Anterior:</span><strong>${fCOP(row.prevPrice || 0)}</strong></div>
+              <div class="kv"><span>Ahorro Generado:</span><strong class="text-solar">${fCOP(row.ahorroReal)}</strong></div>
+              <div class="kv"><span>CO₂ Mitigado:</span><strong class="text-solar">${fDec((row.prodBruta || 0) * 0.38, 1)} kg</strong></div>
             </div>
           </div>
         </td>
@@ -486,7 +504,7 @@ function _renderSolarHealthBanner() {
           <span class="solar-metric-lbl">
             <span class="lang-es">Salud Operativa</span><span class="lang-en">Plant Health</span>
           </span>
-          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.2rem;">
+          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.15rem;">
             <span class="health-pill optimo" id="sh-health-pill">
               <span class="health-pulse-dot"></span>
               <span id="sh-health-text">Óptimo</span>
@@ -508,26 +526,26 @@ function _renderSolarHealthBanner() {
       </div>
 
       <div class="solar-metric-item">
-        <div class="solar-metric-icon" style="background:rgba(245,158,11,0.12);color:var(--warning);">
+        <div class="solar-metric-icon" style="background:var(--warning-subtle);color:var(--warning);">
           <i class="fa-solid fa-sun"></i>
         </div>
         <div class="solar-metric-info">
           <span class="solar-metric-lbl">
             <span class="lang-es">Horas Sol Pico (HSP)</span><span class="lang-en">Peak Sun Hours</span>
           </span>
-          <span class="solar-metric-val" style="color:var(--warning);" id="sh-avg-hsp">--</span>
+          <span class="solar-metric-val text-warning" id="sh-avg-hsp">--</span>
         </div>
       </div>
 
       <div class="solar-metric-item">
-        <div class="solar-metric-icon" style="background:rgba(139,92,246,0.12);color:var(--ai);">
+        <div class="solar-metric-icon" style="background:var(--ai-subtle);color:var(--ai);">
           <i class="fa-solid fa-calendar-day"></i>
         </div>
         <div class="solar-metric-info">
           <span class="solar-metric-lbl">
             <span class="lang-es">Gen. Media Diaria</span><span class="lang-en">Daily Gen Rate</span>
           </span>
-          <span class="solar-metric-val" style="color:var(--ai);" id="sh-daily-gen">--</span>
+          <span class="solar-metric-val text-ai" id="sh-daily-gen">--</span>
         </div>
       </div>
     </div>
@@ -543,13 +561,13 @@ function _renderHeader(user, project, isAdmin) {
       <div class="header-left">
         <div class="header-breadcrumbs">
           <a href="#" onclick="window.__navigate('projects');return false;">
-            <i class="fa-solid fa-solar-panel" style="margin-right:.25rem;"></i> Proyectos
+            <i class="fa-solid fa-solar-panel" style="margin-right:.2rem;"></i> Proyectos
           </a>
-          <i class="fa-solid fa-chevron-right" style="font-size:.6rem;opacity:.5;"></i>
-          <span>${_escapeHTML(project.name || 'JF Solar Cloud')}</span>
+          <span class="sep"><i class="fa-solid fa-chevron-right"></i></span>
+          <span class="current">${_escapeHTML(project.name || 'JF Solar Cloud')}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:.6rem;margin-top:.15rem;flex-wrap:wrap;">
-          <h2 class="header-project-name">
+        <div class="header-title-row">
+          <h2 class="header-project-name" title="${_escapeHTML(project.name || 'JF Solar Cloud')}">
             ${_escapeHTML(project.name || 'JF Solar Cloud')}
           </h2>
           <span class="status-pill">
@@ -558,12 +576,12 @@ function _renderHeader(user, project, isAdmin) {
             <span class="lang-en">Online</span>
           </span>
           ${capacityStr ? `
-            <span class="badge-solar-metric" title="Capacidad Instalada">
+            <span class="meta-chip accent" title="Capacidad Nominal">
               <i class="fa-solid fa-bolt"></i> ${capacityStr}
             </span>
           ` : ''}
           ${project.inverter_model ? `
-            <span class="badge-solar-metric" title="Modelo Inversor" style="background:rgba(245,158,11,0.12);color:var(--warning);border-color:rgba(245,158,11,0.25);">
+            <span class="meta-chip warning hide-sm" title="Modelo de Inversor">
               <i class="fa-solid fa-microchip"></i> ${_escapeHTML(project.inverter_model)}
             </span>
           ` : ''}
@@ -573,10 +591,10 @@ function _renderHeader(user, project, isAdmin) {
       <div class="header-actions">
         <!-- Language dropdown -->
         <div class="lang-dropdown">
-          <button class="lang-btn" id="lang-toggle-btn" type="button">
+          <button class="lang-btn" id="lang-toggle-btn" type="button" aria-label="Cambiar idioma">
             <span id="current-flag"><img src="https://flagcdn.com/w20/co.png" class="flag-img" alt="flag"></span>
             <span id="current-lang-text">ES</span>
-            <i class="fa-solid fa-chevron-down" style="font-size:.6rem;opacity:.7;"></i>
+            <i class="fa-solid fa-chevron-down" style="font-size:.55rem;opacity:.7;"></i>
           </button>
           <div class="lang-menu hidden" id="lang-menu">
             <button class="lang-option lang-option-btn" data-lang="es" data-flag="co" data-text="ES" type="button">
@@ -589,7 +607,7 @@ function _renderHeader(user, project, isAdmin) {
         </div>
 
         <!-- Year filter -->
-        <select id="year-filter" class="btn btn-ghost" style="font-size:.8rem;padding:.4rem .65rem;">
+        <select id="year-filter" class="select-pill" aria-label="Filtrar por año">
           <option value="${currentYear}">${currentYear}</option>
           <option value="${currentYear - 1}">${currentYear - 1}</option>
           <option value="${currentYear - 2}">${currentYear - 2}</option>
@@ -597,29 +615,30 @@ function _renderHeader(user, project, isAdmin) {
         </select>
 
         <!-- Export CSV Button -->
-        <button id="btn-export-csv" class="btn btn-ghost" title="Exportar CSV" style="font-size:.8rem;padding:.4rem .65rem;">
-          <i class="fa-solid fa-file-arrow-down" style="color:var(--accent);"></i>
-          <span class="lang-es">CSV</span>
-          <span class="lang-en">CSV</span>
+        <button id="btn-export-csv" class="btn btn-ghost" title="Exportar CSV">
+          <i class="fa-solid fa-file-arrow-down text-accent"></i>
+          <span>CSV</span>
         </button>
 
         ${isAdmin ? `
           <!-- New record button -->
-          <button id="btn-open-new-record" class="btn btn-solar" style="font-size:.8rem;padding:.4rem .85rem;">
+          <button id="btn-open-new-record" class="btn btn-solar">
             <i class="fa-solid fa-plus"></i>
             <span class="lang-es">Nuevo Registro</span>
             <span class="lang-en">New Record</span>
           </button>
         ` : ''}
 
+        <div class="header-divider"></div>
+
         <!-- Monitoring link -->
-        <button id="btn-monitoring-link" class="btn btn-ghost" title="URL de Monitoreo" style="padding:.4rem .65rem;">
-          <i class="fa-solid fa-arrow-up-right-from-square" style="color:var(--muted-light);"></i>
+        <button id="btn-monitoring-link" class="btn btn-ghost btn-icon" title="URL de Monitoreo">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
         </button>
 
         <!-- Logout -->
-        <button id="btn-dashboard-logout" class="btn btn-ghost" title="Cerrar Sesión" style="padding:.4rem .65rem;">
-          <i class="fa-solid fa-right-from-bracket" style="color:var(--muted-light);"></i>
+        <button id="btn-dashboard-logout" class="btn btn-ghost btn-icon" title="Cerrar Sesión">
+          <i class="fa-solid fa-right-from-bracket"></i>
         </button>
       </div>
     </header>
@@ -629,61 +648,102 @@ function _renderHeader(user, project, isAdmin) {
 function _renderROIPanel(totalInvestment) {
   return `
     <div class="card roi-panel">
-      <i class="fa-solid fa-chart-pie roi-bg-icon"></i>
+      <div class="section-head" style="margin-bottom:1.25rem;">
+        <div class="section-head-title">
+          <div class="icon-tile accent"><i class="fa-solid fa-chart-pie"></i></div>
+          <div>
+            <h3>
+              <span class="lang-es">Retorno de Inversión & Amortización</span>
+              <span class="lang-en">Return on Investment & Payback</span>
+            </h3>
+            <p>
+              <span class="lang-es">Cálculo dinámico basado en generación solar real vs tarifas de red</span>
+              <span class="lang-en">Dynamically calculated from real solar production vs grid tariffs</span>
+            </p>
+          </div>
+        </div>
+        <span class="meta-chip accent">
+          <i class="fa-solid fa-shield-check"></i>
+          <span class="lang-es">Amortización Activa</span>
+          <span class="lang-en">Active Payback</span>
+        </span>
+      </div>
 
-      <div class="roi-header">
-        <div class="roi-title-wrap">
-          <h3>
-            <i class="fa-solid fa-chart-pie" style="color:var(--accent);"></i>
-            <span class="lang-es">Retorno de Inversión & Amortización</span>
-            <span class="lang-en">Return on Investment & Payback</span>
-          </h3>
-          <p>
-            <span class="lang-es">Cálculo dinámico basado en generación solar real vs tarifas de red</span>
-            <span class="lang-en">Dynamically calculated from real solar production vs grid tariffs</span>
-          </p>
+      <div class="roi-body">
+        <!-- Radial Gauge Indicator -->
+        <div class="roi-ring" id="roi-ring" style="--p: 0;">
+          <div class="roi-ring-inner">
+            <span class="roi-ring-value" id="roi-ring-value">0%</span>
+            <span class="roi-ring-label">
+              <span class="lang-es">Amortizado</span>
+              <span class="lang-en">Amortized</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Payback Progress Bar Container -->
+        <div class="payback-bar-container">
+          <div class="payback-bar-header">
+            <span class="lbl">
+              <span class="lang-es">Progreso de Amortización</span>
+              <span class="lang-en">Payback Progress</span>
+            </span>
+            <span id="roi-progress-percent" style="font-weight:800;color:var(--solar);" class="tabular-nums">0%</span>
+          </div>
+          <div class="payback-bar-track">
+            <div id="roi-progress-bar-fill" class="payback-bar-fill" style="width:0%;"></div>
+          </div>
+
+          <div class="payback-stats-grid">
+            <div class="payback-stat-col">
+              <span class="payback-stat-lbl">
+                <span class="lang-es">Inversión Total</span><span class="lang-en">Total Invested</span>
+              </span>
+              <span class="payback-stat-val text-accent" id="roi-total-investment">
+                ${fCOP(totalInvestment)}
+              </span>
+            </div>
+
+            <div class="payback-stat-col">
+              <span class="payback-stat-lbl">
+                <span class="lang-es">Ahorro Mensual Prom.</span><span class="lang-en">Avg Monthly Savings</span>
+              </span>
+              <span class="payback-stat-val text-solar" id="roi-avg-savings">--</span>
+            </div>
+
+            <div class="payback-stat-col">
+              <span class="payback-stat-lbl">
+                <span class="lang-es">Tiempo Estimado</span><span class="lang-en">Est. Payback Time</span>
+              </span>
+              <span class="payback-stat-val text-strong">
+                <span id="roi-time">--</span> <span style="font-size:.7rem;color:var(--muted-light);font-weight:600;">Años</span>
+              </span>
+            </div>
+
+            <div class="payback-stat-col">
+              <span class="payback-stat-lbl">
+                <span class="lang-es">Ahorro Acumulado</span><span class="lang-en">Total Saved</span>
+              </span>
+              <span class="payback-stat-val text-solar" id="roi-total-saved-pill">--</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Payback Progress Bar Container -->
-      <div class="payback-bar-container">
-        <div class="payback-bar-header">
-          <span style="font-weight:700;color:var(--muted-light);text-transform:uppercase;letter-spacing:.04em;">
-            <span class="lang-es">Progreso de Amortización</span>
-            <span class="lang-en">Payback Progress</span>
-          </span>
-          <span id="roi-progress-percent" style="font-weight:900;color:var(--solar);" class="tabular-nums">0%</span>
-        </div>
-        <div class="payback-bar-track">
-          <div id="roi-progress-bar-fill" class="payback-bar-fill" style="width:0%;"></div>
-        </div>
-
-        <div class="payback-stats-grid">
-          <div class="payback-stat-col">
-            <span class="payback-stat-lbl">
-              <span class="lang-es">Inversión Total</span><span class="lang-en">Total Invested</span>
-            </span>
-            <span class="payback-stat-val text-accent" id="roi-total-investment">
-              ${fCOP(totalInvestment)}
-            </span>
-          </div>
-
-          <div class="payback-stat-col">
-            <span class="payback-stat-lbl">
-              <span class="lang-es">Ahorro Mensual Prom.</span><span class="lang-en">Avg Monthly Savings</span>
-            </span>
-            <span class="payback-stat-val text-solar" id="roi-avg-savings">--</span>
-          </div>
-
-          <div class="payback-stat-col">
-            <span class="payback-stat-lbl">
-              <span class="lang-es">Tiempo Estimado</span><span class="lang-en">Est. Payback Time</span>
-            </span>
-            <span class="payback-stat-val" style="color:#fff;">
-              <span id="roi-time">--</span> <span style="font-size:.7rem;color:var(--muted-light);font-weight:600;">Años</span>
-            </span>
-          </div>
-        </div>
+      <!-- Interactive Payback curve chart -->
+      <div class="roi-chart-head">
+        <h4>
+          <i class="fa-solid fa-chart-line" style="color:var(--solar);"></i>
+          <span class="lang-es">Curva Histórica de Amortización vs Capital Invertido</span>
+          <span class="lang-en">Historical Payback Curve vs Invested Capital</span>
+        </h4>
+        <span class="stat-tile-sub">
+          <span class="lang-es">Punto de corte = Recuperación completa</span>
+          <span class="lang-en">Intersection = 100% Breakeven</span>
+        </span>
+      </div>
+      <div class="chart-container short">
+        <canvas id="chart-payback"></canvas>
       </div>
     </div>
   `;
@@ -694,16 +754,16 @@ function _renderAIPanel() {
     <div class="ai-panel">
       <div class="ai-inner">
         <div class="ai-header">
-          <div style="display:flex;align-items:center;gap:.5rem;">
-            <i class="fa-solid fa-brain" style="color:var(--ai);font-size:1.15rem;"></i>
+          <div style="display:flex;align-items:center;gap:.65rem;">
+            <div class="icon-tile ai"><i class="fa-solid fa-brain"></i></div>
             <div>
-              <h3 style="font-size:.95rem;font-weight:800;color:#fff;">
+              <h3 style="font-size:.95rem;font-weight:800;color:var(--text-strong);">
                 <span class="lang-es">Pronóstico Econométrico & Analítica Tarifaria</span>
                 <span class="lang-en">Econometric Forecasting & Tariff Intelligence</span>
               </h3>
-              <p style="font-size:.7rem;color:var(--muted-light);">
-                <span class="lang-es">Modelo ponderado WLS + regresión exponencial con banda de confianza</span>
-                <span class="lang-en">Weighted WLS model + exponential regression with confidence band</span>
+              <p style="font-size:.74rem;color:var(--muted-light);">
+                <span class="lang-es">Modelo ponderado WLS + regresión exponencial con banda de confianza 90%</span>
+                <span class="lang-en">Weighted WLS model + exponential regression with 90% confidence band</span>
               </p>
             </div>
           </div>
@@ -717,7 +777,7 @@ function _renderAIPanel() {
               <span class="lang-es">Tarifa Estimada Próx. Mes</span>
               <span class="lang-en">Next Month Est. Tariff</span>
             </span>
-            <span id="ai-precio-futuro" class="ai-item-val" style="color:var(--ai);">--</span>
+            <span id="ai-precio-futuro" class="ai-item-val text-ai">--</span>
             <span class="ai-item-sub" id="ai-rango-confianza">Banda: ± $0 COP</span>
           </div>
 
@@ -737,7 +797,7 @@ function _renderAIPanel() {
               <span class="lang-es">Proyección a 6 Meses</span>
               <span class="lang-en">6-Month Forecast</span>
             </span>
-            <span id="ai-precio-6m" class="ai-item-val" style="color:#fff;">--</span>
+            <span id="ai-precio-6m" class="ai-item-val text-strong">--</span>
             <span class="ai-item-sub">Horizonte medio plazo</span>
           </div>
 
@@ -747,8 +807,8 @@ function _renderAIPanel() {
               <span class="lang-es">Ahorro Estimado Próx. Mes</span>
               <span class="lang-en">Est. Next Month Savings</span>
             </span>
-            <span id="ai-ahorro-mes" class="ai-item-val" style="color:var(--solar);">--</span>
-            <span class="ai-item-sub">Basado en producción solar esperada</span>
+            <span id="ai-ahorro-mes" class="ai-item-val text-solar">--</span>
+            <span class="ai-item-sub">Basado en producción esperada</span>
           </div>
         </div>
 
@@ -756,17 +816,17 @@ function _renderAIPanel() {
         <div class="eco-banner">
           <div class="eco-chips">
             <span class="eco-chip">
-              <i class="fa-solid fa-sun" style="color:var(--warning);"></i>
+              <i class="fa-solid fa-sun text-warning"></i>
               <span class="lang-es">Pico Histórico: <strong id="ai-mejor-mes">--</strong></span>
               <span class="lang-en">Peak Gen Month: <strong id="ai-mejor-mes-en">--</strong></span>
             </span>
             <span class="eco-chip">
-              <i class="fa-solid fa-leaf" style="color:var(--solar);"></i>
+              <i class="fa-solid fa-leaf text-solar"></i>
               <span class="lang-es">CO₂ Evitado: <strong id="ai-co2">-- kg</strong></span>
               <span class="lang-en">Avoided CO₂: <strong id="ai-co2-en">-- kg</strong></span>
             </span>
             <span class="eco-chip">
-              <i class="fa-solid fa-tree" style="color:var(--solar);"></i>
+              <i class="fa-solid fa-tree text-solar"></i>
               <span class="lang-es">Eq. <strong id="eco-trees">--</strong> árboles plantados</span>
               <span class="lang-en">Eq. <strong id="eco-trees-en">--</strong> trees planted</span>
             </span>
@@ -822,7 +882,7 @@ function _renderKPIGrid() {
   ];
 
   const cards = kpis.map(kpi => `
-    <div class="card kpi-card">
+    <div class="card kpi-card" style="--kpi-color:${kpi.color};">
       <div class="kpi-header">
         <span class="kpi-label">
           <span class="lang-es">${kpi.labelEs}</span>
@@ -833,12 +893,16 @@ function _renderKPIGrid() {
         </div>
       </div>
       <div class="kpi-value" id="${kpi.id}">--</div>
-      <div class="kpi-subtext">
-        <i class="fa-solid fa-circle-info" style="font-size:.65rem;"></i>
-        <span>
-          <span class="lang-es">${kpi.subEs}</span>
-          <span class="lang-en">${kpi.subEn}</span>
-        </span>
+      <div class="kpi-footer">
+        <div class="kpi-subtext">
+          <span>
+            <span class="lang-es">${kpi.subEs}</span>
+            <span class="lang-en">${kpi.subEn}</span>
+          </span>
+        </div>
+        <div class="kpi-spark">
+          <canvas id="spark-${kpi.id}"></canvas>
+        </div>
       </div>
     </div>
   `).join('');
@@ -852,50 +916,116 @@ function _renderChartsGrid() {
 
   return `
     <div class="charts-grid">
-      <!-- Energy chart -->
-      <div class="card chart-wrap">
+      <!-- Energy chart (Grid vs Solar) -->
+      <div class="card chart-wrap span-2">
         <div class="chart-header">
-          <h3>
-            <i class="fa-solid fa-bolt" style="color:var(--solar);"></i>
-            <span class="lang-es">Balance Energético (Red vs Solar)</span>
-            <span class="lang-en">Energy Balance (Grid vs Solar)</span>
-          </h3>
+          <div class="chart-title">
+            <h3>
+              <i class="fa-solid fa-bolt" style="color:var(--solar);"></i>
+              <span class="lang-es">Balance Energético (Red vs Solar)</span>
+              <span class="lang-en">Energy Balance (Grid vs Solar)</span>
+            </h3>
+            <p class="chart-subtitle">
+              <span class="lang-es">Comparativa mensual de energía consumida de la red vs generación fotovoltaica</span>
+              <span class="lang-en">Monthly comparison of grid consumption vs PV production</span>
+            </p>
+          </div>
 
           <!-- Segmented Control for Energy -->
           <div class="segmented-control" id="control-chart-energia">
             <button class="segmented-btn ${energyMode === 'bar' ? 'active' : ''}" data-chart-key="energia" data-mode="bar" type="button" title="Vista de Barras">
               <i class="fa-solid fa-chart-simple"></i>
-              <span class="lang-es">Barras</span><span class="lang-en">Bars</span>
             </button>
             <button class="segmented-btn ${energyMode === 'line' ? 'active' : ''}" data-chart-key="energia" data-mode="line" type="button" title="Vista de Líneas">
               <i class="fa-solid fa-chart-line"></i>
-              <span class="lang-es">Líneas</span><span class="lang-en">Lines</span>
             </button>
           </div>
         </div>
-        <div class="chart-container">
+        <div class="chart-container tall">
           <canvas id="chart-energia"></canvas>
+        </div>
+      </div>
+
+      <!-- Energy Mix (Donut) -->
+      <div class="card chart-wrap">
+        <div class="chart-header">
+          <div class="chart-title">
+            <h3>
+              <i class="fa-solid fa-chart-pie" style="color:var(--accent);"></i>
+              <span class="lang-es">Mix Energético</span>
+              <span class="lang-en">Energy Mix</span>
+            </h3>
+            <p class="chart-subtitle">
+              <span class="lang-es">Participación solar acumulada</span>
+              <span class="lang-en">Cumulative solar share</span>
+            </p>
+          </div>
+        </div>
+        <div class="mix-wrap">
+          <div class="mix-chart">
+            <canvas id="chart-mix"></canvas>
+          </div>
+          <div class="mix-legend">
+            <div class="mix-legend-row">
+              <span class="lbl"><span class="legend-dot" style="background:var(--solar);"></span> <span class="lang-es">Solar Fotovoltaica</span><span class="lang-en">Solar PV</span></span>
+              <span class="val text-solar" id="mix-solar-val">-- kWh</span>
+            </div>
+            <div class="mix-legend-row">
+              <span class="lbl"><span class="legend-dot" style="background:var(--grid-c);"></span> <span class="lang-es">Red Eléctrica</span><span class="lang-en">Grid Power</span></span>
+              <span class="val text-grid" id="mix-grid-val">-- kWh</span>
+            </div>
+            <div class="mix-legend-row">
+              <span class="lbl"><i class="fa-solid fa-calculator" style="font-size:.65rem;color:var(--muted-light);"></i> <span class="lang-es">Consumo Total</span><span class="lang-en">Total Consumed</span></span>
+              <span class="val text-strong" id="mix-total-val">-- kWh</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="charts-grid two" style="margin-top:1.25rem;">
+      <!-- Performance & Peak Sun Hours Chart -->
+      <div class="card chart-wrap">
+        <div class="chart-header">
+          <div class="chart-title">
+            <h3>
+              <i class="fa-solid fa-sun" style="color:var(--warning);"></i>
+              <span class="lang-es">Rendimiento & Horas Sol Pico (HSP)</span>
+              <span class="lang-en">Plant Performance & Peak Sun Hours (PSH)</span>
+            </h3>
+            <p class="chart-subtitle">
+              <span class="lang-es">Estándar IEC 61724 · Líneas de referencia: Óptimo (4.0) y Mínimo (3.2)</span>
+              <span class="lang-en">IEC 61724 Standard · Target references: 4.0 Optimal, 3.2 Min</span>
+            </p>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="chart-rendimiento"></canvas>
         </div>
       </div>
 
       <!-- Price chart -->
       <div class="card chart-wrap">
         <div class="chart-header">
-          <h3>
-            <i class="fa-solid fa-coins" style="color:var(--warning);"></i>
-            <span class="lang-es">Fluctuación de Tarifa kW (COP)</span>
-            <span class="lang-en">kW Tariff Fluctuation (COP)</span>
-          </h3>
+          <div class="chart-title">
+            <h3>
+              <i class="fa-solid fa-coins" style="color:var(--warning);"></i>
+              <span class="lang-es">Fluctuación de Tarifa kW (COP)</span>
+              <span class="lang-en">kW Tariff Fluctuation (COP)</span>
+            </h3>
+            <p class="chart-subtitle">
+              <span class="lang-es">Evolución del costo facturado por kWh en la red eléctrica</span>
+              <span class="lang-en">Evolution of billed grid electricity tariff per kWh</span>
+            </p>
+          </div>
 
           <!-- Segmented Control for Price -->
           <div class="segmented-control" id="control-chart-precio">
             <button class="segmented-btn ${priceMode === 'line' ? 'active' : ''}" data-chart-key="precio" data-mode="line" type="button" title="Vista de Líneas">
               <i class="fa-solid fa-chart-line"></i>
-              <span class="lang-es">Líneas</span><span class="lang-en">Lines</span>
             </button>
             <button class="segmented-btn ${priceMode === 'bar' ? 'active' : ''}" data-chart-key="precio" data-mode="bar" type="button" title="Vista de Barras">
               <i class="fa-solid fa-chart-simple"></i>
-              <span class="lang-es">Barras</span><span class="lang-en">Bars</span>
             </button>
           </div>
         </div>
@@ -910,56 +1040,79 @@ function _renderChartsGrid() {
 function _renderProjectionSection() {
   return `
     <div class="card" style="overflow:hidden;">
-      <div style="padding:1.25rem;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:.5rem;">
-          <h3 style="font-size:.95rem;font-weight:800;color:#fff;display:flex;align-items:center;gap:.4rem;">
-            <i class="fa-solid fa-chart-line" style="color:var(--ai);"></i>
-            <span class="lang-es">Proyección Financiera y Energética a 25 Años</span>
-            <span class="lang-en">25-Year Financial & Energy Projection</span>
-          </h3>
-          <span style="font-size:.75rem;color:var(--muted-light);">
-            Degradación: 0.4%/año • Inflación: 4%/año
-          </span>
+      <div style="padding:1.5rem;">
+        <div class="section-head" style="margin-bottom:1rem;">
+          <div class="section-head-title">
+            <div class="icon-tile ai"><i class="fa-solid fa-chart-line"></i></div>
+            <div>
+              <h3>
+                <span class="lang-es">Proyección Financiera y Energética a 25 Años</span>
+                <span class="lang-en">25-Year Financial & Energy Projection</span>
+              </h3>
+              <p>
+                <span class="lang-es">Modelo de generación degradada a 0.4%/año e inflación tarifaria 4.0%/año</span>
+                <span class="lang-en">PV degradation model at 0.4%/yr and tariff inflation 4.0%/yr</span>
+              </p>
+            </div>
+          </div>
+          <div class="assumption-chips">
+            <span class="meta-chip"><i class="fa-solid fa-arrow-trend-down"></i> Deg: 0.4%/año</span>
+            <span class="meta-chip warning"><i class="fa-solid fa-arrow-trend-up"></i> Inf: 4%/año</span>
+          </div>
         </div>
-        <div style="height:310px;position:relative;">
+
+        <!-- Summary KPI tiles -->
+        <div class="proj-summary">
+          <div class="stat-tile">
+            <span class="stat-tile-lbl"><span class="lang-es">Ahorro 25 Años</span><span class="lang-en">25-Yr Total Savings</span></span>
+            <span class="stat-tile-val text-solar" id="proj-total-savings">--</span>
+            <span class="stat-tile-sub"><span class="lang-es">Flujo acumulado</span><span class="lang-en">Cumulative cashflow</span></span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-tile-lbl"><span class="lang-es">Punto de Equilibrio</span><span class="lang-en">Breakeven Year</span></span>
+            <span class="stat-tile-val text-accent" id="proj-breakeven">--</span>
+            <span class="stat-tile-sub" id="proj-breakeven-sub">--</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-tile-lbl"><span class="lang-es">ROI Proyectado</span><span class="lang-en">Projected ROI</span></span>
+            <span class="stat-tile-val text-solar" id="proj-roi">--</span>
+            <span class="stat-tile-sub"><span class="lang-es">Sobre inversión total</span><span class="lang-en">On total capital</span></span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-tile-lbl"><span class="lang-es">Generación 25A</span><span class="lang-en">25-Yr Total Gen</span></span>
+            <span class="stat-tile-val text-ai" id="proj-total-gen">--</span>
+            <span class="stat-tile-sub"><span class="lang-es">Energía limpia total</span><span class="lang-en">Clean energy lifetime</span></span>
+          </div>
+        </div>
+
+        <div class="chart-container tall">
           <canvas id="chart-proyeccion"></canvas>
         </div>
       </div>
 
       <!-- Collapsible projection table -->
-      <div>
-        <button
-          id="projection-table-toggle"
-          type="button"
-          style="
-            width:100%;display:flex;justify-content:space-between;align-items:center;
-            padding:.85rem 1.25rem;background:rgba(19, 29, 52, 0.85);
-            border:none;border-top:1px solid var(--border);
-            color:var(--muted-light);font-size:.8rem;font-weight:700;cursor:pointer;
-          "
-        >
-          <span>
-            <i class="fa-solid fa-table" style="margin-right:.4rem;color:var(--accent);"></i>
-            <span class="lang-es">Ver desglose detallado año por año</span>
-            <span class="lang-en">View detailed year-by-year table</span>
-          </span>
-          <i id="projection-toggle-icon" class="fa-solid fa-chevron-down"></i>
-        </button>
-        <div id="projection-table-body" class="hidden">
-          <div class="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th style="padding:.75rem 1rem;"><span class="lang-es">Año</span><span class="lang-en">Year</span></th>
-                  <th style="padding:.75rem 1rem;text-align:right;"><span class="lang-es">Generación (kWh)</span><span class="lang-en">Generation</span></th>
-                  <th style="padding:.75rem 1rem;text-align:right;"><span class="lang-es">Ahorro Anual</span><span class="lang-en">Annual Savings</span></th>
-                  <th style="padding:.75rem 1rem;text-align:right;"><span class="lang-es">Ahorro Acumulado</span><span class="lang-en">Cumulated</span></th>
-                  <th style="padding:.75rem 1rem;text-align:right;"><span class="lang-es">Inversión Total</span><span class="lang-en">Total Invested</span></th>
-                </tr>
-              </thead>
-              <tbody id="tabla-proyeccion-body"></tbody>
-            </table>
-          </div>
+      <button id="projection-table-toggle" class="collapse-toggle" type="button">
+        <span class="row">
+          <i class="fa-solid fa-table"></i>
+          <span class="lang-es">Ver desglose detallado año por año (25 años)</span>
+          <span class="lang-en">View detailed 25-year annual breakdown</span>
+        </span>
+        <i id="projection-toggle-icon" class="fa-solid fa-chevron-down"></i>
+      </button>
+      <div id="projection-table-body" class="hidden">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th><span class="lang-es">Año</span><span class="lang-en">Year</span></th>
+                <th class="text-right"><span class="lang-es">Generación (kWh)</span><span class="lang-en">Generation</span></th>
+                <th class="text-right"><span class="lang-es">Ahorro Anual</span><span class="lang-en">Annual Savings</span></th>
+                <th class="text-right"><span class="lang-es">Ahorro Acumulado</span><span class="lang-en">Cumulated</span></th>
+                <th class="text-right"><span class="lang-es">Inversión Total</span><span class="lang-en">Total Invested</span></th>
+              </tr>
+            </thead>
+            <tbody id="tabla-proyeccion-body"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -975,21 +1128,20 @@ function _renderDataTable(isAdmin) {
     <div class="card table-wrap">
       <div class="table-header">
         <h3>
-          <i class="fa-solid fa-cloud" style="color:var(--accent);"></i>
+          <i class="fa-solid fa-cloud text-accent"></i>
           <span class="lang-es">Registro Histórico Cloud</span>
           <span class="lang-en">Cloud Historical Readings</span>
         </h3>
 
         <!-- Table search filter -->
         <div class="table-toolbar">
-          <div class="search-input-wrap" style="min-width:14rem;max-width:18rem;">
+          <div class="search-input-wrap sm">
             <i class="fa-solid fa-magnifying-glass"></i>
             <input
               type="text"
               id="table-search-input"
-              placeholder="Buscar período..."
+              placeholder="Buscar período o fecha..."
               aria-label="Buscar lecturas"
-              style="padding-top:.4rem;padding-bottom:.4rem;font-size:.8rem;"
             />
           </div>
         </div>
@@ -1004,8 +1156,8 @@ function _renderDataTable(isAdmin) {
               <th style="text-align:center;"><span class="lang-es">Consumo Red</span><span class="lang-en">Grid Usage</span></th>
               <th style="text-align:center;"><span class="lang-es">Gen. Solar</span><span class="lang-en">Solar Gen</span></th>
               <th style="text-align:center;"><span class="lang-es">Rendimiento (Yf)</span><span class="lang-en">Yield (Yf)</span></th>
-              <th style="text-align:right;"><span class="lang-es">Tarifa kW</span><span class="lang-en">kW Tariff</span></th>
-              <th style="text-align:right;"><span class="lang-es">Ahorro</span><span class="lang-en">Savings</span></th>
+              <th class="text-right"><span class="lang-es">Tarifa kW</span><span class="lang-en">kW Tariff</span></th>
+              <th class="text-right"><span class="lang-es">Ahorro</span><span class="lang-en">Savings</span></th>
               ${adminTh}
             </tr>
           </thead>
@@ -1023,7 +1175,7 @@ function _renderRecordModal() {
         <!-- Header -->
         <div class="modal-header">
           <h2 class="modal-title">
-            <i class="fa-solid fa-cloud-arrow-up" style="color:var(--accent);"></i>
+            <div class="icon-tile sm accent"><i class="fa-solid fa-cloud-arrow-up"></i></div>
             <span class="lang-es" id="modal-title-es">Nuevo Registro Cloud</span>
             <span class="lang-en" id="modal-title-en">New Cloud Record</span>
           </h2>
@@ -1033,7 +1185,7 @@ function _renderRecordModal() {
         </div>
 
         <!-- Form -->
-        <form id="add-record-form" style="display:flex;flex-direction:column;gap:1rem;">
+        <form id="add-record-form" class="form-stack">
           <input type="hidden" id="edit-id" value="">
 
           <!-- Warning Alert Box -->
@@ -1041,7 +1193,7 @@ function _renderRecordModal() {
 
           <div class="field">
             <label for="new-fecha">
-              <i class="fa-solid fa-calendar-day" style="color:var(--accent);"></i>
+              <i class="fa-solid fa-calendar-day text-accent"></i>
               <span class="lang-es">Fecha de Lectura</span>
               <span class="lang-en">Reading Date</span>
             </label>
@@ -1051,7 +1203,7 @@ function _renderRecordModal() {
           <div class="field-row">
             <div class="field">
               <label for="new-lectura-red">
-                <i class="fa-solid fa-gauge" style="color:#f43f5e;"></i>
+                <i class="fa-solid fa-gauge" style="color:var(--grid-c);"></i>
                 <span class="lang-es">Lectura Red (Medidor)</span>
                 <span class="lang-en">Grid Reading</span>
               </label>
@@ -1059,7 +1211,7 @@ function _renderRecordModal() {
             </div>
             <div class="field">
               <label for="new-lectura-solar">
-                <i class="fa-solid fa-solar-panel" style="color:var(--solar);"></i>
+                <i class="fa-solid fa-solar-panel text-solar"></i>
                 <span class="lang-es">Lectura Solar (Inversor)</span>
                 <span class="lang-en">Solar Reading</span>
               </label>
@@ -1069,7 +1221,7 @@ function _renderRecordModal() {
 
           <div class="field">
             <label for="new-precio">
-              <i class="fa-solid fa-coins" style="color:var(--warning);"></i>
+              <i class="fa-solid fa-coins text-warning"></i>
               <span class="lang-es">Precio por kW (COP)</span>
               <span class="lang-en">Price per kW (COP)</span>
             </label>
@@ -1077,29 +1229,29 @@ function _renderRecordModal() {
           </div>
 
           <!-- Hardware Reset Checkboxes -->
-          <div style="background:rgba(245,158,11,0.06);padding:.875rem;border-radius:var(--radius-sm);border:1px solid rgba(245,158,11,0.2);display:flex;flex-direction:column;gap:.75rem;">
-            <label style="display:flex;align-items:flex-start;gap:.75rem;cursor:pointer;">
-              <input type="checkbox" id="new-inverter-reset" style="margin-top:.25rem;width:1.1rem;height:1.1rem;accent-color:var(--warning);">
-              <div style="display:flex;flex-direction:column;gap:.2rem;">
-                <span style="font-weight:700;color:#fff;font-size:.85rem;">
+          <div class="check-group">
+            <label class="check-option">
+              <input type="checkbox" id="new-inverter-reset">
+              <div>
+                <span class="check-option-title">
                   <span class="lang-es">Reinicio de inversor (Nuevo equipo solar)</span>
                   <span class="lang-en">Inverter reset (New solar equipment)</span>
                 </span>
-                <span style="font-size:.75rem;color:var(--muted-light);line-height:1.4;">
+                <span class="check-option-desc">
                   <span class="lang-es">Marca si cambiaste el inversor y la lectura reinició desde 0.</span>
                   <span class="lang-en">Check if inverter was replaced and reading started from 0.</span>
                 </span>
               </div>
             </label>
 
-            <label style="display:flex;align-items:flex-start;gap:.75rem;cursor:pointer;padding-top:.5rem;border-top:1px solid rgba(245,158,11,0.15);">
-              <input type="checkbox" id="new-meter-reset" style="margin-top:.25rem;width:1.1rem;height:1.1rem;accent-color:var(--danger);">
-              <div style="display:flex;flex-direction:column;gap:.2rem;">
-                <span style="font-weight:700;color:#fff;font-size:.85rem;">
+            <label class="check-option danger">
+              <input type="checkbox" id="new-meter-reset">
+              <div>
+                <span class="check-option-title">
                   <span class="lang-es">Reinicio de medidor de red (Cambio por operador)</span>
                   <span class="lang-en">Grid meter reset (Utility replacement)</span>
                 </span>
-                <span style="font-size:.75rem;color:var(--muted-light);line-height:1.4;">
+                <span class="check-option-desc">
                   <span class="lang-es">Marca si la empresa de energía reemplazó el medidor de red.</span>
                   <span class="lang-en">Check if utility company replaced the grid meter.</span>
                 </span>
@@ -1111,12 +1263,12 @@ function _renderRecordModal() {
           <div class="live-calc-card">
             <div class="live-calc-header">
               <span><i class="fa-solid fa-bolt" style="margin-right:.3rem;"></i> Cálculo en tiempo real</span>
-              <span style="font-size:.65rem;opacity:.7;">Vista previa</span>
+              <span class="tag">Preview</span>
             </div>
-            <div class="live-calc-grid" style="grid-template-columns:repeat(2, 1fr);gap:.75rem;">
+            <div class="live-calc-grid">
               <div class="live-calc-item">
                 <span class="lbl">Consumo Red:</span>
-                <span class="val" id="prev-calc-grid">0.0 kWh</span>
+                <span class="val text-strong" id="prev-calc-grid">0.0 kWh</span>
               </div>
               <div class="live-calc-item">
                 <span class="lbl">Gen. Solar:</span>
@@ -1133,7 +1285,7 @@ function _renderRecordModal() {
             </div>
           </div>
 
-          <button type="submit" id="btn-save" class="btn btn-solar btn-lg" style="width:100%;margin-top:.5rem;">
+          <button type="submit" id="btn-save" class="btn btn-solar btn-lg btn-block" style="margin-top:.25rem;">
             <i class="fa-solid fa-cloud-arrow-up"></i>
             <span class="lang-es">Guardar en la Nube</span>
             <span class="lang-en">Save to Cloud</span>

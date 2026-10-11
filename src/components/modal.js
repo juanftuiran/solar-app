@@ -28,11 +28,14 @@ export function showModal(titleEs, titleEn, bodyHTML, onClose) {
   }
 
   overlay.innerHTML = `
-    <div class="modal-box" style="position:relative;">
+    <div class="modal-box">
       <div class="modal-header">
         <h2 class="modal-title">
-          <span class="lang-es">${titleEs}</span>
-          <span class="lang-en">${titleEn}</span>
+          <div class="icon-tile sm accent"><i class="fa-solid fa-solar-panel"></i></div>
+          <div>
+            <span class="lang-es">${titleEs}</span>
+            <span class="lang-en">${titleEn}</span>
+          </div>
         </h2>
         <button
           id="global-modal-close-btn"
@@ -90,11 +93,11 @@ export function showConfirmModal({
 }) {
   const bodyHTML = `
     <div style="display:flex;flex-direction:column;gap:1.25rem;">
-      <p style="color:var(--text-secondary);font-size:.9rem;line-height:1.5;">
+      <p style="color:var(--text-secondary);font-size:.88rem;line-height:1.55;">
         <span class="lang-es">${messageEs}</span>
         <span class="lang-en">${messageEn}</span>
       </p>
-      <div style="display:flex;justify-content:flex-end;gap:.75rem;margin-top:.5rem;">
+      <div class="form-actions">
         <button id="modal-confirm-cancel-btn" type="button" class="btn btn-ghost">
           <span class="lang-es">Cancelar</span>
           <span class="lang-en">Cancel</span>

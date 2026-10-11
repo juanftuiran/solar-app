@@ -18,30 +18,36 @@ export function render() {
   const investments = state.investments || [];
 
   return `
-    <div id="project-settings-view" style="display:flex;flex-direction:column;gap:1.5rem;">
+    <div id="project-settings-view" class="stack">
 
       <!-- ═══ SECTION 1: Project Details ═══ -->
-      <div class="card" style="padding:1.75rem;">
-        <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);">
-          <i class="fa-solid fa-gear" style="color:var(--accent);font-size:1.25rem;"></i>
-          <div>
-            <h2 style="font-size:1.1rem;font-weight:800;color:#fff;">
-              <span class="lang-es">Configuración General del Proyecto</span>
-              <span class="lang-en">General Project Settings</span>
-            </h2>
-            <p style="font-size:.75rem;color:var(--muted-light);">
-              <span class="lang-es">Especificaciones técnicas y parámetros operativos del sistema</span>
-              <span class="lang-en">Technical specifications and operating parameters</span>
-            </p>
+      <div class="card section-card">
+        <div class="section-head">
+          <div class="section-head-title">
+            <div class="icon-tile accent"><i class="fa-solid fa-gear"></i></div>
+            <div>
+              <h2>
+                <span class="lang-es">Configuración General del Proyecto</span>
+                <span class="lang-en">General Project Settings</span>
+              </h2>
+              <p>
+                <span class="lang-es">Especificaciones técnicas y parámetros operativos del sistema fotovoltaico</span>
+                <span class="lang-en">Technical specifications and operating parameters of the PV plant</span>
+              </p>
+            </div>
           </div>
+          <span class="meta-chip accent">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>${isAdmin ? 'Modo Edición' : 'Modo Lectura'}</span>
+          </span>
         </div>
 
-        <form id="project-settings-form" style="display:flex;flex-direction:column;gap:1.25rem;">
+        <form id="project-settings-form" class="form-stack">
           <!-- Name & Slug -->
           <div class="field-row">
             <div class="field">
               <label for="setting-name">
-                <i class="fa-solid fa-signature" style="color:var(--accent);"></i>
+                <i class="fa-solid fa-signature text-accent"></i>
                 <span class="lang-es">Nombre del Proyecto</span>
                 <span class="lang-en">Project Name</span>
               </label>
@@ -56,15 +62,14 @@ export function render() {
 
             <div class="field">
               <label for="setting-slug">
-                <i class="fa-solid fa-link" style="color:var(--muted-light);"></i>
-                <span>Slug (URL)</span>
+                <i class="fa-solid fa-link text-muted"></i>
+                <span>Slug Identificador (URL)</span>
               </label>
               <input
                 type="text"
                 id="setting-slug"
                 value="${_escapeAttr(project.slug || '')}"
                 disabled
-                style="opacity:.6;cursor:not-allowed;"
               >
             </div>
           </div>
@@ -72,9 +77,9 @@ export function render() {
           <!-- Description -->
           <div class="field">
             <label for="setting-description">
-              <i class="fa-solid fa-align-left" style="color:var(--muted-light);"></i>
-              <span class="lang-es">Descripción / Notas</span>
-              <span class="lang-en">Description / Notes</span>
+              <i class="fa-solid fa-align-left text-muted"></i>
+              <span class="lang-es">Descripción / Notas de la Instalación</span>
+              <span class="lang-en">Description / Installation Notes</span>
             </label>
             <input
               type="text"
@@ -89,7 +94,7 @@ export function render() {
           <div class="field-row">
             <div class="field">
               <label for="setting-location">
-                <i class="fa-solid fa-location-dot" style="color:var(--solar);"></i>
+                <i class="fa-solid fa-location-dot text-solar"></i>
                 <span class="lang-es">Ubicación Geográfica</span>
                 <span class="lang-en">Geographic Location</span>
               </label>
@@ -104,7 +109,7 @@ export function render() {
 
             <div class="field">
               <label for="setting-inverter">
-                <i class="fa-solid fa-microchip" style="color:var(--warning);"></i>
+                <i class="fa-solid fa-microchip text-warning"></i>
                 <span class="lang-es">Modelo del Inversor</span>
                 <span class="lang-en">Inverter Model</span>
               </label>
@@ -122,9 +127,9 @@ export function render() {
           <div class="field-row">
             <div class="field">
               <label for="setting-capacity">
-                <i class="fa-solid fa-bolt" style="color:var(--solar);"></i>
-                <span class="lang-es">Capacidad Nominal (kW)</span>
-                <span class="lang-en">Nominal Capacity (kW)</span>
+                <i class="fa-solid fa-bolt text-solar"></i>
+                <span class="lang-es">Capacidad Nominal (kWp)</span>
+                <span class="lang-en">Nominal Capacity (kWp)</span>
               </label>
               <input
                 type="number"
@@ -139,7 +144,7 @@ export function render() {
 
             <div class="field">
               <label for="setting-panels">
-                <i class="fa-solid fa-solar-panel" style="color:var(--accent);"></i>
+                <i class="fa-solid fa-solar-panel text-accent"></i>
                 <span class="lang-es">Cantidad de Paneles</span>
                 <span class="lang-en">Panel Count</span>
               </label>
@@ -157,7 +162,7 @@ export function render() {
           <!-- Monitoring URL -->
           <div class="field">
             <label for="setting-monitoring-url">
-              <i class="fa-solid fa-arrow-up-right-from-square" style="color:var(--accent);"></i>
+              <i class="fa-solid fa-arrow-up-right-from-square text-accent"></i>
               <span class="lang-es">URL Portal de Monitoreo Remoto</span>
               <span class="lang-en">Remote Monitoring URL</span>
             </label>
@@ -171,11 +176,11 @@ export function render() {
           </div>
 
           ${isAdmin ? `
-            <div style="display:flex;justify-content:flex-end;margin-top:.5rem;">
+            <div class="form-actions">
               <button type="submit" class="btn btn-accent btn-lg">
                 <i class="fa-solid fa-floppy-disk"></i>
-                <span class="lang-es">Guardar Cambios</span>
-                <span class="lang-en">Save Changes</span>
+                <span class="lang-es">Guardar Configuración</span>
+                <span class="lang-en">Save Settings</span>
               </button>
             </div>
           ` : ''}
@@ -183,24 +188,24 @@ export function render() {
       </div>
 
       <!-- ═══ SECTION 2: Investment Phases Timeline ═══ -->
-      <div class="card" style="padding:1.75rem;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.75rem;">
-          <div style="display:flex;align-items:center;gap:.6rem;">
-            <i class="fa-solid fa-layer-group" style="color:var(--solar);font-size:1.25rem;"></i>
+      <div class="card section-card">
+        <div class="section-head">
+          <div class="section-head-title">
+            <div class="icon-tile solar"><i class="fa-solid fa-layer-group"></i></div>
             <div>
-              <h2 style="font-size:1.1rem;font-weight:800;color:#fff;">
+              <h2>
                 <span class="lang-es">Fases de Inversión y Expansión</span>
                 <span class="lang-en">Investment & Expansion Phases</span>
               </h2>
-              <p style="font-size:.75rem;color:var(--muted-light);">
-                <span class="lang-es">Historial de desembolsos para el cálculo del retorno de inversión (ROI)</span>
-                <span class="lang-en">Capital outlays for ROI payback computation</span>
+              <p>
+                <span class="lang-es">Historial de capital desembolsado para el cálculo de amortización y retorno (ROI)</span>
+                <span class="lang-en">Capital outlays for dynamic payback and ROI tracking</span>
               </p>
             </div>
           </div>
 
           ${isAdmin ? `
-            <button id="btn-new-phase" class="btn btn-solar" style="font-size:.85rem;">
+            <button id="btn-new-phase" class="btn btn-solar">
               <i class="fa-solid fa-plus"></i>
               <span class="lang-es">Nueva Fase</span>
               <span class="lang-en">New Phase</span>
@@ -216,7 +221,7 @@ export function render() {
         <div class="modal-box" style="max-width:28rem;">
           <div class="modal-header">
             <h2 class="modal-title">
-              <i class="fa-solid fa-layer-group" style="color:var(--solar);"></i>
+              <div class="icon-tile sm solar"><i class="fa-solid fa-layer-group"></i></div>
               <span class="lang-es" id="phase-modal-title-es">Nueva Fase de Inversión</span>
               <span class="lang-en" id="phase-modal-title-en">New Investment Phase</span>
             </h2>
@@ -225,7 +230,7 @@ export function render() {
             </button>
           </div>
 
-          <form id="phase-form" style="display:flex;flex-direction:column;gap:1.15rem;">
+          <form id="phase-form" class="form-stack">
             <input type="hidden" id="phase-id" value="">
 
             <div class="field">
@@ -264,8 +269,8 @@ export function render() {
             <div class="field-row">
               <div class="field">
                 <label for="phase-capacity">
-                  <span class="lang-es">Capacidad Agregada (kW)</span>
-                  <span class="lang-en">Added Capacity (kW)</span>
+                  <span class="lang-es">Capacidad Agregada (kWp)</span>
+                  <span class="lang-en">Added Capacity (kWp)</span>
                 </label>
                 <input type="number" id="phase-capacity" min="0" step="0.1" placeholder="3.3" required>
               </div>
@@ -278,7 +283,7 @@ export function render() {
               </div>
             </div>
 
-            <button type="submit" id="btn-save-phase" class="btn btn-solar btn-lg" style="width:100%;margin-top:.5rem;">
+            <button type="submit" id="btn-save-phase" class="btn btn-solar btn-lg btn-block" style="margin-top:.25rem;">
               <i class="fa-solid fa-floppy-disk"></i>
               <span class="lang-es">Guardar Fase</span>
               <span class="lang-en">Save Phase</span>

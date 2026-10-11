@@ -5,6 +5,7 @@
 
 import { state } from '../modules/state.js';
 import { renderProjectCard } from '../components/projectCard.js';
+import { fDec } from '../modules/formatters.js';
 
 const MAX_PROJECTS = 20;
 
@@ -20,19 +21,23 @@ export function render() {
   const count = projects.length;
   const userInitials = (user.email || 'JS').slice(0, 2).toUpperCase();
 
+  const totalCapacity = projects.reduce((s, p) => s + (parseFloat(p.capacity_kw) || 0), 0);
+
   let cardsHTML = '';
   if (count === 0) {
     cardsHTML = `
-      <div style="grid-column:1/-1;text-align:center;padding:4rem 1.5rem;color:var(--muted-light);">
-        <i class="fa-solid fa-solar-panel" style="font-size:3rem;margin-bottom:1.25rem;display:block;opacity:.3;color:var(--solar);"></i>
-        <h3 style="font-size:1.15rem;font-weight:700;color:#fff;margin-bottom:.5rem;">
-          <span class="lang-es">No tienes proyectos asignados</span>
-          <span class="lang-en">No assigned projects</span>
-        </h3>
-        <p style="font-size:.85rem;color:var(--muted-light);max-width:26rem;margin:0 auto;">
-          <span class="lang-es">Crea tu primer proyecto solar para comenzar a monitorear la producción y ahorro.</span>
-          <span class="lang-en">Create your first solar project to start monitoring generation and savings.</span>
-        </p>
+      <div style="grid-column:1/-1;">
+        <div class="empty-state">
+          <div class="empty-icon text-solar"><i class="fa-solid fa-solar-panel"></i></div>
+          <h3>
+            <span class="lang-es">No tienes proyectos asignados</span>
+            <span class="lang-en">No assigned projects</span>
+          </h3>
+          <p>
+            <span class="lang-es">Crea tu primer proyecto solar para comenzar a monitorear la producción, balances y ahorro económico.</span>
+            <span class="lang-en">Create your first solar project to start monitoring production, balances, and economic savings.</span>
+          </p>
+        </div>
       </div>
     `;
   } else {
@@ -41,14 +46,27 @@ export function render() {
       const invCount = p._investmentCount || 0;
       return renderProjectCard(p, role, invCount, 'window.__selectProject');
     }).join('');
+
+    if (isAdmin && count < MAX_PROJECTS) {
+      cardsHTML += `
+        <button type="button" id="tile-new-project" class="new-project-tile" aria-label="Nuevo Proyecto Solar">
+          <i class="fa-solid fa-plus"></i>
+          <div>
+            <span class="lang-es">Agregar Nueva Planta Solar</span>
+            <span class="lang-en">Add New Solar Plant</span>
+          </div>
+          <span style="font-size:.74rem;color:var(--muted);font-weight:400;">(${count}/${MAX_PROJECTS} slots)</span>
+        </button>
+      `;
+    }
   }
 
   const newProjectBtn = isAdmin && count < MAX_PROJECTS
     ? `
-      <button id="btn-new-project" class="btn btn-solar btn-lg" style="gap:.5rem;">
+      <button id="btn-new-project" class="btn btn-solar" style="gap:.5rem;">
         <i class="fa-solid fa-plus"></i>
-        <span class="lang-es">Nuevo Proyecto</span>
-        <span class="lang-en">New Project</span>
+        <span class="lang-es">Nueva Planta</span>
+        <span class="lang-en">New Plant</span>
       </button>
     `
     : '';
@@ -56,82 +74,102 @@ export function render() {
   return `
     <div id="project-selector-view" class="project-selector">
       <!-- Topbar Header -->
-      <header class="project-selector-header">
-        <div class="project-selector-brand">
-          <i class="fa-solid fa-solar-panel"></i>
-          <div>
-            <h1>JF Solar Cloud</h1>
-            <span style="font-size:.65rem;color:var(--solar);font-weight:800;letter-spacing:.08em;text-transform:uppercase;">
-              Enterprise Monitoring
-            </span>
+      <header class="topbar">
+        <div class="project-selector-header">
+          <div class="project-selector-brand">
+            <div class="brand-mark">
+              <i class="fa-solid fa-solar-panel"></i>
+            </div>
+            <div>
+              <h1>JF Solar Cloud</h1>
+              <span class="brand-sub">Enterprise Management</span>
+            </div>
           </div>
-        </div>
 
-        <div style="display:flex;align-items:center;gap:1rem;">
-          <div style="display:flex;align-items:center;gap:.6rem;">
-            <div class="avatar-pill">${userInitials}</div>
-            <span style="font-size:.8rem;color:var(--text-secondary);font-weight:600;" class="hide-mobile">
-              ${_escapeHTML(user.email || '')}
-            </span>
+          <div style="display:flex;align-items:center;gap:.75rem;">
+            <div class="user-chip">
+              <div class="avatar-pill">${userInitials}</div>
+              <span class="user-chip-email hide-mobile">
+                ${_escapeHTML(user.email || '')}
+              </span>
+            </div>
+            <button id="btn-logout-selector" class="btn btn-ghost btn-sm">
+              <i class="fa-solid fa-right-from-bracket"></i>
+              <span class="lang-es">Salir</span>
+              <span class="lang-en">Logout</span>
+            </button>
           </div>
-          <button id="btn-logout-selector" class="btn btn-ghost btn-sm">
-            <i class="fa-solid fa-right-from-bracket"></i>
-            <span class="lang-es">Salir</span>
-            <span class="lang-en">Logout</span>
-          </button>
         </div>
       </header>
 
       <!-- Main Body -->
       <main class="project-selector-body">
-        <div class="project-selector-toolbar">
+        <div class="page-hero">
           <div>
-            <div style="display:flex;align-items:center;gap:.75rem;">
-              <h2 style="font-size:1.5rem;font-weight:900;color:#fff;letter-spacing:-.02em;">
-                <span class="lang-es">Proyectos Solares</span>
-                <span class="lang-en">Solar Projects</span>
+            <div class="page-hero-title">
+              <h2>
+                <span class="lang-es">Plantas Fotovoltaicas</span>
+                <span class="lang-en">Solar Power Plants</span>
               </h2>
-              <span style="background:var(--accent-subtle);color:var(--accent);border:1px solid rgba(14,165,233,0.3);padding:.2rem .6rem;border-radius:var(--radius-full);font-size:.75rem;font-weight:800;" class="tabular-nums">
+              <span class="count-pill">
                 ${count} / ${MAX_PROJECTS}
               </span>
             </div>
-            <p style="font-size:.85rem;color:var(--muted-light);margin-top:.25rem;">
-              <span class="lang-es">Selecciona una planta solar para acceder a su telemetría y analítica.</span>
-              <span class="lang-en">Select a solar plant to access telemetry and analytics.</span>
+            <p>
+              <span class="lang-es">Monitoreo multi-proyecto de generación solar, balances de red y retorno de inversión en tiempo real.</span>
+              <span class="lang-en">Multi-project monitoring of solar generation, grid balances, and real-time ROI.</span>
             </p>
           </div>
 
-          <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
-            <!-- Real-time search filter -->
-            <div class="search-input-wrap">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <input
-                type="text"
-                id="project-search-input"
-                placeholder="Buscar por nombre o ubicación..."
-                aria-label="Buscar proyectos"
-              />
-            </div>
+          <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;">
             ${newProjectBtn}
           </div>
         </div>
 
-        <!-- Project Grid -->
-        <div
-          id="projects-grid"
-          style="
-            display:grid;gap:1.25rem;
-            grid-template-columns:1fr;
-          "
-        >
-          ${cardsHTML}
+        <!-- Summary Strip -->
+        <div class="summary-strip">
+          <div class="card summary-tile">
+            <div class="icon-tile solar"><i class="fa-solid fa-solar-panel"></i></div>
+            <div>
+              <div class="val text-solar">${count}</div>
+              <div class="lbl"><span class="lang-es">Plantas Activas</span><span class="lang-en">Active Plants</span></div>
+            </div>
+          </div>
+
+          <div class="card summary-tile">
+            <div class="icon-tile accent"><i class="fa-solid fa-bolt"></i></div>
+            <div>
+              <div class="val text-accent">${fDec(totalCapacity, 1)} <span class="unit">kWp</span></div>
+              <div class="lbl"><span class="lang-es">Capacidad Total</span><span class="lang-en">Total Capacity</span></div>
+            </div>
+          </div>
+
+          <div class="card summary-tile">
+            <div class="icon-tile warning"><i class="fa-solid fa-shield-halved"></i></div>
+            <div>
+              <div class="val text-strong">${isAdmin ? 'Administrador' : 'Observador'}</div>
+              <div class="lbl"><span class="lang-es">Rol de Acceso</span><span class="lang-en">Access Role</span></div>
+            </div>
+          </div>
         </div>
 
-        <style>
-          @media (min-width: 640px)  { #projects-grid { grid-template-columns: repeat(2, 1fr); } }
-          @media (min-width: 1100px) { #projects-grid { grid-template-columns: repeat(3, 1fr); } }
-          @media (max-width: 640px) { .hide-mobile { display: none; } }
-        </style>
+        <!-- Toolbar with search filter -->
+        <div class="project-selector-toolbar">
+          <div class="search-input-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input
+              type="text"
+              id="project-search-input"
+              placeholder="Buscar por nombre o ubicación..."
+              aria-label="Buscar proyectos"
+            />
+          </div>
+        </div>
+
+        <!-- Project Grid -->
+        <div id="projects-grid" class="projects-grid">
+          ${cardsHTML}
+        </div>
       </main>
     </div>
   `;
@@ -164,6 +202,11 @@ export function init(onSelectProject, onCreateProject, onLogout) {
   const newBtn = document.getElementById('btn-new-project');
   if (newBtn && typeof onCreateProject === 'function') {
     newBtn.addEventListener('click', onCreateProject);
+  }
+
+  const tileNewBtn = document.getElementById('tile-new-project');
+  if (tileNewBtn && typeof onCreateProject === 'function') {
+    tileNewBtn.addEventListener('click', onCreateProject);
   }
 
   // Logout button

@@ -50,17 +50,18 @@ export function renderSidebar(activeView) {
     <aside id="sidebar-panel" class="sidebar">
       <!-- Brand -->
       <div class="sidebar-brand">
-        <i class="fa-solid fa-solar-panel"></i>
+        <div class="brand-mark">
+          <i class="fa-solid fa-solar-panel"></i>
+        </div>
         <div>
           <h2>JF Solar Cloud</h2>
-          <span style="font-size:.65rem;color:var(--solar);font-weight:800;letter-spacing:.08em;text-transform:uppercase;">
-            v3.5 Enterprise
-          </span>
+          <span class="brand-sub">Telemetry v4.0</span>
         </div>
       </div>
 
       <!-- Active Project Info Card -->
       <div class="sidebar-project">
+        <div class="sidebar-project-label">Planta Activa</div>
         <div class="sidebar-project-name" title="${_escapeHTML(project.name || '')}">
           ${_escapeHTML(project.name || 'Proyecto')}
         </div>
@@ -70,11 +71,15 @@ export function renderSidebar(activeView) {
         </div>
       </div>
 
+      <div class="sidebar-section-label">Menú Principal</div>
+
       <!-- Navigation Links -->
       <nav class="sidebar-nav">
         ${navItemsHTML}
 
         <div class="sidebar-divider"></div>
+
+        <div class="sidebar-section-label" style="padding-left:0;">Proyectos</div>
 
         <!-- Switch Project -->
         <button
@@ -83,8 +88,8 @@ export function renderSidebar(activeView) {
           type="button"
         >
           <i class="fa-solid fa-arrows-rotate"></i>
-          <span class="lang-es">Mis Proyectos</span>
-          <span class="lang-en">My Projects</span>
+          <span class="lang-es">Cambiar de Planta</span>
+          <span class="lang-en">Switch Plant</span>
         </button>
       </nav>
 
@@ -99,7 +104,7 @@ export function renderSidebar(activeView) {
               ${_escapeHTML(user.email || '')}
             </div>
             <div class="sidebar-user-role">
-              ${state.isAdmin ? 'Admin' : 'Observador'}
+              ${state.isAdmin ? 'Administrador' : 'Observador'}
             </div>
           </div>
         </div>

@@ -531,14 +531,40 @@ export async function upsertRecord(rec) {
     if (!rec.project_id) {
       throw new Error('project_id es obligatorio para registrar lecturas solares.');
     }
-    const { data, error } = await sb
-      .from('solar_readings')
-      .upsert(rec)
-      .select()
-      .single();
-    if (error) {
-      console.error('[supabase] upsertRecord error:', error);
-      throw new Error(error.message);
+
+    let payload = { ...rec };
+    let data = null;
+    let lastError = null;
+    const maxRetries = 3;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const response = await sb
+        .from('solar_readings')
+        .upsert(payload)
+        .select()
+        .single();
+
+      data = response.data;
+      lastError = response.error;
+
+      if (!lastError) {
+        return data;
+      }
+
+      // Check if error is due to a missing column in Supabase schema cache
+      const missingColMatch = lastError.message?.match(/Could not find the '([^']+)' column/i);
+      if (missingColMatch && missingColMatch[1] && missingColMatch[1] in payload) {
+        const missingCol = missingColMatch[1];
+        console.warn(`[supabase] Columna '${missingCol}' no encontrada en la base de datos de Supabase. Reintentando guardado sin este campo...`);
+        delete payload[missingCol];
+      } else {
+        break;
+      }
+    }
+
+    if (lastError) {
+      console.error('[supabase] upsertRecord error:', lastError);
+      throw new Error(lastError.message);
     }
     return data;
   } catch (err) {

@@ -15,13 +15,13 @@ import { fCOP, fDec } from '../modules/formatters.js';
 export function renderTimeline(investments, isAdmin) {
   if (!investments || investments.length === 0) {
     return `
-      <div style="text-align:center;padding:3rem 1.5rem;color:var(--muted-light);">
-        <i class="fa-solid fa-layer-group" style="font-size:2.5rem;margin-bottom:1rem;display:block;opacity:.3;color:var(--solar);"></i>
-        <p style="font-size:.9rem;font-weight:600;color:#fff;">
-          <span class="lang-es">No hay fases de inversión registradas.</span>
-          <span class="lang-en">No investment phases recorded.</span>
-        </p>
-        <p style="font-size:.8rem;color:var(--muted-light);margin-top:.25rem;">
+      <div class="empty-state">
+        <div class="empty-icon text-solar"><i class="fa-solid fa-layer-group"></i></div>
+        <h3>
+          <span class="lang-es">No hay fases de inversión registradas</span>
+          <span class="lang-en">No investment phases recorded</span>
+        </h3>
+        <p>
           <span class="lang-es">Agrega la primera fase para calcular el retorno de inversión automáticamente.</span>
           <span class="lang-en">Add your first phase to calculate ROI automatically.</span>
         </p>
@@ -47,22 +47,22 @@ export function renderTimeline(investments, isAdmin) {
 
     const adminActions = isAdmin
       ? `
-        <div style="display:flex;gap:.5rem;margin-top:.875rem;padding-top:.75rem;border-top:1px solid var(--border);">
+        <div class="timeline-actions">
           <button
-            class="btn btn-ghost btn-sm timeline-edit-btn"
+            class="btn btn-ghost btn-xs timeline-edit-btn"
             data-phase-id="${inv.id}"
             type="button"
           >
-            <i class="fa-solid fa-pen" style="font-size:.7rem;"></i>
+            <i class="fa-solid fa-pen"></i>
             <span class="lang-es">Editar</span>
             <span class="lang-en">Edit</span>
           </button>
           <button
-            class="btn btn-danger-outline btn-sm timeline-delete-btn"
+            class="btn btn-danger-outline btn-xs timeline-delete-btn"
             data-phase-id="${inv.id}"
             type="button"
           >
-            <i class="fa-solid fa-trash" style="font-size:.7rem;"></i>
+            <i class="fa-solid fa-trash"></i>
             <span class="lang-es">Eliminar</span>
             <span class="lang-en">Delete</span>
           </button>
@@ -72,60 +72,60 @@ export function renderTimeline(investments, isAdmin) {
 
     return `
       <div class="timeline-item">
-        <!-- Timeline Connector -->
-        <div style="display:flex;flex-direction:column;align-items:center;">
+        <!-- Timeline Rail -->
+        <div class="timeline-rail">
           <div class="timeline-dot"></div>
           ${index < investments.length - 1 ? `<div class="timeline-line"></div>` : ''}
         </div>
 
         <!-- Phase card -->
         <div class="card timeline-card">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem;">
+          <div class="timeline-card-head">
             <div>
-              <span style="font-size:.65rem;font-weight:800;color:var(--solar);text-transform:uppercase;letter-spacing:.06em;">
+              <span class="timeline-phase-tag">
                 <span class="lang-es">Fase ${index + 1}</span>
                 <span class="lang-en">Phase ${index + 1}</span>
               </span>
-              <h4 style="font-size:.95rem;font-weight:800;color:#fff;margin-top:.1rem;">
+              <h4>
                 ${_escapeHTML(inv.phase_name)}
               </h4>
             </div>
-            <span style="font-size:.75rem;color:var(--muted-light);background:rgba(255,255,255,0.04);padding:.25rem .6rem;border-radius:var(--radius-xs);border:1px solid var(--border);">
-              <i class="fa-solid fa-calendar-day" style="margin-right:.3rem;color:var(--accent);"></i>${date}
+            <span class="meta-chip">
+              <i class="fa-solid fa-calendar-day text-accent"></i> ${date}
             </span>
           </div>
 
           ${inv.description ? `
-            <p style="font-size:.8rem;color:var(--text-secondary);line-height:1.45;margin-bottom:.75rem;">
+            <p class="timeline-desc">
               ${_escapeHTML(inv.description)}
             </p>
           ` : ''}
 
           <!-- Stats breakdown -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));gap:.75rem;background:rgba(13,21,39,0.5);padding:.75rem;border-radius:var(--radius-xs);border:1px solid var(--border);">
-            <div>
-              <p style="font-size:.65rem;color:var(--muted-light);text-transform:uppercase;letter-spacing:.04em;">
+          <div class="timeline-stats">
+            <div class="inset" style="padding:.65rem .8rem;">
+              <span class="stat-tile-lbl">
                 <span class="lang-es">Inversión</span><span class="lang-en">Investment</span>
-              </p>
-              <p style="font-size:.9rem;font-weight:800;color:var(--accent);" class="tabular-nums">
+              </span>
+              <span class="stat-tile-val text-accent">
                 ${fCOP(inv.investment_cop)}
-              </p>
+              </span>
             </div>
-            <div>
-              <p style="font-size:.65rem;color:var(--muted-light);text-transform:uppercase;letter-spacing:.04em;">
+            <div class="inset" style="padding:.65rem .8rem;">
+              <span class="stat-tile-lbl">
                 <span class="lang-es">Capacidad</span><span class="lang-en">Capacity</span>
-              </p>
-              <p style="font-size:.9rem;font-weight:800;color:var(--solar);" class="tabular-nums">
-                +${fDec(inv.capacity_added_kw, 1)} kW
-              </p>
+              </span>
+              <span class="stat-tile-val text-solar">
+                +${fDec(inv.capacity_added_kw, 1)} kWp
+              </span>
             </div>
-            <div>
-              <p style="font-size:.65rem;color:var(--muted-light);text-transform:uppercase;letter-spacing:.04em;">
+            <div class="inset" style="padding:.65rem .8rem;">
+              <span class="stat-tile-lbl">
                 <span class="lang-es">Paneles</span><span class="lang-en">Panels</span>
-              </p>
-              <p style="font-size:.9rem;font-weight:800;color:#fff;" class="tabular-nums">
+              </span>
+              <span class="stat-tile-val text-strong">
                 +${fDec(inv.panels_added, 0)} u
-              </p>
+              </span>
             </div>
           </div>
 
@@ -137,42 +137,33 @@ export function renderTimeline(investments, isAdmin) {
 
   // Totals summary bar
   const totalsHTML = `
-    <div
-      class="card"
-      style="
-        padding:1.25rem;margin-top:.75rem;
-        background:linear-gradient(135deg, rgba(16,185,129,.1), rgba(14,165,233,.06));
-        border:1px solid rgba(16,185,129,.3);
-      "
-    >
-      <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.875rem;">
-        <i class="fa-solid fa-calculator" style="color:var(--solar);"></i>
-        <h4 style="font-size:.75rem;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.06em;">
-          <span class="lang-es">Resumen Total de Inversión</span>
-          <span class="lang-en">Total Investment Summary</span>
-        </h4>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:1rem;">
+    <div class="timeline-totals">
+      <h4>
+        <i class="fa-solid fa-calculator text-solar"></i>
+        <span class="lang-es">Resumen Total de Capital Invertido</span>
+        <span class="lang-en">Total Invested Capital Summary</span>
+      </h4>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:.85rem;">
         <div>
-          <p style="font-size:.65rem;color:var(--muted-light);text-transform:uppercase;">
+          <span class="stat-tile-lbl">
             <span class="lang-es">Inversión Acumulada</span>
             <span class="lang-en">Total Invested</span>
-          </p>
-          <p style="font-size:1.15rem;font-weight:900;color:var(--accent);" class="tabular-nums">${fCOP(totals.investment)}</p>
+          </span>
+          <span class="stat-tile-val text-accent" style="font-size:1.25rem;">${fCOP(totals.investment)}</span>
         </div>
         <div>
-          <p style="font-size:.65rem;color:var(--muted-light);text-transform:uppercase;">
-            <span class="lang-es">Potencia Total</span>
-            <span class="lang-en">Total Capacity</span>
-          </p>
-          <p style="font-size:1.15rem;font-weight:900;color:var(--solar);" class="tabular-nums">${fDec(totals.capacity, 1)} kW</p>
+          <span class="stat-tile-lbl">
+            <span class="lang-es">Potencia Total Añadida</span>
+            <span class="lang-en">Total Capacity Added</span>
+          </span>
+          <span class="stat-tile-val text-solar" style="font-size:1.25rem;">${fDec(totals.capacity, 1)} kWp</span>
         </div>
         <div>
-          <p style="font-size:.65rem;color:var(--muted-light);text-transform:uppercase;">
-            <span class="lang-es">Total Paneles</span>
-            <span class="lang-en">Total Panels</span>
-          </p>
-          <p style="font-size:1.15rem;font-weight:900;color:#fff;" class="tabular-nums">${fDec(totals.panels, 0)}</p>
+          <span class="stat-tile-lbl">
+            <span class="lang-es">Total Paneles Fases</span>
+            <span class="lang-en">Total Panels in Phases</span>
+          </span>
+          <span class="stat-tile-val text-strong" style="font-size:1.25rem;">${fDec(totals.panels, 0)} u</span>
         </div>
       </div>
     </div>
