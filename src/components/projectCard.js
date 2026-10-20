@@ -3,6 +3,8 @@
  * @description Modern enterprise project card component for JF Solar Cloud.
  */
 
+import { fCOP } from '../modules/formatters.js';
+
 /**
  * Render a project card HTML string.
  *
@@ -20,9 +22,32 @@ export function renderProjectCard(project, role, investmentCount, onSelect) {
   const capacityVal = project.capacity_kw ? parseFloat(project.capacity_kw) : 0;
   const capacityStr = capacityVal > 0 ? `${capacityVal.toFixed(1)} kWp` : '—';
   const panelsStr = project.panel_count ? `${project.panel_count} u` : '—';
+  const readingCount = project._readingCount || 0;
+  const lastDate = project._lastReadingDate || null;
+  const totalInvested = project._totalInvested || 0;
+
   const inverterBadge = project.inverter_model
     ? `<span class="meta-chip warning" title="Inversor"><i class="fa-solid fa-microchip"></i> ${_escapeHTML(project.inverter_model)}</span>`
     : '';
+
+  const investedBadge = totalInvested > 0
+    ? `<span class="meta-chip accent" title="Capital Invertido"><i class="fa-solid fa-coins"></i> ${fCOP(totalInvested)}</span>`
+    : '';
+
+  let readingBadge = '';
+  if (lastDate) {
+    readingBadge = `
+      <span class="meta-chip" style="color:var(--solar);border-color:rgba(52,211,153,0.25);background:var(--solar-subtle);" title="Última lectura registrada">
+        <i class="fa-solid fa-calendar-check"></i> ${lastDate} (${readingCount})
+      </span>
+    `;
+  } else {
+    readingBadge = `
+      <span class="meta-chip" title="Lecturas registradas">
+        <i class="fa-solid fa-clock"></i> <span class="lang-es">Sin lecturas</span><span class="lang-en">No readings</span>
+      </span>
+    `;
+  }
 
   return `
     <div
@@ -59,7 +84,11 @@ export function renderProjectCard(project, role, investmentCount, onSelect) {
           </span>
         </div>
 
-        ${inverterBadge ? `<div style="margin-top:.75rem;">${inverterBadge}</div>` : ''}
+        <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.75rem;">
+          ${inverterBadge}
+          ${investedBadge}
+          ${readingBadge}
+        </div>
 
         <!-- Stats Grid -->
         <div class="project-card-stats" style="margin-top:.85rem;">
@@ -95,8 +124,8 @@ export function renderProjectCard(project, role, investmentCount, onSelect) {
       <!-- Footer CTA -->
       <div class="project-card-footer">
         <span>
-          <span class="lang-es">Telemetría & balance</span>
-          <span class="lang-en">Telemetry & balance</span>
+          <span class="lang-es">${readingCount} lecturas cloud</span>
+          <span class="lang-en">${readingCount} cloud readings</span>
         </span>
         <span class="project-card-enter">
           <span class="lang-es">Abrir Planta</span>

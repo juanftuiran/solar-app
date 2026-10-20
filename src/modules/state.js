@@ -1,8 +1,22 @@
 /**
  * @module state
  * Global application state for the solar monitoring app.
- * All modules import from here to share a single source of truth.
+ * All modules import from here to share a single source of truth,
+ * with automatic persistence for user preferences and session context.
  */
+
+const STORAGE_KEY = 'jf_solar_prefs_v4';
+
+function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+const savedPrefs = loadPrefs();
 
 /** @type {Object} Mutable application state */
 export const state = {
@@ -11,13 +25,17 @@ export const state = {
   /** @type {boolean} Whether the current user has admin privileges */
   isAdmin: false,
   /** @type {'es'|'en'} Active UI language */
-  lang: 'es',
+  lang: savedPrefs.lang || 'es',
+  /** @type {'dark'|'light'} Active UI color theme */
+  theme: savedPrefs.theme || 'dark',
 
   // Multi-project
   /** @type {Array<Object>} All projects the user can access */
   projects: [],
   /** @type {Object|null} Currently selected project */
   activeProject: null,
+  /** @type {string|null} Last active project ID for reload persistence */
+  lastProjectId: savedPrefs.lastProjectId || null,
   /** @type {string|null} User's role in the active project */
   activeProjectRole: null,
 
@@ -28,6 +46,8 @@ export const state = {
   processedData: [],
   /** @type {Array<Object>} Filtered view of processedData (by year, etc.) */
   viewData: [],
+  /** @type {string} Selected year filter ('all' or year string) */
+  selectedYear: savedPrefs.selectedYear || 'all',
   /** @type {Array<Object>} Investment phases for the active project */
   investments: [],
   /** @type {{ energia: string, precio: string }} Chart display modes */
@@ -35,16 +55,48 @@ export const state = {
   /** @type {Object<string, import('chart.js').Chart>} Active Chart.js instances keyed by canvas id */
   charts: {},
 
-  // Dashboard Tab state
+  // Interactive 25-Year Financial Simulator Parameters
+  /** @type {{ inflation: number, degradation: number, discountRate: number, refHsp: number }} */
+  simParams: {
+    inflation: savedPrefs.simParams?.inflation ?? 4.0,
+    degradation: savedPrefs.simParams?.degradation ?? 0.4,
+    discountRate: savedPrefs.simParams?.discountRate ?? 8.0,
+    refHsp: savedPrefs.simParams?.refHsp ?? 4.5,
+  },
+
+  // Dashboard Tab & Presentation state
   /** @type {'telemetry'|'finance'|'audit'} Active tab in dashboard */
-  activeTab: 'telemetry',
+  activeTab: savedPrefs.activeTab || 'telemetry',
   /** @type {string} Global search query for table/records */
   searchQuery: '',
+  /** @type {boolean} Whether presentation/kiosk mode is active */
+  kioskMode: false,
+  /** @type {number|null} Auto-rotation interval ID for kiosk mode */
+  kioskTimer: null,
 
   // Current view
   /** @type {string} The currently displayed view/screen */
   currentView: 'login',
 };
+
+/**
+ * Persist current user preferences to localStorage.
+ */
+export function savePrefs() {
+  try {
+    const payload = {
+      lang: state.lang,
+      theme: state.theme,
+      lastProjectId: state.activeProject?.id || state.lastProjectId || null,
+      selectedYear: state.selectedYear,
+      activeTab: state.activeTab,
+      simParams: state.simParams,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore storage quota errors
+  }
+}
 
 /**
  * Set the authenticated user and admin flag.
@@ -64,6 +116,8 @@ export function setUser(user, isAdmin) {
 export function setActiveProject(project, role) {
   state.activeProject = project;
   state.activeProjectRole = role;
+  state.lastProjectId = project?.id || null;
+  savePrefs();
 }
 
 /**

@@ -1426,3 +1426,360 @@ tr.expanded .row-chevron { transform: rotate(90deg); color: var(--accent); }
   line-height: 1.45;
 }
 .modal-reading-alert i { margin-top: .1rem; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Enterprise v4.0 Enhancements: Daylight Theme, Simulator, Kiosk & Print PDF
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── High-Contrast Daylight Theme ─────────────────────────────────────────── */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f1f5f9;
+  --bg-elevated: #ffffff;
+  --bg-subtle: #e2e8f0;
+  --surface: rgba(255, 255, 255, 0.88);
+  --surface-solid: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #e2e8f0;
+  --card: var(--surface);
+  --card-solid: var(--surface-solid);
+  --card-hover: #f8fafc;
+
+  --accent: #0284c7;
+  --accent-strong: #0369a1;
+  --accent-hover: #075985;
+  --accent-glow: rgba(2, 132, 199, 0.18);
+  --accent-subtle: rgba(2, 132, 199, 0.10);
+
+  --solar: #059669;
+  --solar-strong: #10b981;
+  --solar-hover: #047857;
+  --solar-glow: rgba(5, 150, 105, 0.18);
+  --solar-subtle: rgba(16, 185, 129, 0.12);
+
+  --grid-c: #e11d48;
+  --grid-subtle: rgba(225, 29, 72, 0.10);
+  --ai: #7c3aed;
+  --ai-glow: rgba(124, 58, 237, 0.18);
+  --ai-subtle: rgba(124, 58, 237, 0.10);
+  --warning: #d97706;
+  --warning-subtle: rgba(217, 119, 6, 0.12);
+  --danger: #dc2626;
+  --danger-strong: #dc2626;
+  --danger-subtle: rgba(220, 38, 38, 0.10);
+
+  --border: rgba(15, 23, 42, 0.08);
+  --border-medium: rgba(15, 23, 42, 0.14);
+  --border-strong: rgba(15, 23, 42, 0.24);
+  --border-focus: rgba(2, 132, 199, 0.5);
+
+  --text-strong: #0f172a;
+  --text: #1e293b;
+  --text-secondary: #334155;
+  --muted-light: #475569;
+  --muted: #64748b;
+
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 10px 24px -6px rgba(15, 23, 42, 0.10);
+  --shadow-lg: 0 20px 40px -12px rgba(15, 23, 42, 0.16);
+  --inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+:root[data-theme="light"] body {
+  background-image:
+    radial-gradient(60rem 30rem at 85% -10%, rgba(2, 132, 199, 0.07), transparent 60%),
+    radial-gradient(50rem 30rem at -10% 110%, rgba(16, 185, 129, 0.07), transparent 60%);
+}
+:root[data-theme="light"] .sidebar,
+:root[data-theme="light"] .app-header,
+:root[data-theme="light"] .topbar {
+  background: rgba(255, 255, 255, 0.86);
+}
+:root[data-theme="light"] .field input,
+:root[data-theme="light"] .field select,
+:root[data-theme="light"] .field textarea,
+:root[data-theme="light"] .search-input-wrap input,
+:root[data-theme="light"] .role-select,
+:root[data-theme="light"] .inset,
+:root[data-theme="light"] .payback-stat-col,
+:root[data-theme="light"] .stat-tile,
+:root[data-theme="light"] .ai-item,
+:root[data-theme="light"] .project-card-stats,
+:root[data-theme="light"] .mix-legend-row,
+:root[data-theme="light"] .detail-row > td {
+  background: rgba(241, 245, 249, 0.75);
+}
+:root[data-theme="light"] thead th {
+  background: #f1f5f9;
+}
+:root[data-theme="light"] .toast {
+  background: rgba(255, 255, 255, 0.96);
+}
+:root[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+
+/* ── Tab Count Badge ──────────────────────────────────────────────────────── */
+.dashboard-tabs-row {
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap;
+}
+.tab-count-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: .66rem; font-weight: 700;
+  padding: .08rem .45rem; border-radius: var(--radius-full);
+  background: rgba(148, 163, 184, 0.14); color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.tab-btn.active .tab-count-badge {
+  background: var(--solar-subtle); color: var(--solar);
+}
+
+/* ── KPI Delta Slot ───────────────────────────────────────────────────────── */
+.kpi-delta-slot {
+  display: inline-flex;
+  margin-bottom: .15rem;
+}
+
+/* ── Smart Anomaly Diagnostic Banner ──────────────────────────────────────── */
+.anomaly-alerts-stack {
+  display: flex; flex-direction: column; gap: .65rem;
+}
+.anomaly-banner {
+  display: flex; align-items: flex-start; gap: .85rem;
+  padding: .85rem 1.1rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border-medium);
+  animation: fadeIn .3s var(--ease);
+}
+.anomaly-banner.warning {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.10), transparent 70%), var(--surface);
+  border-color: rgba(251, 191, 36, 0.35);
+}
+.anomaly-banner.info {
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.10), transparent 70%), var(--surface);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+.anomaly-icon {
+  width: 2rem; height: 2rem; border-radius: .5rem; flex-shrink: 0;
+  display: grid; place-items: center; font-size: .85rem;
+  background: var(--warning-subtle); color: var(--warning);
+}
+.anomaly-banner.info .anomaly-icon {
+  background: var(--accent-subtle); color: var(--accent);
+}
+.anomaly-content { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+.anomaly-content strong { font-size: .82rem; font-weight: 700; color: var(--text-strong); }
+.anomaly-content p { font-size: .76rem; color: var(--text-secondary); line-height: 1.45; }
+
+/* ── Interactive 25-Year Financial Simulator Controls ─────────────────────── */
+.sim-controls-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 1.15rem;
+  margin-bottom: 1.15rem;
+  background: rgba(8, 12, 20, 0.38);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius);
+}
+:root[data-theme="light"] .sim-controls-panel {
+  background: rgba(241, 245, 249, 0.8);
+}
+.sim-control-item {
+  display: flex; flex-direction: column; gap: .45rem;
+}
+.sim-control-head {
+  display: flex; justify-content: space-between; align-items: center; gap: .5rem;
+  font-size: .75rem; font-weight: 600; color: var(--text-secondary);
+}
+.sim-control-head strong {
+  font-size: .82rem; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.sim-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  outline: none; cursor: pointer;
+}
+.sim-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--text-strong);
+  border: 2px solid var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  transition: transform .15s ease;
+}
+.sim-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.sim-slider.warning::-webkit-slider-thumb { border-color: var(--warning); }
+.sim-slider.solar::-webkit-slider-thumb { border-color: var(--solar); }
+.sim-slider.accent::-webkit-slider-thumb { border-color: var(--accent); }
+.sim-control-reset {
+  display: flex; justify-content: flex-end; align-items: center;
+}
+
+/* ── Initial Base Record Row & Badge ──────────────────────────────────────── */
+.base-record-row {
+  background: rgba(56, 189, 248, 0.04);
+}
+.badge-base-record {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .64rem; font-weight: 700;
+  background: var(--accent-subtle); color: var(--accent);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  padding: .12rem .5rem; border-radius: var(--radius-full);
+}
+
+/* ── CSV Importer Dropzone ────────────────────────────────────────────────── */
+.csv-dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: .6rem; padding: 1.75rem 1.25rem; text-align: center;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: rgba(148, 163, 184, 0.03);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.csv-dropzone:hover {
+  border-color: var(--solar);
+  background: var(--solar-subtle);
+}
+
+/* ── Presentation / TV Kiosk Mode ─────────────────────────────────────────── */
+body.kiosk-mode .sidebar,
+body.kiosk-mode .sidebar-toggle,
+body.kiosk-mode #btn-open-new-record,
+body.kiosk-mode #btn-dashboard-logout {
+  display: none !important;
+}
+body.kiosk-mode .content-area {
+  max-width: 100%;
+  padding: 1.25rem 2.25rem 5rem;
+}
+.kiosk-bar {
+  position: fixed; bottom: 1.15rem; left: 50%; transform: translateX(-50%);
+  z-index: 180;
+  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+  padding: .65rem 1.1rem;
+  background: rgba(13, 19, 32, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-lg);
+}
+.kiosk-bar-brand {
+  display: flex; align-items: center; gap: .55rem;
+  font-size: .82rem; color: #fff;
+}
+.kiosk-tag {
+  font-size: .62rem; font-weight: 800; letter-spacing: .08em;
+  padding: .12rem .5rem; border-radius: var(--radius-full);
+  background: var(--ai-subtle); color: var(--ai);
+  border: 1px solid rgba(167, 139, 250, 0.35);
+}
+.kiosk-bar-actions { display: flex; align-items: center; gap: .5rem; }
+#btn-kiosk-autorotate.active {
+  background: var(--solar-subtle); color: var(--solar); border-color: rgba(52, 211, 153, 0.4);
+}
+
+/* ── Executive Report Modal & Printable Sheet ─────────────────────────────── */
+.exec-report-modal-box {
+  max-width: 58rem;
+  padding: 1.5rem;
+}
+.exec-report-sheet {
+  display: flex; flex-direction: column; gap: 1.15rem;
+  padding: 1.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius);
+}
+.exec-sheet-header {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--solar);
+}
+.exec-sheet-brand {
+  font-size: .68rem; font-weight: 800; letter-spacing: .12em; color: var(--solar);
+}
+.exec-sheet-title {
+  font-size: 1.45rem; font-weight: 800; color: var(--text-strong); margin-top: .15rem;
+}
+.exec-sheet-meta {
+  display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+  font-size: .78rem; color: var(--text-secondary); margin-top: .35rem;
+}
+.exec-sheet-stamp {
+  text-align: right;
+  padding: .5rem .8rem;
+  background: rgba(148, 163, 184, 0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.exec-stamp-label { font-size: .6rem; font-weight: 700; color: var(--muted-light); letter-spacing: .08em; }
+.exec-stamp-val { font-size: .84rem; font-weight: 700; color: var(--text-strong); }
+.exec-stamp-sub { font-size: .65rem; color: var(--solar); font-weight: 600; }
+.exec-section-title {
+  font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--accent); margin-top: .25rem;
+}
+.exec-kpi-strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .65rem;
+}
+.exec-kpi-box {
+  padding: .7rem .85rem;
+  background: rgba(148, 163, 184, 0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex; flex-direction: column; gap: .15rem;
+}
+.exec-kpi-box .lbl { font-size: .68rem; color: var(--muted-light); font-weight: 600; }
+.exec-kpi-box .val { font-size: .96rem; font-weight: 800; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.exec-table {
+  width: 100%; border-collapse: collapse; font-size: .78rem;
+}
+.exec-table th, .exec-table td {
+  padding: .5rem .65rem; border-bottom: 1px solid var(--border);
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  .sidebar, .app-header, .dashboard-tabs-row, .tab-pane, .app-footer, .no-print, .kiosk-bar {
+    display: none !important;
+  }
+  #exec-report-modal {
+    position: static !important;
+    display: block !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  .exec-report-modal-box {
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .exec-report-sheet {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+  .exec-sheet-title, .exec-kpi-box .val, .exec-stamp-val, .exec-table td, .exec-table th {
+    color: #0f172a !important;
+  }
+  .exec-kpi-box {
+    border: 1px solid #cbd5e1 !important;
+    background: #f8fafc !important;
+  }
+}
+

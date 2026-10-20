@@ -9,6 +9,7 @@ import Chart from 'chart.js/auto';
 import { state } from './state.js';
 import { fCOP, fDec } from './formatters.js';
 import { t } from './i18n.js';
+import { calcFinancialSimulation } from './analytics.js';
 
 // ---------------------------------------------------------------------------
 // Theme
@@ -30,6 +31,21 @@ const C = CHART_COLORS;
 
 const isEn = () => state.lang === 'en';
 const L = (es, en) => (isEn() ? en : es);
+
+/** Sync chart colors with active theme (dark vs light) */
+export function syncChartTheme() {
+  const isLight = state.theme === 'light';
+  C.text = isLight ? '#0f172a' : '#e6ebf3';
+  C.muted = isLight ? '#475569' : '#8b98ad';
+  C.dim = isLight ? '#64748b' : '#5f6b80';
+  C.gridLine = isLight ? 'rgba(15, 23, 42, 0.07)' : 'rgba(148, 163, 184, 0.08)';
+  C.surface = isLight ? '#ffffff' : '#0d1320';
+
+  Chart.defaults.color = C.muted;
+  Chart.defaults.plugins.legend.labels.color = C.muted;
+  const tt = Chart.defaults.plugins.tooltip;
+  tt.backgroundColor = isLight ? 'rgba(15, 23, 42, 0.94)' : 'rgba(13, 19, 32, 0.96)';
+}
 
 // ---------------------------------------------------------------------------
 // Chart.js global defaults
@@ -218,7 +234,7 @@ function doughnutCenterPlugin(getText) {
       ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = C.text;
       ctx.font = "800 26px 'Inter', sans-serif";
       ctx.fillText(value, x, y - 6);
       ctx.fillStyle = C.muted;
@@ -234,6 +250,7 @@ function doughnutCenterPlugin(getText) {
 // ---------------------------------------------------------------------------
 
 function getCtx(canvasId) {
+  syncChartTheme();
   if (state.charts[canvasId]) {
     state.charts[canvasId].destroy();
     delete state.charts[canvasId];
@@ -681,131 +698,26 @@ export function renderProjectionChart() {
   const ctx = getCtx('chart-proyeccion');
   if (!ctx) return;
 
-  const processed = state.processedData;
-  const investments = state.investments || [];
+  const sim = calcFinancialSimulation(state.processedData, state.investments, state.simParams);
+  const {
+    labels,
+    genData,
+    savingsData,
+    cumulatedSavings,
+    investmentLine,
+    tableRows,
+    breakevenIdx,
+    breakevenYear,
+    finalCum,
+    totalGen,
+    totalInvestment,
+    roi25,
+    npv,
+    irr,
+    lcoe,
+    assumptions,
+  } = sim;
 
-  // Average monthly gross generation across recorded historical readings
-  const avgGen =
-    processed.length > 0
-      ? processed.reduce((s, d) => s + (d.prodBruta || 0), 0) / processed.length
-      : 0;
-
-  // Latest tariff price or historical average tariff price
-  const lastPrice =
-    processed.length > 0 ? (processed[processed.length - 1].precioKw || 0) : 0;
-  const avgPrice =
-    lastPrice > 0
-      ? lastPrice
-      : (processed.length > 0
-          ? processed.reduce((s, d) => s + (d.precioKw || 0), 0) / processed.length
-          : 0);
-
-  const totalInvestment = investments.reduce(
-    (s, inv) => s + (parseFloat(inv.investment_cop) || 0),
-    0,
-  );
-
-  const firstInvestmentYear = investments.length > 0
-    ? new Date(investments[0].start_date).getFullYear()
-    : (processed.length > 0 ? processed[0].year : new Date().getFullYear());
-
-  const DEGRADATION = 0.004;
-  const INFLATION = 0.04;
-  const YEARS = 25;
-
-  const phases = investments
-    .map((inv) => ({
-      year: new Date(inv.start_date).getFullYear(),
-      capacity: parseFloat(inv.capacity_added_kw) || 0,
-      amount: parseFloat(inv.investment_cop) || 0,
-    }))
-    .sort((a, b) => a.year - b.year);
-
-  // Determine base installed capacity from initial investment phase
-  const baseCapacity = phases.length > 0 && phases[0].capacity > 0
-    ? phases[0].capacity
-    : 0;
-
-  const labels = [];
-  const genData = [];
-  const savingsData = [];
-  const cumulatedSavings = [];
-  const investmentLine = [];
-  const tableRows = [];
-
-  let cumSavings = 0;
-
-  const realYears = new Map();
-  for (const d of processed) {
-    if (!realYears.has(d.year)) {
-      realYears.set(d.year, { gen: 0, count: 0 });
-    }
-    const entry = realYears.get(d.year);
-    entry.gen += d.prodBruta || 0;
-    entry.count += 1;
-  }
-
-  const last3 = processed.slice(-3);
-  const avgLast3 = last3.length > 0
-    ? last3.reduce((s, d) => s + (d.prodBruta || 0), 0) / last3.length
-    : avgGen;
-
-  const currentYear = new Date().getFullYear();
-
-  for (let i = 0; i < YEARS; i++) {
-    const year = firstInvestmentYear + i;
-    labels.push(String(year));
-
-    // Cumulative investment and cumulative installed capacity up to the current year
-    let yearInvestment = 0;
-    let yearCapacity = 0;
-    for (const phase of phases) {
-      if (phase.year <= year) {
-        yearInvestment += phase.amount;
-        yearCapacity += phase.capacity;
-      }
-    }
-
-    investmentLine.push(yearInvestment || totalInvestment);
-
-    // Capacity scaling factor relative to the base capacity (where historical avgGen was measured)
-    const capacityMultiplier = (baseCapacity > 0 && yearCapacity > 0)
-      ? yearCapacity / baseCapacity
-      : 1;
-
-    const realYear = realYears.get(year);
-    let yearGen;
-    if (realYear) {
-      yearGen = realYear.gen;
-      if (year >= currentYear && realYear.count < 12) {
-        yearGen += (avgLast3 || avgGen) * (12 - realYear.count);
-      }
-    } else {
-      // Annual generation based on historical average * 12 months, scaled by capacity and degradation
-      const baseAnnualGen = avgGen > 0
-        ? avgGen * 12
-        : (baseCapacity > 0 ? baseCapacity * 1200 : 0);
-      yearGen = baseAnnualGen * capacityMultiplier * Math.pow(1 - DEGRADATION, i);
-    }
-    genData.push(parseFloat(yearGen.toFixed(1)));
-
-    const yearPrice = avgPrice * Math.pow(1 + INFLATION, i);
-    const annualSavings = yearGen * yearPrice;
-    savingsData.push(Math.round(annualSavings));
-
-    cumSavings += annualSavings;
-    cumulatedSavings.push(Math.round(cumSavings));
-
-    tableRows.push({ year, gen: yearGen, savings: annualSavings, cumSavings, investment: investmentLine[i] });
-  }
-
-  const breakevenIdx = cumulatedSavings.findIndex((v, i) => investmentLine[i] > 0 && v >= investmentLine[i]);
-  const breakevenYear = breakevenIdx >= 0 ? labels[breakevenIdx] : null;
-
-  // Summary tiles
-  const finalCum = cumulatedSavings[cumulatedSavings.length - 1] || 0;
-  const totalGen = genData.reduce((s, v) => s + v, 0);
-  const roi25 = totalInvestment > 0 ? ((finalCum - totalInvestment) / totalInvestment) * 100 : 0;
   const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setText('proj-total-savings', fCOP(finalCum));
   setText('proj-breakeven', breakevenYear || '—');
@@ -814,6 +726,17 @@ export function renderProjectionChart() {
     : L('Fuera del horizonte', 'Beyond horizon'));
   setText('proj-roi', totalInvestment > 0 ? `${roi25 > 0 ? '+' : ''}${fDec(roi25, 0)}%` : '—');
   setText('proj-total-gen', `${compact(totalGen)} kWh`);
+  setText('proj-npv', totalInvestment > 0 ? fCOP(npv) : '—');
+  setText('proj-irr', irr !== null && irr !== undefined ? `${fDec(irr, 1)}%` : '—');
+  setText('proj-lcoe', lcoe > 0 ? `${fCOP(lcoe)}/kWh` : '—');
+
+  // Update assumption chips & slider labels
+  setText('sim-val-inflation', `${fDec(assumptions.inflation, 1)}%`);
+  setText('sim-val-degradation', `${fDec(assumptions.degradation, 2)}%`);
+  setText('sim-val-wacc', `${fDec(assumptions.discountRate, 1)}%`);
+  setText('sim-chip-deg', `${L('Deg', 'Deg')}: ${fDec(assumptions.degradation, 2)}%/${L('año', 'yr')}`);
+  setText('sim-chip-inf', `${L('Inf', 'Inf')}: ${fDec(assumptions.inflation, 1)}%/${L('año', 'yr')}`);
+  setText('sim-chip-wacc', `WACC: ${fDec(assumptions.discountRate, 1)}%`);
 
   state.charts['chart-proyeccion'] = new Chart(ctx, {
     type: 'line',
@@ -909,10 +832,11 @@ export function renderProjectionChart() {
         (r, i) =>
           `<tr${i === breakevenIdx ? ' style="background:rgba(52,211,153,0.07);"' : ''}>
             <td class="cell-primary">${r.year}${i === breakevenIdx ? ' <span class="badge-reset" style="background:rgba(52,211,153,.12);color:#34d399;border-color:rgba(52,211,153,.3);margin-left:.35rem;"><i class="fa-solid fa-flag-checkered"></i> ROI</span>' : ''}</td>
-            <td class="text-right" style="color:#a78bfa;">${fDec(r.gen, 0)} kWh</td>
-            <td class="text-right" style="color:#38bdf8;">${fCOP(r.savings)}</td>
-            <td class="text-right" style="color:#34d399;font-weight:700;">${fCOP(r.cumSavings)}</td>
-            <td class="text-right" style="color:#fbbf24;">${fCOP(r.investment)}</td>
+            <td class="text-right" style="color:var(--ai);">${fDec(r.gen, 0)} kWh</td>
+            <td class="text-right" style="color:var(--accent);">${fCOP(r.savings)}</td>
+            <td class="text-right" style="color:var(--solar);font-weight:700;">${fCOP(r.cumSavings)}</td>
+            <td class="text-right" style="color:var(--warning);">${fCOP(r.investment)}</td>
+            <td class="text-right" style="color:${r.netPosition >= 0 ? 'var(--solar)' : 'var(--muted-light)'};font-weight:600;">${r.netPosition >= 0 ? '+' : ''}${fCOP(r.netPosition)}</td>
           </tr>`,
       )
       .join('');

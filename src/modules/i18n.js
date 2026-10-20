@@ -126,9 +126,11 @@ export const T = {
   avoidedCarbon:        { es: 'Carbono evitado', en: 'Avoided carbon' },
 
   // Trend
-  rising:  { es: 'En alza', en: 'Rising' },
-  falling: { es: 'A la baja', en: 'Falling' },
-  equal:   { es: 'Estable', en: 'Stable' },
+  rising:       { es: 'Alza Fuerte', en: 'Strong Rise' },
+  risingMod:    { es: 'Alza Moderada', en: 'Moderate Rise' },
+  falling:      { es: 'Baja Significativa', en: 'Significant Drop' },
+  fallingMod:   { es: 'Baja Leve', en: 'Slight Drop' },
+  equal:        { es: 'Estable', en: 'Stable' },
 
   // Limits
   maxProjectsReached: { es: 'Máximo de proyectos alcanzado', en: 'Maximum projects reached' },
@@ -140,10 +142,11 @@ export const T = {
   dailyGeneration:       { es: 'Gen. Diaria Promedio', en: 'Avg Daily Generation' },
   dailyConsumption:      { es: 'Consumo Diario Prom.', en: 'Avg Daily Usage' },
   plantHealth:           { es: 'Estado Operativo', en: 'Plant Health' },
-  healthOptimo:          { es: 'Rendimiento Óptimo', en: 'Optimal Performance' },
-  healthNormal:          { es: 'Rendimiento Normal', en: 'Normal Performance' },
-  healthAttention:       { es: 'Revisar / Atención', en: 'Attention Needed' },
+  healthOptimo:          { es: 'Óptimo', en: 'Optimal' },
+  healthNormal:          { es: 'Normal', en: 'Normal' },
+  healthAttention:       { es: 'Revisar', en: 'Check' },
   meterResetNotice:      { es: 'Reinicio Medidor Red', en: 'Grid Meter Reset' },
+  performanceRatio:      { es: 'Performance Ratio (PR)', en: 'Performance Ratio (PR)' },
 
   // Dashboard Tabs
   tabOverview:           { es: 'Telemetría & Balance', en: 'Telemetry & Balance' },
@@ -152,6 +155,9 @@ export const T = {
 
   // Enhanced features
   exportCsv:             { es: 'Exportar CSV', en: 'Export CSV' },
+  importCsv:             { es: 'Importar CSV', en: 'Import CSV' },
+  executiveReport:       { es: 'Reporte Ejecutivo', en: 'Executive Report' },
+  kioskMode:             { es: 'Modo Presentación', en: 'Presentation Mode' },
   exportData:            { es: 'Exportar Datos', en: 'Export Data' },
   searchProjects:        { es: 'Buscar proyecto por nombre, ubicación o capacidad...', en: 'Search projects by name, location or capacity...' },
   searchRecords:         { es: 'Buscar por período, fecha o lecturas...', en: 'Search by period, date or readings...' },
@@ -171,6 +177,7 @@ export const T = {
   cancelBtn:             { es: 'Cancelar', en: 'Cancel' },
   systemOnline:          { es: 'Sistema En Línea', en: 'System Online' },
   allYears:              { es: 'Todos los Años', en: 'All Years' },
+  baseReadingTag:        { es: 'Lectura Inicial Base', en: 'Initial Base Reading' },
 };
 
 /**

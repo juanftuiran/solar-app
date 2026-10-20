@@ -13,7 +13,7 @@ const puppeteer = require('puppeteer');
   
   // Wait for email input
   await page.waitForSelector('#login-email', { timeout: 5000 }).catch(() => console.log("Login email not found, maybe already logged in?"));
-  
+  if (await page.$('#login-email')) {
     const email = process.env.TEST_USER_EMAIL;
     const password = process.env.TEST_USER_PASSWORD;
     if (!email || !password) {

@@ -1,370 +1,142 @@
-# JF Solar Cloud - Plataforma de Analítica Solar v2.0
+# ☀️ JF Solar — Enterprise Photovoltaic Telemetry & Financial Valuation Platform (v4.0)
 
-> Una plataforma profesional y escalable para la gestión y análisis de sistemas de energía solar conectados a la nube.
+[![Version](https://img.shields.io/badge/version-4.0.0--Enterprise-00e5ff.svg)](#)
+[![Architecture](https://img.shields.io/badge/architecture-ES6%20Modular%20SPA-8b5cf6.svg)](#)
+[![Backend](https://img.shields.io/badge/backend-Supabase%20PostgreSQL%20%2B%20RLS-10b981.svg)](#)
+[![Standard](https://img.shields.io/badge/standard-IEC%2061724%20PV%20Analytics-f59e0b.svg)](#)
 
-## 🌟 Características Principales
-
-- ☁️ **Sincronización en Tiempo Real** con Supabase
-- 📊 **Gráficos Interactivos** con Chart.js
-- 🤖 **Análisis Predictivos** con IA/ML
-- 🔐 **Autenticación y Control de Roles** (Admin/Observer)
-- 🌐 **Multiidioma** (Español e Inglés)
-- 📱 **Responsive Design** con Tailwind CSS
-- ⚡ **Arquitectura Modular** y Escalable
-- 💾 **CRUD Completo** de registros solares
-- 📈 **KPIs Avanzados** y Análisis Estadísticos
-
-## 📦 Estructura del Proyecto
-
-```
-solar-app/
-├── public/                 # Archivos estáticos
-│   └── index.html         # HTML limpio y semántico
-├── src/
-│   ├── js/
-│   │   ├── main.js        # Punto de entrada principal
-│   │   ├── modules/       # Módulos de negocio
-│   │   │   ├── auth.js    # Autenticación
-│   │   │   ├── database.js # CRUD de datos
-│   │   │   ├── charts.js  # Gráficos
-│   │   │   ├── tables.js  # Renderizado de tablas
-│   │   │   ├── kpi.js     # Cálculo de KPIs
-│   │   │   ├── analytics.js # Análisis predictivos
-│   │   │   ├── data.js    # Procesamiento de datos
-│   │   │   └── lang.js    # Localización
-│   │   ├── services/      # Servicios
-│   │   │   ├── supabaseClient.js
-│   │   │   └── apiClient.js
-│   │   ├── utils/         # Utilidades
-│   │   │   ├── constants.js
-│   │   │   ├── formatters.js
-│   │   │   ├── helpers.js
-│   │   │   └── validators.js
-│   │   ├── views/         # Componentes de vista
-│   │   └── config/        # Configuración
-│   └── css/               # Estilos
-│       ├── main.css
-│       ├── components.css
-│       └── themes.css
-├── assets/                # Recursos
-│   ├── images/
-│   └── icons/
-├── package.json
-├── vite.config.js
-├── tsconfig.json
-├── .env.example
-├── .gitignore
-├── .prettierrc
-└── README.md
-```
-
-## 🚀 Instalación y Configuración
-
-### 1. Clonar el repositorio
-
-```bash
-git clone <tu-repo>
-cd solar-app
-```
-
-### 2. Instalar dependencias
-
-```bash
-npm install
-```
-
-### 3. Configurar variables de entorno
-
-```bash
-cp .env.example .env.local
-```
-
-Editar `.env.local` con tus credenciales de Supabase:
-
-```env
-VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
-VITE_SUPABASE_ANON_KEY=tu-clave-anonima
-```
-
-### 4. Ejecutar en desarrollo
-
-```bash
-npm run dev
-```
-
-La aplicación estará disponible en `http://localhost:3000`
-
-### 5. Compilar para producción
-
-```bash
-npm run build
-```
-
-El resultado estará en la carpeta `dist/`
-
-## 🏗️ Arquitectura
-
-### Patrón de Módulos
-
-Cada módulo tiene una responsabilidad específica y puede reutilizarse:
-
-```javascript
-// Ejemplo: Usando el módulo de autenticación
-import authModule from './modules/auth.js';
-
-const success = await authModule.login(email, password);
-const user = authModule.getUser();
-const isAdmin = authModule.isUserAdmin();
-```
-
-### Servicios
-
-Los servicios manejan la comunicación con Supabase:
-
-```javascript
-import { getSolarReadings, upsertSolarReading } from './services/apiClient.js';
-
-const readings = await getSolarReadings();
-await upsertSolarReading(record);
-```
-
-### Utilidades
-
-Funciones reutilizables para formateo, validación y lógica común:
-
-```javascript
-import { formatCOP, validateEmail, debounce } from './utils/index.js';
-
-const formatted = formatCOP(1000000); // "$ 1.000.000"
-const isValid = validateEmail('user@example.com'); // true
-const debouncedFn = debounce(myFunction, 300);
-```
-
-## 📚 API de Módulos
-
-### AuthModule
-
-```javascript
-authModule.login(email, password)        // Inicia sesión
-authModule.logout()                      // Cierra sesión
-authModule.getUser()                     // Obtiene usuario actual
-authModule.isUserAdmin()                 // Verifica si es admin
-authModule.getUserEmail()                // Obtiene email del usuario
-authModule.getUserRole()                 // Obtiene rol ('admin' | 'observer')
-```
-
-### DatabaseModule
-
-```javascript
-databaseModule.fetchAllData()            // Carga todos los datos
-databaseModule.getDataByYear(year)       // Filtra por año
-databaseModule.getAllData()              // Obtiene todos los datos
-databaseModule.saveRecord(record)        // Guarda un registro
-databaseModule.deleteRecord(id)          // Elimina un registro
-databaseModule.findRecord(id)            // Busca un registro por ID
-databaseModule.getLatestRecord()         // Obtiene el registro más reciente
-```
-
-### ChartsModule
-
-```javascript
-chartsModule.renderEnergyChart(data, lang)     // Renderiza gráfico de energía
-chartsModule.renderPriceChart(data, lang)      // Renderiza gráfico de precios
-chartsModule.toggleChartType(type, data, lang) // Cambia tipo de gráfico
-chartsModule.destroyAllCharts()                // Destruye todos los gráficos
-```
-
-### KPIModule
-
-```javascript
-kpiModule.calculateKPIs(viewData, allData, investment)
-kpiModule.calculateROI(investment, avgSavings)
-kpiModule.calculateAutonomy(gridConsumption, solarProduction)
-kpiModule.calculateSavings(solarProduction, pricePerKw)
-```
-
-### AnalyticsModule
-
-```javascript
-analyticsModule.calculateProjections(data, lang)
-analyticsModule.predictNextReading(lastRecord, previousRecord)
-analyticsModule.calculateSeasonality(data)
-analyticsModule.detectAnomalies(data)
-```
-
-## 🔧 Configuración de Supabase
-
-### Crear tablas necesarias
-
-1. **Tabla: solar_readings**
-
-```sql
-CREATE TABLE solar_readings (
-  id TEXT PRIMARY KEY,
-  year INTEGER NOT NULL,
-  monthIdx INTEGER NOT NULL,
-  fecha DATE NOT NULL,
-  lecturaRed DECIMAL(10, 2) NOT NULL,
-  lecturaSolar DECIMAL(10, 2) NOT NULL,
-  precioKw DECIMAL(10, 2) NOT NULL,
-  created_at TIMESTAMP DEFAULT now()
-);
-
-CREATE INDEX idx_solar_readings_year ON solar_readings(year);
-```
-
-2. **Tabla: user_roles**
-
-```sql
-CREATE TABLE user_roles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  email TEXT UNIQUE NOT NULL,
-  role TEXT NOT NULL DEFAULT 'observer',
-  created_at TIMESTAMP DEFAULT now()
-);
-```
-
-## 📊 Estructura de Datos
-
-### Registro Solar (solar_readings)
-
-```javascript
-{
-  id: "2026-04",
-  year: 2026,
-  monthIdx: 4,
-  fecha: "2026-04-15",
-  lecturaRed: 1234.5,      // kWh consumidos de la red
-  lecturaSolar: 567.8,     // kWh generados por solar
-  precioKw: 450.25         // Precio por kW en COP
-}
-```
-
-### Registro Procesado
-
-```javascript
-{
-  ...rawData,
-  label: "Abr 2026",
-  consumoRed: 123.4,       // Diferencia de lecturas de red
-  prodBruta: 56.8,         // Diferencia de lecturas solares
-  consumoTotal: 180.2,     // Consumo total
-  autonomia: 31.5,         // Porcentaje de independencia energética
-  incPrecio: 2.5,          // Variación de precio %
-  ahorroReal: 25560        // Ahorro en moneda
-}
-```
-
-## 🎨 Personalización
-
-### Temas de Color
-
-Editar en `src/css/main.css`:
-
-```css
-:root {
-  --color-jf-bg: #0b1120;
-  --color-jf-card: #1e293b;
-  --color-jf-accent: #0ea5e9;
-  --color-jf-solar: #10b981;
-  --color-jf-grid: #f43f5e;
-  --color-jf-ai: #8b5cf6;
-}
-```
-
-### Traducción
-
-Editar en `src/js/modules/lang.js`:
-
-```javascript
-this.translations = {
-  es: { /* Palabras en español */ },
-  en: { /* Palabras en inglés */ }
-}
-```
-
-## 🔒 Seguridad
-
-- ✅ Autenticación con Supabase Auth
-- ✅ Control de roles (Admin/Observer)
-- ✅ Validación de datos en cliente y servidor
-- ✅ Variables de entorno para credenciales
-- ✅ HTTPS recomendado para producción
-- ✅ Row Level Security en Supabase
-
-## 📈 Métricas y Análisis
-
-### KPIs Disponibles
-
-- **Ahorro Generado**: Suma total de ahorros en moneda
-- **Generación Neta**: Total de kWh generados
-- **Independencia Energética**: Porcentaje de autonomía
-- **Variación kW**: Promedio de cambio de precio
-- **ROI**: Años para recuperar la inversión
-- **CO2 Evitado**: Kg de carbono que no se emitieron
-
-### Análisis Predictivos
-
-- Proyección de precios a 12 meses (regresión lineal)
-- Identificación de mes pico de generación
-- Cálculo de estacionalidad
-- Detección de anomalías (Z-score)
-- Predicción de lecturas futuras
-
-## 🚢 Deployment
-
-### Vercel
-
-```bash
-npm run build
-# Configurar en Vercel:
-# - Build Command: npm run build
-# - Output Directory: dist
-```
-
-### Netlify
-
-```bash
-npm run build
-# Arrastra la carpeta dist a Netlify
-```
-
-### Docker
-
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-EXPOSE 3000
-CMD ["npm", "run", "preview"]
-```
-
-## 🤝 Contribuir
-
-1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-## 📝 Licencia
-
-Este proyecto está bajo la licencia MIT. Ver `LICENSE` para más detalles.
-
-## 📧 Contacto
-
-JF Development Team - [contacto@jfsolar.com]
-
-## 🙏 Agradecimientos
-
-- [Supabase](https://supabase.com) por la base de datos
-- [Chart.js](https://www.chartjs.org) por los gráficos
-- [Tailwind CSS](https://tailwindcss.com) por los estilos
-- [Font Awesome](https://fontawesome.com) por los iconos
+**JF Solar Cloud v4.0** es una plataforma empresarial de telemetría fotovoltaica, auditoría energética y valoración financiera multi-proyecto. Diseñada bajo una estética **Precision Industrial Glass & Obsidian / Daylight High-Contrast**, transforma lecturas acumulativas de medidores bidireccionales e inversores solares en inteligencia operativa (IEC 61724) y modelos financieros de flujo de caja descontado (DCF a 25 años).
 
 ---
 
-**Hecho con ❤️ para gestionar tu energía solar de forma profesional**
+## 🚀 Novedades Principales en v4.0 Enterprise
+
+1. **Simulador Financiero Interactivo a 25 Años (DCF):**
+   - Controles deslizantes en tiempo real para **Inflación Tarifaria Anual (% IPC)**, **Degradación Anual de Paneles (%)** y **Tasa de Descuento / WACC (%)**.
+   - Cálculo instantáneo de **VPN / NPV (Valor Presente Neto)**, **TIR / IRR (Tasa Interna de Retorno)** mediante bisección numérica, **LCOE (Costo Nivelado de Energía en COP/kWh)**, **Año de Punto de Equilibrio (Payback)** y tabla detallada de flujos de caja.
+2. **Ingeniería Fotovoltaica Estándar IEC 61724:**
+   - Normalización de producción por potencia instalada activa ($kWp$) en cada corte histórico.
+   - Cálculo de **Productividad Específica ($Y_f$)** en $\text{kWh/kWp/mes}$, **Horas Solares Pico Equivalentes ($HSP$)** en $\text{h/día}$ y **Performance Ratio ($PR\%$)** frente a irradiancia de referencia.
+   - Comparativas **Month-over-Month ($\Delta\%$)** en las tarjetas ejecutivas de KPIs y **Detector Automático de Anomalías Operativas** (alertas tempranas por caídas de generación $>22\%$ o alzas tarifarias atípicas $>8\%$).
+3. **Visibilidad Total de Línea Base ($t_0$) e Importador Masivo CSV:**
+   - El registro fundacional de partida ($t_0$) ahora es visible y editable desde la bitácora Cloud con insignia `BASE t₀`.
+   - Nuevo **Asistente de Importación CSV (`Upsert`)** con previsualización y validación de columnas, además de exportación CSV enriquecida con métricas de ingeniería.
+4. **Reporte Ejecutivo PDF / Print & Modo Presentación (Kiosk HUD):**
+   - Generador de **Informe Ejecutivo de Auditoría** listo para impresión o guardado en PDF con hoja de estilo `@media print` dedicada.
+   - **Modo Presentación / Kiosk** de pantalla completa para salas de juntas o monitores de planta con barra flotante HUD.
+   - **Selector de Tema Dual:** *Dark Obsidian* (telemetría nocturna de alto contraste) y *Daylight High-Contrast* (lectura ejecutiva diurna).
+
+---
+
+## 🏛️ Arquitectura del Sistema
+
+El proyecto utiliza **Vanilla JavaScript ES6+** empaquetado con **Vite**, sin dependencias pesadas de frameworks, garantizando tiempos de carga instantáneos y control absoluto del DOM y de las instancias de **Chart.js 4**.
+
+```text
+solar-app/
+├── index.html                        # Shell SPA: Login, Project Selector, Dashboard & Modals
+├── package.json                      # Configuración Vite v5, Chart.js v4, Supabase JS v2
+├── sql/
+│   ├── 00_full_schema_v4.sql         # Script maestro consolidado e idempotente (Tablas + RBAC + RLS)
+│   ├── multi_project_migration.sql   # Migración histórica multi-proyecto
+│   └── rls_security_fix.sql          # Parche de seguridad RLS sin recursión
+└── src/
+    ├── app.js                        # Orquestador principal SPA, eventos, modales, CSV & Kiosk
+    ├── app.css                       # Sistema de diseño Obsidian + Daylight + @media print
+    ├── components/
+    │   └── projectCard.js            # Tarjetas de portafolio con CAPEX, kWp, fases y estado
+    ├── modules/
+    │   ├── state.js                  # Estado reactivo centralizado + persistencia localStorage
+    │   ├── i18n.js                   # Diccionario bilingüe completo (ES / EN)
+    │   ├── supabase.js               # Capa de datos Supabase Auth, PostgreSQL, RBAC & Batch Upsert
+    │   ├── analytics.js              # Motor matemático IEC 61724, WLS Regression, Anomalías & DCF
+    │   ├── charts.js                 # Suite de 6 gráficos interactivos Chart.js + Sincronización de Tema
+    │   └── ui.js                     # Utilidades DOM, formatters, count-up animations & toasts
+    └── views/
+        ├── projectSelectorView.js    # Vista de portafolio multi-proyecto y resumen de capital
+        ├── dashboardView.js          # Vista de telemetría, simulador 25Y, bitácora y modales
+        └── projectSettingsView.js    # Gestión de fases CAPEX, miembros RBAC y configuración
+```
+
+---
+
+## 📐 Modelos Matemáticos y Financieros (`src/modules/analytics.js`)
+
+### 1. Diferenciales de Telemetría y Reinicio de Hardware (`inverter_reset` / `meter_reset`)
+Dado un conjunto ordenado cronológicamente de lecturas acumuladas $L_0, L_1, \dots, L_n$:
+- Si el registro $i$ no presenta bandera de reinicio, el diferencial del periodo de facturación $\Delta t_i$ (en días exactos entre fechas) es:
+  $$\Delta E_{\text{solar}, i} = \max(0, L_{\text{solar}, i} - L_{\text{solar}, i-1}), \quad \Delta E_{\text{red}, i} = \max(0, L_{\text{red}, i} - L_{\text{red}, i-1})$$
+- Si se marca cambio o reinicio de inversor/medidor (`inverter_reset = true` o `meter_reset = true`), el sistema toma el valor acumulado actual como producción neta del nuevo equipo sin generar deltas negativos.
+
+### 2. Normalización Fotovoltaica IEC 61724
+Para cada fecha de lectura $t_i$, el motor suma la potencia instalada activa $P_{\text{inst}}(t_i)$ (en $\text{kWp}$) de todas las fases de inversión cuya `execution_date` $\le t_i$:
+- **Productividad Específica ($Y_f$):**
+  $$Y_{f, i} = \frac{\Delta E_{\text{solar}, i}}{P_{\text{inst}}(t_i)} \quad [\text{kWh / kWp}]$$
+- **Horas Solares Pico Equivalentes ($HSP$):**
+  $$HSP_i = \frac{Y_{f, i}}{\Delta d_i} \quad [\text{h / día}]$$
+- **Performance Ratio ($PR\%$):**
+  $$PR_i = \min\left(100\%, \frac{HSP_i}{HSP_{\text{ref}}} \times 100\right)$$
+
+### 3. Regresión Econométrica WLS (Weighted Least Squares)
+Para proyectar tarifas y producción estacional, se aplica una regresión lineal ponderada con decaimiento exponencial ($\lambda = 0.90$), otorgando mayor peso estadístico a la estructura tarifaria y climática reciente:
+$$w_k = \lambda^{n - 1 - k}$$
+
+### 4. Valoración Financiera DCF a 25 Años (`calcFinancialSimulation`)
+Considerando una inversión de capital total $\text{CAPEX}_0$, inflación tarifaria anual $g$, degradación anual de módulos $d$ y costo de capital (WACC) $r$:
+- **Flujo de Caja Anual ($CF_t$):**
+  $$CF_t = E_{\text{anual}, 0} \cdot (1 - d)^{t-1} \cdot P_{\text{kWh}, 0} \cdot (1 + g)^{t-1}$$
+- **Valor Presente Neto ($\text{VPN / NPV}$):**
+  $$\text{VPN} = -\text{CAPEX}_0 + \sum_{t=1}^{25} \frac{CF_t}{(1 + r)^t}$$
+- **Tasa Interna de Retorno ($\text{TIR / IRR}$):** Tasa $r^*$ tal que $\text{VPN}(r^*) = 0$, resuelta mediante bisección numérica convergente.
+- **Costo Nivelado de Energía ($\text{LCOE}$):**
+  $$\text{LCOE} = \frac{\text{CAPEX}_0}{\sum_{t=1}^{25} \frac{E_{\text{anual}, 0} \cdot (1 - d)^{t-1}}{(1 + r)^t}} \quad [\text{COP / kWh}]$$
+
+---
+
+## 🛠️ Instalación, Configuración y Despliegue
+
+### 1. Requisitos Previos
+- **Node.js** `>= 18.x`
+- Proyecto activo en **Supabase** (PostgreSQL + Auth)
+
+### 2. Configuración de Base de Datos (Supabase SQL)
+Ejecute el script maestro consolidado [`sql/00_full_schema_v4.sql`](sql/00_full_schema_v4.sql) en el **SQL Editor** de su panel de Supabase. Este script es 100% idempotente y configura:
+- Tablas `solar_projects`, `project_members`, `project_investments`, y `solar_readings`.
+- Índices de rendimiento y banderas `inverter_reset` / `meter_reset`.
+- Funciones de seguridad `is_project_member` y `has_project_role` (`SECURITY DEFINER`).
+- Función RPC `add_project_member_by_email` para invitar colaboradores por correo.
+- Políticas **Row-Level Security (RLS)** estrictas por rol (`owner`, `editor`, `viewer`).
+
+### 3. Variables de Entorno y Ejecución Local
+```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. (Opcional) Configurar credenciales propias en archivo .env
+# VITE_SUPABASE_URL=https://su-proyecto.supabase.co
+# VITE_SUPABASE_ANON_KEY=su-anon-key
+
+# 3. Iniciar servidor de desarrollo Vite
+npm run dev
+
+# 4. Compilar bundle optimizado de producción
+npm run build
+```
+
+---
+
+## 🔒 Matriz de Permisos RBAC
+
+| Acción | Propietario (`owner`) | Editor (`editor`) | Lector (`viewer`) |
+| :--- | :---: | :---: | :---: |
+| Ver Dashboard, KPIs, Gráficos y Simulador 25Y | ✅ | ✅ | ✅ |
+| Exportar CSV y Generar Reporte Ejecutivo PDF | ✅ | ✅ | ✅ |
+| Registrar / Editar / Eliminar Lecturas Cloud | ✅ | ✅ | ❌ |
+| Importar Lotes CSV (`Batch Upsert`) | ✅ | ✅ | ❌ |
+| Administrar Fases de Inversión (CAPEX / kWp) | ✅ | ✅ | ❌ |
+| Invitar / Revocar Miembros del Proyecto | ✅ | ❌ | ❌ |
+| Eliminar Proyecto Completo | ✅ | ❌ | ❌ |
+
+---
+
+*Desarrollado para **JF Solar** — Ingeniería y Analítica Fotovoltaica de Precisión.*

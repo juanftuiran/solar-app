@@ -1,11 +1,12 @@
 /**
  * @module projectSelectorView
- * @description Modern enterprise project selector view for JF Solar Cloud with real-time search.
+ * @description Modern enterprise project selector view for JF Solar Cloud with real-time search,
+ * portfolio-level KPI summary, theme toggle, and language selector.
  */
 
 import { state } from '../modules/state.js';
 import { renderProjectCard } from '../components/projectCard.js';
-import { fDec } from '../modules/formatters.js';
+import { fCOP, fDec } from '../modules/formatters.js';
 
 const MAX_PROJECTS = 20;
 
@@ -22,6 +23,13 @@ export function render() {
   const userInitials = (user.email || 'JS').slice(0, 2).toUpperCase();
 
   const totalCapacity = projects.reduce((s, p) => s + (parseFloat(p.capacity_kw) || 0), 0);
+  const totalPortfolioInvested = projects.reduce((s, p) => s + (parseFloat(p._totalInvested) || 0), 0);
+  const totalPanels = projects.reduce((s, p) => s + (parseInt(p.panel_count, 10) || 0), 0);
+
+  const isEn = state.lang === 'en';
+  const flagCode = isEn ? 'us' : 'co';
+  const langLabel = isEn ? 'EN' : 'ES';
+  const isLight = state.theme === 'light';
 
   let cardsHTML = '';
   if (count === 0) {
@@ -82,11 +90,34 @@ export function render() {
             </div>
             <div>
               <h1>JF Solar Cloud</h1>
-              <span class="brand-sub">Enterprise Management</span>
+              <span class="brand-sub">Enterprise Portfolio v4.0</span>
             </div>
           </div>
 
-          <div style="display:flex;align-items:center;gap:.75rem;">
+          <div style="display:flex;align-items:center;gap:.65rem;">
+            <!-- Theme toggle -->
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm btn-icon"
+              onclick="window.__toggleTheme && window.__toggleTheme()"
+              title="${isLight ? 'Modo Oscuro / Dark Mode' : 'Modo Claro / Light Mode'}"
+              aria-label="Toggle theme"
+            >
+              <i class="fa-solid ${isLight ? 'fa-moon text-accent' : 'fa-sun text-warning'}"></i>
+            </button>
+
+            <!-- Language quick toggle -->
+            <button
+              type="button"
+              class="lang-btn"
+              style="height:2rem;padding:0 .6rem;"
+              onclick="window.__changeLang('${isEn ? 'es' : 'en'}', '${isEn ? 'co' : 'us'}', '${isEn ? 'ES' : 'EN'}')"
+              title="Cambiar idioma / Switch language"
+            >
+              <img src="https://flagcdn.com/w20/${flagCode}.png" class="flag-img" alt="flag">
+              <span>${langLabel}</span>
+            </button>
+
             <div class="user-chip">
               <div class="avatar-pill">${userInitials}</div>
               <span class="user-chip-email hide-mobile">
@@ -108,16 +139,16 @@ export function render() {
           <div>
             <div class="page-hero-title">
               <h2>
-                <span class="lang-es">Plantas Fotovoltaicas</span>
-                <span class="lang-en">Solar Power Plants</span>
+                <span class="lang-es">Portafolio de Plantas Fotovoltaicas</span>
+                <span class="lang-en">Solar Power Plants Portfolio</span>
               </h2>
               <span class="count-pill">
                 ${count} / ${MAX_PROJECTS}
               </span>
             </div>
             <p>
-              <span class="lang-es">Monitoreo multi-proyecto de generación solar, balances de red y retorno de inversión en tiempo real.</span>
-              <span class="lang-en">Multi-project monitoring of solar generation, grid balances, and real-time ROI.</span>
+              <span class="lang-es">Monitoreo multi-proyecto de generación solar, balances de red, valoración financiera (VPN/TIR) y retorno en tiempo real.</span>
+              <span class="lang-en">Multi-project monitoring of solar generation, grid balances, financial valuation (NPV/IRR), and real-time ROI.</span>
             </p>
           </div>
 
@@ -131,8 +162,8 @@ export function render() {
           <div class="card summary-tile">
             <div class="icon-tile solar"><i class="fa-solid fa-solar-panel"></i></div>
             <div>
-              <div class="val text-solar">${count}</div>
-              <div class="lbl"><span class="lang-es">Plantas Activas</span><span class="lang-en">Active Plants</span></div>
+              <div class="val text-solar">${count} <span class="unit">(${totalPanels} u)</span></div>
+              <div class="lbl"><span class="lang-es">Plantas & Paneles</span><span class="lang-en">Plants & Panels</span></div>
             </div>
           </div>
 
@@ -140,15 +171,26 @@ export function render() {
             <div class="icon-tile accent"><i class="fa-solid fa-bolt"></i></div>
             <div>
               <div class="val text-accent">${fDec(totalCapacity, 1)} <span class="unit">kWp</span></div>
-              <div class="lbl"><span class="lang-es">Capacidad Total</span><span class="lang-en">Total Capacity</span></div>
+              <div class="lbl"><span class="lang-es">Capacidad Instalada</span><span class="lang-en">Installed Capacity</span></div>
+            </div>
+          </div>
+
+          <div class="card summary-tile">
+            <div class="icon-tile ai"><i class="fa-solid fa-sack-dollar"></i></div>
+            <div>
+              <div class="val text-strong">${totalPortfolioInvested > 0 ? fCOP(totalPortfolioInvested) : '—'}</div>
+              <div class="lbl"><span class="lang-es">Capital en Portafolio</span><span class="lang-en">Portfolio Capital</span></div>
             </div>
           </div>
 
           <div class="card summary-tile">
             <div class="icon-tile warning"><i class="fa-solid fa-shield-halved"></i></div>
             <div>
-              <div class="val text-strong">${isAdmin ? 'Administrador' : 'Observador'}</div>
-              <div class="lbl"><span class="lang-es">Rol de Acceso</span><span class="lang-en">Access Role</span></div>
+              <div class="val text-strong">
+                <span class="lang-es">${isAdmin ? 'Administrador' : 'Observador'}</span>
+                <span class="lang-en">${isAdmin ? 'Administrator' : 'Observer'}</span>
+              </div>
+              <div class="lbl"><span class="lang-es">Nivel de Acceso</span><span class="lang-en">Access Level</span></div>
             </div>
           </div>
         </div>
@@ -160,7 +202,7 @@ export function render() {
             <input
               type="text"
               id="project-search-input"
-              placeholder="Buscar por nombre o ubicación..."
+              placeholder="${isEn ? 'Search by name, location or inverter...' : 'Buscar por nombre, ubicación o inversor...'}"
               aria-label="Buscar proyectos"
             />
           </div>
@@ -183,10 +225,8 @@ export function render() {
  * @param {Function} onLogout - Called when the logout button is clicked
  */
 export function init(onSelectProject, onCreateProject, onLogout) {
-  // Bind card clicks
   _bindCardClicks(onSelectProject);
 
-  // Search filter
   const searchInput = document.getElementById('project-search-input');
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
@@ -198,7 +238,6 @@ export function init(onSelectProject, onCreateProject, onLogout) {
     });
   }
 
-  // New project button
   const newBtn = document.getElementById('btn-new-project');
   if (newBtn && typeof onCreateProject === 'function') {
     newBtn.addEventListener('click', onCreateProject);
@@ -209,7 +248,6 @@ export function init(onSelectProject, onCreateProject, onLogout) {
     tileNewBtn.addEventListener('click', onCreateProject);
   }
 
-  // Logout button
   const logoutBtn = document.getElementById('btn-logout-selector');
   if (logoutBtn && typeof onLogout === 'function') {
     logoutBtn.addEventListener('click', onLogout);
@@ -224,7 +262,6 @@ function _bindCardClicks(onSelectProject) {
         onSelectProject(projectId);
       }
     });
-    // Keyboard access
     card.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();

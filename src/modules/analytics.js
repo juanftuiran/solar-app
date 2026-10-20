@@ -1,8 +1,7 @@
 /**
  * @module analytics
- * Analytics, data processing, and econometric forecasting for solar monitoring.
- * Uses Weighted Least Squares (WLS), Holt Exponential Smoothing, Confidence Intervals,
- * and Compound Annual Growth Rate (CAGR) for institutional-grade tariff projection.
+ * Analytics, data processing, IEC 61724 solar engineering metrics,
+ * anomaly detection, and econometric / financial simulation (WLS, NPV, IRR, LCOE).
  */
 
 import { state } from './state.js';
@@ -10,8 +9,33 @@ import { fCOP, fDec } from './formatters.js';
 import { t, monthName } from './i18n.js';
 
 // ---------------------------------------------------------------------------
-// Data Processing
+// Data Processing (IEC 61724 Standard)
 // ---------------------------------------------------------------------------
+
+/**
+ * Extract the initial baseline reading (`rawData[0]`) for audit visibility and editing.
+ * @param {Array<Object>} rawData
+ * @returns {Object|null}
+ */
+export function getBaseRecord(rawData) {
+  if (!rawData || rawData.length === 0) return null;
+  const first = rawData[0];
+  const currRed = first.lecturaRed ?? first.medidorRed ?? 0;
+  const currSolar = first.lecturaSolar ?? first.inversores ?? 0;
+  return {
+    isBaseRecord: true,
+    id: first.id,
+    year: first.year,
+    monthIdx: first.monthIdx,
+    fecha: first.fecha,
+    label: `${monthName(first.monthIdx)} ${first.year}`,
+    lecturaRed: currRed,
+    lecturaSolar: currSolar,
+    precioKw: first.precioKw || 0,
+    inverter_reset: !!first.inverter_reset,
+    meter_reset: !!first.meter_reset,
+  };
+}
 
 /**
  * Process raw solar readings into derived metrics according to IEC 61724 solar standards.
@@ -27,6 +51,7 @@ export function processData(rawData, capacityKw = null) {
     ? parseFloat(capacityKw) || 0
     : (parseFloat(state.activeProject?.capacity_kw) || 0);
 
+  const refHsp = parseFloat(state.simParams?.refHsp) || 4.5;
   const result = [];
 
   for (let i = 1; i < rawData.length; i++) {
@@ -70,6 +95,9 @@ export function processData(rawData, capacityKw = null) {
       ? prodBruta / (plantCapacity * daysInPeriod)
       : 0;
 
+    // Performance Ratio (PR %): Actual Yield vs Reference Theoretical Yield
+    const pr = (hsp > 0 && refHsp > 0) ? Math.min(100, (hsp / refHsp) * 100) : 0;
+
     // Normalized daily rates
     const prodDiaria = daysInPeriod > 0 ? prodBruta / daysInPeriod : 0;
     const consumoDiario = daysInPeriod > 0 ? consumoRed / daysInPeriod : 0;
@@ -77,17 +105,17 @@ export function processData(rawData, capacityKw = null) {
 
     // Operational Health Classification
     let healthScore = 'optimo';
-    let healthLabel = 'Óptimo';
+    let healthLabel = t('healthOptimo');
     if (hsp > 0) {
       if (hsp >= 4.0) {
         healthScore = 'optimo';
-        healthLabel = 'Óptimo';
+        healthLabel = t('healthOptimo');
       } else if (hsp >= 3.2) {
         healthScore = 'normal';
-        healthLabel = 'Normal';
+        healthLabel = t('healthNormal');
       } else {
         healthScore = 'atencion';
-        healthLabel = 'Revisar';
+        healthLabel = t('healthAttention');
       }
     }
 
@@ -107,6 +135,9 @@ export function processData(rawData, capacityKw = null) {
       label,
       lecturaRed: currRed,
       lecturaSolar: currSolar,
+      prevLecturaRed: prevRed,
+      prevLecturaSolar: prevSolar,
+      prevFecha: prev.fecha,
       fecha: curr.fecha,
       id: curr.id,
       inverter_reset: !!curr.inverter_reset,
@@ -114,6 +145,7 @@ export function processData(rawData, capacityKw = null) {
       daysInPeriod,
       specificYield,
       hsp,
+      pr,
       prodDiaria,
       consumoDiario,
       consumoTotalDiario,
@@ -137,20 +169,74 @@ export function filterByYear(processedData, year) {
   return processedData.filter((d) => d.year === y);
 }
 
+/**
+ * Get sorted list of unique years present in processedData and rawData.
+ * @param {Array<Object>} processedData
+ * @param {Array<Object>} [rawData=[]]
+ * @returns {Array<number>} Descending list of years
+ */
+export function getAvailableYears(processedData = [], rawData = []) {
+  const yearSet = new Set();
+  for (const d of processedData) {
+    if (d.year) yearSet.add(Number(d.year));
+  }
+  for (const r of rawData) {
+    if (r.year) yearSet.add(Number(r.year));
+  }
+  if (yearSet.size === 0) {
+    yearSet.add(new Date().getFullYear());
+  }
+  return Array.from(yearSet).sort((a, b) => b - a);
+}
+
 // ---------------------------------------------------------------------------
-// Econometric & Predictive Analytics
+// Anomaly Detection & Smart Operational Diagnostics
 // ---------------------------------------------------------------------------
 
 /**
- * Calculate professional predictive analytics for energy tariffs and solar ROI:
- * - Weighted Least Squares (WLS) regression giving higher weight to recent inflation
- * - Statistical 95% Confidence Interval (± margin of error)
- * - R² (Coefficient of Determination) model reliability
- * - Compound Annual Growth Rate (CAGR)
- * - Multi-horizon forecasting (Next month, 6 months, 12 months)
- * - Projected Next Month Solar Savings
- * - Avoided CO₂ & Tree Equivalence
- *
+ * Detect operational anomalies in the latest readings (generation drop, tariff spike, low HSP).
+ * @param {Array<Object>} data - Processed readings
+ * @returns {Array<{ type: 'warning'|'info'|'success', titleEs: string, titleEn: string, descEs: string, descEn: string }>}
+ */
+export function detectAnomalies(data) {
+  if (!data || data.length < 2) return [];
+  const alerts = [];
+  const last = data[data.length - 1];
+  const prevSlice = data.slice(Math.max(0, data.length - 4), data.length - 1);
+
+  if (prevSlice.length > 0) {
+    const avgDailyPrev = prevSlice.reduce((s, d) => s + (d.prodDiaria || 0), 0) / prevSlice.length;
+    if (avgDailyPrev > 0 && last.prodDiaria < avgDailyPrev * 0.78) {
+      const dropPct = Math.round(((avgDailyPrev - last.prodDiaria) / avgDailyPrev) * 100);
+      alerts.push({
+        type: 'warning',
+        titleEs: `Caída de Generación Detectada (-${dropPct}%)`,
+        titleEn: `Generation Drop Detected (-${dropPct}%)`,
+        descEs: `El ritmo diario en ${last.label} (${fDec(last.prodDiaria, 1)} kWh/d) estuvo por debajo de la media reciente (${fDec(avgDailyPrev, 1)} kWh/d). Se recomienda verificar limpieza de módulos o sombreado.`,
+        descEn: `Daily rate in ${last.label} (${fDec(last.prodDiaria, 1)} kWh/d) fell below the recent average (${fDec(avgDailyPrev, 1)} kWh/d). Check panel soiling or shading.`,
+      });
+    }
+  }
+
+  if (last.incPrecio > 8.0) {
+    alerts.push({
+      type: 'info',
+      titleEs: `Alza Tarifaria Atípica (+${fDec(last.incPrecio, 1)}%)`,
+      titleEn: `Unusual Tariff Spike (+${fDec(last.incPrecio, 1)}%)`,
+      descEs: `La tarifa de red subió a ${fCOP(last.precioKw)}/kWh en ${last.label}, acelerando automáticamente el retorno de inversión solar.`,
+      descEn: `Grid tariff rose to ${fCOP(last.precioKw)}/kWh in ${last.label}, automatically accelerating your solar payback.`,
+    });
+  }
+
+  return alerts;
+}
+
+// ---------------------------------------------------------------------------
+// Econometric & Predictive Analytics (WLS)
+// ---------------------------------------------------------------------------
+
+/**
+ * Calculate professional predictive analytics for energy tariffs and solar ROI.
  * @param {Array<Object>} data - Processed data array
  * @returns {Object} Forecast metrics object
  */
@@ -163,12 +249,12 @@ export function calcProjections(data) {
     projectedPrice6m: 0,
     projectedPrice12m: 0,
     projectedMonthlySavings: 0,
-    trend: 'Estable',
+    trend: t('equal'),
     trendIcon: 'fa-minus',
     trendColor: 'text-muted',
     bestMonth: '—',
     bestMonthGen: 0,
-    co2: '0.00',
+    co2: '0.0',
     trees: 0,
   };
 
@@ -187,7 +273,6 @@ export function calcProjections(data) {
   for (let i = 0; i < n; i++) {
     const x = i;
     const y = prices[i];
-    // Exponential weight: older points have weight ~1, recent points up to ~2.5
     const w = Math.exp((1.2 * i) / n);
 
     sumW += w;
@@ -201,7 +286,6 @@ export function calcProjections(data) {
   const slope = denomW !== 0 ? (sumW * sumWXY - sumWX * sumWY) / denomW : 0;
   const intercept = (sumWY - slope * sumWX) / sumW;
 
-  // Forecast for next month (x = n), 6 months (x = n + 5), 12 months (x = n + 11)
   const projectedPrice = Math.max(0, intercept + slope * n);
   const projectedPrice6m = Math.max(0, intercept + slope * (n + 5));
   const projectedPrice12m = Math.max(0, intercept + slope * (n + 11));
@@ -233,23 +317,23 @@ export function calcProjections(data) {
   const monthlySlopePct = lastPrice > 0 ? (slope / lastPrice) * 100 : 0;
 
   if (monthlySlopePct > 0.8) {
-    trend = t('rising') || 'Alza Fuerte';
+    trend = t('rising');
     trendIcon = 'fa-arrow-trend-up';
     trendColor = 'text-danger';
   } else if (monthlySlopePct > 0.1) {
-    trend = 'Alza Moderada';
+    trend = t('risingMod');
     trendIcon = 'fa-arrow-up-right-dots';
     trendColor = 'text-warning';
   } else if (monthlySlopePct < -0.8) {
-    trend = t('falling') || 'Baja Significativa';
+    trend = t('falling');
     trendIcon = 'fa-arrow-trend-down';
     trendColor = 'text-solar';
   } else if (monthlySlopePct < -0.1) {
-    trend = 'Baja Leve';
+    trend = t('fallingMod');
     trendIcon = 'fa-arrow-down-right-dots';
     trendColor = 'text-solar';
   } else {
-    trend = t('equal') || 'Estable';
+    trend = t('equal');
     trendIcon = 'fa-minus';
     trendColor = 'text-muted';
   }
@@ -302,6 +386,237 @@ export function calcProjections(data) {
 }
 
 // ---------------------------------------------------------------------------
+// 25-Year Financial Valuation & Simulator (NPV / VPN, IRR / TIR, LCOE)
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute Internal Rate of Return (IRR / TIR) using Newton-Raphson with bisection fallback.
+ * @param {Array<number>} cashFlows - Array where index 0 is initial net cashflow (negative)
+ * @returns {number|null} Annual IRR percentage (e.g. 24.5 for 24.5%) or null if undefined
+ */
+function computeIRR(cashFlows) {
+  if (!cashFlows || cashFlows.length < 2) return null;
+  const hasNegative = cashFlows.some((cf) => cf < 0);
+  const hasPositive = cashFlows.some((cf) => cf > 0);
+  if (!hasNegative || !hasPositive) return null;
+
+  const npvAt = (rate) => {
+    let sum = 0;
+    for (let t = 0; t < cashFlows.length; t++) {
+      sum += cashFlows[t] / Math.pow(1 + rate, t);
+    }
+    return sum;
+  };
+
+  // Bisection search between -0.50 and +5.00 (-50% to +500%)
+  let low = -0.45;
+  let high = 5.0;
+  let fLow = npvAt(low);
+  let fHigh = npvAt(high);
+
+  if (fLow * fHigh > 0) return null;
+
+  for (let iter = 0; iter < 80; iter++) {
+    const mid = (low + high) / 2;
+    const fMid = npvAt(mid);
+    if (Math.abs(fMid) < 1e-3) return mid * 100;
+    if (fLow * fMid < 0) {
+      high = mid;
+      fHigh = fMid;
+    } else {
+      low = mid;
+      fLow = fMid;
+    }
+  }
+  return ((low + high) / 2) * 100;
+}
+
+/**
+ * Run the 25-Year Financial & Energy Simulation with configurable parameters.
+ * @param {Array<Object>} processed - Processed readings
+ * @param {Array<Object>} investments - Investment phases
+ * @param {Object} [params] - { inflation, degradation, discountRate }
+ * @returns {Object} Full 25-year series and institutional valuation KPIs (NPV, IRR, LCOE, ROI)
+ */
+export function calcFinancialSimulation(processed = [], investments = [], params = null) {
+  const sim = params || state.simParams || { inflation: 4.0, degradation: 0.4, discountRate: 8.0 };
+  const DEGRADATION = (parseFloat(sim.degradation) ?? 0.4) / 100;
+  const INFLATION = (parseFloat(sim.inflation) ?? 4.0) / 100;
+  const DISCOUNT_RATE = (parseFloat(sim.discountRate) ?? 8.0) / 100;
+  const YEARS = 25;
+
+  const avgGen = processed.length > 0
+    ? processed.reduce((s, d) => s + (d.prodBruta || 0), 0) / processed.length
+    : 0;
+
+  const lastPrice = processed.length > 0 ? (processed[processed.length - 1].precioKw || 0) : 0;
+  const avgPrice = lastPrice > 0
+    ? lastPrice
+    : (processed.length > 0
+        ? processed.reduce((s, d) => s + (d.precioKw || 0), 0) / processed.length
+        : 0);
+
+  const totalInvestment = investments.reduce(
+    (s, inv) => s + (parseFloat(inv.investment_cop) || 0),
+    0,
+  );
+
+  const firstInvestmentYear = investments.length > 0 && investments[0].start_date
+    ? new Date(investments[0].start_date + 'T00:00:00').getFullYear()
+    : (processed.length > 0 ? processed[0].year : new Date().getFullYear());
+
+  const phases = investments
+    .map((inv) => ({
+      year: inv.start_date ? new Date(inv.start_date + 'T00:00:00').getFullYear() : firstInvestmentYear,
+      capacity: parseFloat(inv.capacity_added_kw) || 0,
+      amount: parseFloat(inv.investment_cop) || 0,
+    }))
+    .sort((a, b) => a.year - b.year);
+
+  const baseCapacity = phases.length > 0 && phases[0].capacity > 0
+    ? phases[0].capacity
+    : (parseFloat(state.activeProject?.capacity_kw) || 0);
+
+  const labels = [];
+  const genData = [];
+  const savingsData = [];
+  const cumulatedSavings = [];
+  const investmentLine = [];
+  const tableRows = [];
+  const netCashFlows = [];
+
+  let cumSavings = 0;
+  let npv = 0;
+  let discountedGen = 0;
+  let discountedCapex = 0;
+
+  const realYears = new Map();
+  for (const d of processed) {
+    if (!realYears.has(d.year)) {
+      realYears.set(d.year, { gen: 0, count: 0 });
+    }
+    const entry = realYears.get(d.year);
+    entry.gen += d.prodBruta || 0;
+    entry.count += 1;
+  }
+
+  const last3 = processed.slice(-3);
+  const avgLast3 = last3.length > 0
+    ? last3.reduce((s, d) => s + (d.prodBruta || 0), 0) / last3.length
+    : avgGen;
+
+  const currentYear = new Date().getFullYear();
+
+  for (let i = 0; i < YEARS; i++) {
+    const year = firstInvestmentYear + i;
+    labels.push(String(year));
+
+    let yearInvestment = 0;
+    let yearCapexOutflow = 0;
+    let yearCapacity = 0;
+
+    for (const phase of phases) {
+      if (phase.year <= year) {
+        yearInvestment += phase.amount;
+        yearCapacity += phase.capacity;
+      }
+      if (phase.year === year || (i === 0 && phase.year <= year)) {
+        yearCapexOutflow += phase.amount;
+      }
+    }
+
+    if (phases.length === 0 && i === 0) {
+      yearCapexOutflow = totalInvestment;
+    }
+
+    investmentLine.push(yearInvestment || totalInvestment);
+
+    const capacityMultiplier = (baseCapacity > 0 && yearCapacity > 0)
+      ? yearCapacity / baseCapacity
+      : 1;
+
+    const realYear = realYears.get(year);
+    let yearGen;
+    if (realYear) {
+      yearGen = realYear.gen;
+      if (year >= currentYear && realYear.count < 12) {
+        yearGen += (avgLast3 || avgGen) * (12 - realYear.count);
+      }
+    } else {
+      const baseAnnualGen = avgGen > 0
+        ? avgGen * 12
+        : (baseCapacity > 0 ? baseCapacity * 1350 : 0);
+      yearGen = baseAnnualGen * capacityMultiplier * Math.pow(1 - DEGRADATION, i);
+    }
+    genData.push(parseFloat(yearGen.toFixed(1)));
+
+    const yearPrice = avgPrice * Math.pow(1 + INFLATION, i);
+    const annualSavings = yearGen * yearPrice;
+    savingsData.push(Math.round(annualSavings));
+
+    cumSavings += annualSavings;
+    cumulatedSavings.push(Math.round(cumSavings));
+
+    // Net cashflow for year i:
+    // At i=0, we place -yearCapexOutflow as initial outlay and +annualSavings at t=1..N,
+    // or standard project cashflow where t=0 is initial investment and t=1..25 are operating flows.
+    const discountFactor = Math.pow(1 + DISCOUNT_RATE, i + 1);
+    const capexDiscountFactor = Math.pow(1 + DISCOUNT_RATE, i);
+    npv += (annualSavings / discountFactor) - (yearCapexOutflow / capexDiscountFactor);
+    discountedGen += yearGen / discountFactor;
+    discountedCapex += yearCapexOutflow / capexDiscountFactor;
+
+    if (i === 0) {
+      netCashFlows.push(-yearCapexOutflow);
+      netCashFlows.push(annualSavings);
+    } else {
+      netCashFlows.push(annualSavings - yearCapexOutflow);
+    }
+
+    tableRows.push({
+      year,
+      gen: yearGen,
+      tariff: yearPrice,
+      savings: annualSavings,
+      cumSavings,
+      investment: investmentLine[i],
+      netPosition: cumSavings - investmentLine[i],
+    });
+  }
+
+  const breakevenIdx = cumulatedSavings.findIndex((v, i) => investmentLine[i] > 0 && v >= investmentLine[i]);
+  const breakevenYear = breakevenIdx >= 0 ? labels[breakevenIdx] : null;
+  const finalCum = cumulatedSavings[cumulatedSavings.length - 1] || 0;
+  const totalGen = genData.reduce((s, v) => s + v, 0);
+  const roi25 = totalInvestment > 0 ? ((finalCum - totalInvestment) / totalInvestment) * 100 : 0;
+  const irr = totalInvestment > 0 ? computeIRR(netCashFlows) : null;
+  const lcoe = (discountedGen > 0 && discountedCapex > 0) ? (discountedCapex / discountedGen) : 0;
+
+  return {
+    labels,
+    genData,
+    savingsData,
+    cumulatedSavings,
+    investmentLine,
+    tableRows,
+    breakevenIdx,
+    breakevenYear,
+    finalCum,
+    totalGen,
+    totalInvestment,
+    roi25,
+    npv: Math.round(npv),
+    irr,
+    lcoe: Math.round(lcoe),
+    assumptions: {
+      inflation: sim.inflation,
+      degradation: sim.degradation,
+      discountRate: sim.discountRate,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // KPI Calculation
 // ---------------------------------------------------------------------------
 
@@ -309,6 +624,8 @@ export function calcKPIs(viewData, allData, investments, plantCapacityKw = null)
   const capacity = plantCapacityKw !== null && plantCapacityKw !== undefined
     ? parseFloat(plantCapacityKw) || 0
     : (parseFloat(state.activeProject?.capacity_kw) || 0);
+
+  const refHsp = parseFloat(state.simParams?.refHsp) || 4.5;
 
   const defaults = {
     savings: 0,
@@ -321,15 +638,16 @@ export function calcKPIs(viewData, allData, investments, plantCapacityKw = null)
     avgHsp: 0,
     lastHsp: 0,
     hsp: 0,
+    pr: 0,
     avgDailyGen: 0,
     avgDailyConsumption: 0,
     healthScore: 'optimo',
-    healthLabel: 'Óptimo',
+    healthLabel: t('healthOptimo'),
+    deltas: { savings: null, gen: null, autonomy: null, price: null },
   };
 
   if (!viewData || viewData.length === 0) return defaults;
 
-  // Ordenar cronológicamente para garantizar secuencia temporal exacta
   const sortedViewData = [...viewData].sort((a, b) => {
     if (a.year !== b.year) return a.year - b.year;
     if ((a.monthIdx || 0) !== (b.monthIdx || 0)) return (a.monthIdx || 0) - (b.monthIdx || 0);
@@ -339,7 +657,6 @@ export function calcKPIs(viewData, allData, investments, plantCapacityKw = null)
   const savings = viewData.reduce((s, d) => s + (d.ahorroReal || 0), 0);
   const gen = viewData.reduce((s, d) => s + (d.prodBruta || 0), 0);
 
-  // Autonomía Solar: promedio de los últimos 3 registros (no el promedio de todo el año)
   const last3Autonomy = sortedViewData.slice(-3);
   const autonomy = last3Autonomy.length > 0
     ? last3Autonomy.reduce((s, d) => s + (d.autonomia || 0), 0) / last3Autonomy.length
@@ -365,10 +682,24 @@ export function calcKPIs(viewData, allData, investments, plantCapacityKw = null)
     avgSavings = sumLast3 / last3.length;
   }
 
+  // Month-over-Month Deltas (last record vs previous record in sortedViewData)
+  const deltas = { savings: null, gen: null, autonomy: null, price: null };
+  if (sortedViewData.length >= 2) {
+    const curr = sortedViewData[sortedViewData.length - 1];
+    const prev = sortedViewData[sortedViewData.length - 2];
+    if (prev.ahorroReal > 0) {
+      deltas.savings = ((curr.ahorroReal - prev.ahorroReal) / prev.ahorroReal) * 100;
+    }
+    if (prev.prodBruta > 0) {
+      deltas.gen = ((curr.prodBruta - prev.prodBruta) / prev.prodBruta) * 100;
+    }
+    deltas.autonomy = (curr.autonomia || 0) - (prev.autonomia || 0);
+    deltas.price = curr.incPrecio || 0;
+  }
+
   // Solar engineering metrics
   const specificYield = capacity > 0 ? (gen / capacity) : 0;
 
-  // HSP (Horas Sol Pico): cálculo del último mes, calculado con el último registro del mes (no promedio)
   const lastRecordOfMonth = sortedViewData[sortedViewData.length - 1];
   let lastHsp = 0;
   if (lastRecordOfMonth) {
@@ -379,22 +710,22 @@ export function calcKPIs(viewData, allData, investments, plantCapacityKw = null)
     }
   }
 
+  const pr = (lastHsp > 0 && refHsp > 0) ? Math.min(100, (lastHsp / refHsp) * 100) : 0;
   const avgDailyGen = viewData.reduce((s, d) => s + (d.prodDiaria || 0), 0) / viewData.length;
   const avgDailyConsumption = viewData.reduce((s, d) => s + (d.consumoTotalDiario || 0), 0) / viewData.length;
 
-  // Clasificación de Salud Operativa basada en el HSP del último mes
   let healthScore = 'optimo';
-  let healthLabel = 'Óptimo';
+  let healthLabel = t('healthOptimo');
   if (lastHsp > 0) {
     if (lastHsp >= 4.0) {
       healthScore = 'optimo';
-      healthLabel = 'Óptimo';
+      healthLabel = t('healthOptimo');
     } else if (lastHsp >= 3.2) {
       healthScore = 'normal';
-      healthLabel = 'Normal';
+      healthLabel = t('healthNormal');
     } else {
       healthScore = 'atencion';
-      healthLabel = 'Revisar';
+      healthLabel = t('healthAttention');
     }
   }
 
@@ -406,12 +737,14 @@ export function calcKPIs(viewData, allData, investments, plantCapacityKw = null)
     roi,
     avgSavings,
     specificYield,
-    avgHsp: lastHsp, // Conserva compatibilidad con referencias a avgHsp
+    avgHsp: lastHsp,
     lastHsp,
     hsp: lastHsp,
+    pr,
     avgDailyGen,
     avgDailyConsumption,
     healthScore,
     healthLabel,
+    deltas,
   };
 }

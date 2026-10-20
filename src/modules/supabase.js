@@ -116,29 +116,63 @@ export async function getUserProjects(userId, isGlobalAdmin = false) {
 
     if (!allProjects || allProjects.length === 0) return [];
 
-    // Global admin path: access to all projects
+    let accessibleProjects = [];
+
     if (isGlobalAdmin) {
-      return allProjects.map((p) => ({ ...p, _role: 'admin' }));
+      accessibleProjects = allProjects.map((p) => ({ ...p, _role: 'admin' }));
+    } else {
+      const { data: memberships, error: memError } = await sb
+        .from('project_members')
+        .select('project_id, role')
+        .eq('user_id', userId);
+
+      if (memError) {
+        console.warn('[supabase] getUserProjects – project_members error:', memError.message);
+      }
+
+      const memberProjectMap = new Map((memberships || []).map((m) => [m.project_id, m.role]));
+
+      accessibleProjects = allProjects
+        .filter((p) => p.owner_id === userId || memberProjectMap.has(p.id))
+        .map((p) => {
+          const role = p.owner_id === userId ? 'admin' : (memberProjectMap.get(p.id) || 'observer');
+          return { ...p, _role: role };
+        });
     }
 
-    // Non-superadmin: strictly filter to owned projects OR linked through project_members
-    const { data: memberships, error: memError } = await sb
-      .from('project_members')
-      .select('project_id, role')
-      .eq('user_id', userId);
+    if (accessibleProjects.length === 0) return [];
 
-    if (memError) {
-      console.warn('[supabase] getUserProjects – project_members error:', memError.message);
+    // Enrich projects with phase counts and reading status in parallel
+    const projectIds = accessibleProjects.map((p) => p.id);
+    const [invRes, readRes] = await Promise.all([
+      sb.from('project_investments').select('project_id, investment_cop').in('project_id', projectIds),
+      sb.from('solar_readings').select('project_id, fecha').in('project_id', projectIds),
+    ]);
+
+    const invCountMap = new Map();
+    const invSumMap = new Map();
+    for (const inv of (invRes.data || [])) {
+      invCountMap.set(inv.project_id, (invCountMap.get(inv.project_id) || 0) + 1);
+      invSumMap.set(inv.project_id, (invSumMap.get(inv.project_id) || 0) + (parseFloat(inv.investment_cop) || 0));
     }
 
-    const memberProjectMap = new Map((memberships || []).map((m) => [m.project_id, m.role]));
+    const readCountMap = new Map();
+    const lastDateMap = new Map();
+    for (const r of (readRes.data || [])) {
+      readCountMap.set(r.project_id, (readCountMap.get(r.project_id) || 0) + 1);
+      const prevDate = lastDateMap.get(r.project_id);
+      if (!prevDate || (r.fecha && r.fecha > prevDate)) {
+        lastDateMap.set(r.project_id, r.fecha);
+      }
+    }
 
-    return allProjects
-      .filter((p) => p.owner_id === userId || memberProjectMap.has(p.id))
-      .map((p) => {
-        const role = p.owner_id === userId ? 'admin' : (memberProjectMap.get(p.id) || 'observer');
-        return { ...p, _role: role };
-      });
+    return accessibleProjects.map((p) => ({
+      ...p,
+      _investmentCount: invCountMap.get(p.id) || 0,
+      _totalInvested: invSumMap.get(p.id) || 0,
+      _readingCount: readCountMap.get(p.id) || 0,
+      _lastReadingDate: lastDateMap.get(p.id) || null,
+    }));
   } catch (err) {
     console.error('[supabase] getUserProjects error:', err);
     return [];
@@ -622,3 +656,19 @@ export async function fetchAllReadings() {
     return [];
   }
 }
+
+/**
+ * Batch upsert an array of solar reading records (for CSV import).
+ * @param {Array<Object>} records
+ * @returns {Promise<number>} Count of successfully imported records
+ */
+export async function batchUpsertRecords(records) {
+  if (!records || records.length === 0) return 0;
+  let successCount = 0;
+  for (const rec of records) {
+    const res = await upsertRecord(rec);
+    if (res) successCount++;
+  }
+  return successCount;
+}
+

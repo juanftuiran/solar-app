@@ -1,14 +1,45 @@
 /**
  * @module app
- * JF Solar Cloud — Multi-Project App v3.5
+ * JF Solar Cloud — Multi-Project Enterprise Platform v4.0
  * Main entry point, router, and orchestrator
  */
 import './app.css';
-import { state, setUser, setActiveProject, clearProjectData, setView } from './modules/state.js';
-import { sb, signIn, signOut, getSession, getUserRole, getUserProjects, getProject, createProject, updateProject, getProjectMembers, addProjectMember, removeProjectMember, updateMemberRole, getUserProjectRole, getProjectInvestments, createInvestment, updateInvestment, deleteInvestment, fetchProjectReadings, upsertRecord, deleteRecord, fetchAllReadings, getProjectCount } from './modules/supabase.js';
-import { fCOP, fDec, fKwh, fPct, fYield, fHsp, fDailyRate, debounce } from './modules/formatters.js';
-import { t, monthName, MONTHS } from './modules/i18n.js';
-import { processData, filterByYear, calcProjections, calcKPIs } from './modules/analytics.js';
+import { state, setUser, setActiveProject, clearProjectData, setView, savePrefs } from './modules/state.js';
+import {
+  signIn,
+  signOut,
+  getSession,
+  getUserRole,
+  getUserProjects,
+  getProject,
+  createProject,
+  updateProject,
+  getProjectMembers,
+  addProjectMember,
+  removeProjectMember,
+  updateMemberRole,
+  getUserProjectRole,
+  getProjectInvestments,
+  createInvestment,
+  updateInvestment,
+  deleteInvestment,
+  fetchProjectReadings,
+  upsertRecord,
+  batchUpsertRecords,
+  deleteRecord,
+  getProjectCount,
+} from './modules/supabase.js';
+import { fCOP, fDec, fKwh, fPct, fYield, fHsp, fDailyRate } from './modules/formatters.js';
+import { t } from './modules/i18n.js';
+import {
+  processData,
+  getBaseRecord,
+  filterByYear,
+  getAvailableYears,
+  detectAnomalies,
+  calcProjections,
+  calcKPIs,
+} from './modules/analytics.js';
 import {
   renderEnergyChart,
   renderMixChart,
@@ -50,10 +81,56 @@ function showToast(message, type = 'info', duration = 3200) {
   }, duration);
 }
 
+// ── Theme & Presentation Mode ─────────────────────────────────────────────────
+function applyTheme(theme) {
+  state.theme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', state.theme);
+  savePrefs();
+}
+
+function toggleTheme() {
+  applyTheme(state.theme === 'light' ? 'dark' : 'light');
+  if (state.currentView === 'projects') {
+    app().innerHTML = projectSelectorView.render();
+    projectSelectorView.init(handleSelectProject, handleCreateProject, handleLogout);
+  } else if (state.activeProject) {
+    renderDashboardView(state.currentView || 'dashboard');
+  }
+}
+
+function toggleKioskMode(forceState) {
+  const next = typeof forceState === 'boolean' ? forceState : !state.kioskMode;
+  state.kioskMode = next;
+  document.body.classList.toggle('kiosk-mode', next);
+  const kioskBar = document.getElementById('kiosk-floating-bar');
+  if (kioskBar) kioskBar.classList.toggle('hidden', !next);
+
+  if (!next && state.kioskTimer) {
+    clearInterval(state.kioskTimer);
+    state.kioskTimer = null;
+  }
+
+  if (next) {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    showToast(
+      state.lang === 'en' ? 'Presentation Mode Activated (ESC to exit)' : 'Modo Presentación Activado',
+      'info',
+    );
+  } else if (document.fullscreenElement) {
+    document.exitFullscreen?.().catch(() => {});
+  }
+
+  setTimeout(() => {
+    Object.values(state.charts).forEach(c => c?.resize?.());
+  }, 120);
+}
+
 // ── Language ──────────────────────────────────────────────────────────────────
 function changeLang(lang, flagCode, text) {
   state.lang = lang;
   document.body.setAttribute('data-lang', lang);
+  savePrefs();
+
   const flagEl = document.getElementById('current-flag');
   const txtEl = document.getElementById('current-lang-text');
   if (flagEl) flagEl.innerHTML = `<img src="https://flagcdn.com/w20/${flagCode}.png" class="flag-img" alt="flag">`;
@@ -61,7 +138,13 @@ function changeLang(lang, flagCode, text) {
   document.activeElement?.blur();
   document.getElementById('lang-menu')?.classList.add('hidden');
 
-  if (state.processedData.length) {
+  if (state.currentView === 'projects') {
+    app().innerHTML = projectSelectorView.render();
+    projectSelectorView.init(handleSelectProject, handleCreateProject, handleLogout);
+    return;
+  }
+
+  if (state.rawData.length) {
     state.processedData = processData(state.rawData);
     renderDashboardData();
   }
@@ -111,20 +194,19 @@ async function navigate(view, opts = {}) {
 // ── Dashboard View Rendering ──────────────────────────────────────────────────
 async function renderDashboardView(subView) {
   state.currentView = subView;
-  
+
   let contentHTML = null;
   let members = [];
-  
+
   if (subView === 'settings' || subView === 'investments') {
-    contentHTML = projectSettingsView.render();
+    contentHTML = projectSettingsView.render(subView);
   } else if (subView === 'members') {
     members = state.activeProject ? await getProjectMembers(state.activeProject.id) : [];
     contentHTML = membersView.render(members);
   }
-  
+
   app().innerHTML = dashboardView.render(contentHTML);
 
-  // Init sidebar + header events
   dashboardView.init({
     onYearChange: () => renderDashboardData(),
     onSaveRecord: handleSaveRecord,
@@ -136,6 +218,10 @@ async function renderDashboardView(subView) {
     onNavigate: handleSidebarNavigate,
     onLangChange: changeLang,
     onExportCsv: handleExportCsv,
+    onImportCsv: handleImportCsv,
+    onSimChange: () => renderProjectionChart(),
+    onToggleTheme: toggleTheme,
+    onToggleKiosk: toggleKioskMode,
     onTabChange: (tab) => {
       if (tab === 'telemetry' || tab === 'finance') {
         renderDashboardData();
@@ -143,7 +229,6 @@ async function renderDashboardView(subView) {
     },
   });
 
-  // Init subview specific events
   switch (subView) {
     case 'dashboard':
       renderDashboardData();
@@ -175,12 +260,40 @@ async function loadAndRenderMembers() {
 
 // ── Dashboard Data Rendering ──────────────────────────────────────────────────
 function renderDashboardData() {
-  const year = document.getElementById('year-filter')?.value || 'all';
+  const yearSelect = document.getElementById('year-filter');
+  const availableYears = getAvailableYears(state.processedData, state.rawData);
+
+  // Ensure selectedYear is valid for the current project's data
+  if (
+    state.selectedYear !== 'all' &&
+    !availableYears.includes(parseInt(state.selectedYear, 10))
+  ) {
+    state.selectedYear = 'all';
+  }
+
+  if (yearSelect) {
+    const selectedStr = String(state.selectedYear || 'all');
+    yearSelect.innerHTML = [
+      `<option value="all" ${selectedStr === 'all' ? 'selected' : ''}>${state.lang === 'en' ? 'All Years' : 'Todos los Años'}</option>`,
+      ...availableYears.map(y => `<option value="${y}" ${selectedStr === String(y) ? 'selected' : ''}>${y}</option>`),
+    ].join('');
+  }
+
+  const year = yearSelect?.value || state.selectedYear || 'all';
   state.viewData = filterByYear(state.processedData, year);
 
-  const curYear = new Date().getFullYear();
-  const tableYear = year === 'all' ? curYear : parseInt(year, 10);
-  const tableData = state.processedData.filter(d => d.year === tableYear);
+  // Table shows all records when year === 'all', or filtered by year
+  const tableData = year === 'all'
+    ? [...state.processedData]
+    : state.processedData.filter(d => d.year === parseInt(year, 10));
+
+  // Include Initial Base Reading (t0) if viewing 'all' or the year of the base reading
+  const baseRec = getBaseRecord(state.rawData);
+  const showBaseRec = baseRec && (year === 'all' || baseRec.year === parseInt(year, 10))
+    ? baseRec
+    : null;
+
+  setText('tab-readings-count', String(state.rawData?.length || 0));
 
   // Render main & secondary charts
   renderEnergyChart(state.viewData);
@@ -198,24 +311,26 @@ function renderDashboardData() {
 
   // Render table
   const tbody = document.getElementById('table-body');
-  if (tbody) {
-    if (dashboardView.renderTableRows) {
-      tbody.innerHTML = dashboardView.renderTableRows(tableData, state.isAdmin || state.activeProjectRole === 'admin');
-      bindTableEvents(tbody);
-    }
+  if (tbody && dashboardView.renderTableRows) {
+    tbody.innerHTML = dashboardView.renderTableRows(
+      tableData,
+      state.isAdmin || state.activeProjectRole === 'admin',
+      showBaseRec,
+    );
+    bindTableEvents(tbody);
   }
 
   // Update KPIs
   const capacity = state.activeProject?.capacity_kw || 0;
   const kpis = calcKPIs(state.viewData, state.processedData, state.investments, capacity);
-  
   const totalInv = (state.investments || []).reduce((a, i) => a + (parseFloat(i.investment_cop) || 0), 0);
-  
+
   // Update Solar Engineering Telemetry Banner
   setText('sh-specific-yield', fYield(kpis.specificYield));
   setText('sh-avg-hsp', fHsp(kpis.lastHsp ?? kpis.avgHsp));
+  setText('sh-pr-val', kpis.pr > 0 ? `${fDec(kpis.pr, 1)}%` : '—');
   setText('sh-daily-gen', fDailyRate(kpis.avgDailyGen));
-  
+
   const healthPill = document.getElementById('sh-health-pill');
   const healthText = document.getElementById('sh-health-text');
   if (healthPill) {
@@ -225,11 +340,20 @@ function renderDashboardData() {
     healthText.innerText = kpis.healthLabel;
   }
 
+  // Render Smart Anomaly Alerts
+  _renderAnomalyAlerts(detectAnomalies(state.viewData));
+
+  // Update KPI values + MoM Delta pills
   setText('kpi-ahorro', fCOP(kpis.savings));
   setText('kpi-produccion', fKwh(kpis.gen));
   setText('kpi-autonomia', fPct(kpis.autonomy));
   setText('kpi-var-kw', fPct(kpis.varKw));
-  
+
+  _setDeltaBadge('delta-kpi-ahorro', kpis.deltas.savings, false);
+  _setDeltaBadge('delta-kpi-produccion', kpis.deltas.gen, false);
+  _setDeltaBadge('delta-kpi-autonomia', kpis.deltas.autonomy, false, ' pts');
+  _setDeltaBadge('delta-kpi-var-kw', kpis.deltas.price, true);
+
   const paybackMonths = kpis.avgSavings > 0 ? (totalInv / kpis.avgSavings) : 0;
   const paybackYears = paybackMonths / 12;
   setText('roi-time', paybackYears > 0 ? fDec(paybackYears, 1) : '0');
@@ -249,33 +373,97 @@ function renderDashboardData() {
   setText('roi-ring-value', `${progressPct.toFixed(0)}%`);
   setText('roi-total-saved-pill', fCOP(totalSavingsAll));
 
-  // Update Econometric Projections & Eco-Metrics
+  // Update Econometric Projections & Eco-Metrics (Both ES and EN targets)
   const proj = calcProjections(state.viewData);
+  const isEn = state.lang === 'en';
   setText('ai-precio-futuro', fCOP(proj.projectedPrice));
-  setText('ai-rango-confianza', `Banda: ± ${fCOP(proj.confidenceMargin)}`);
-  setText('ai-cagr', `CAGR: ${proj.cagrPct > 0 ? '+' : ''}${proj.cagrPct}% anual`);
+  setText('ai-rango-confianza', `${isEn ? 'Band' : 'Banda'}: ± ${fCOP(proj.confidenceMargin)}`);
+  setText('ai-cagr', `CAGR: ${proj.cagrPct > 0 ? '+' : ''}${proj.cagrPct}% ${isEn ? 'yr' : 'anual'}`);
   setText('ai-precio-6m', fCOP(proj.projectedPrice6m));
   setText('ai-ahorro-mes', fCOP(proj.projectedMonthlySavings));
   setText('ai-mejor-mes', proj.bestMonth);
+  setText('ai-mejor-mes-en', proj.bestMonth);
   setText('ai-co2', `${proj.co2} kg`);
+  setText('ai-co2-en', `${proj.co2} kg`);
   setText('eco-trees', String(proj.trees));
   setText('eco-trees-en', String(proj.trees));
 
   const modelBadge = document.getElementById('ai-model-badge');
-  if (modelBadge) modelBadge.innerText = `R² ${proj.rSquared}% Confianza`;
+  if (modelBadge) modelBadge.innerText = `R² ${proj.rSquared}% ${isEn ? 'Confidence' : 'Confianza'}`;
 
   const tEl = document.getElementById('ai-tendencia');
   if (tEl) tEl.innerHTML = `<span class="${proj.trendColor}"><i class="fa-solid ${proj.trendIcon}"></i> ${proj.trend}</span>`;
 }
 
+function _setDeltaBadge(elId, val, invertColors = false, suffix = '%') {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (val === null || val === undefined || Number.isNaN(val)) {
+    el.innerHTML = '';
+    return;
+  }
+  const num = parseFloat(val);
+  const isUp = num > 0.05;
+  const isDown = num < -0.05;
+  const icon = isUp ? 'fa-arrow-trend-up' : isDown ? 'fa-arrow-trend-down' : 'fa-minus';
+  let tone = '';
+  if (isUp) tone = invertColors ? 'down' : 'up';
+  if (isDown) tone = invertColors ? 'up' : 'down';
+  const vsText = state.lang === 'en' ? 'MoM' : 'vs ant.';
+  el.innerHTML = `
+    <span class="delta ${tone}">
+      <i class="fa-solid ${icon}"></i> ${num > 0 ? '+' : ''}${fDec(num, 1)}${suffix} ${vsText}
+    </span>
+  `;
+}
+
+function _renderAnomalyAlerts(alerts) {
+  const container = document.getElementById('anomaly-alerts-container');
+  if (!container) return;
+  if (!alerts || alerts.length === 0) {
+    container.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+  container.classList.remove('hidden');
+  container.innerHTML = alerts.map(a => `
+    <div class="anomaly-banner ${a.type}">
+      <div class="anomaly-icon">
+        <i class="fa-solid ${a.type === 'warning' ? 'fa-triangle-exclamation' : 'fa-bolt'}"></i>
+      </div>
+      <div class="anomaly-content">
+        <strong>
+          <span class="lang-es">${a.titleEs}</span>
+          <span class="lang-en">${a.titleEn}</span>
+        </strong>
+        <p>
+          <span class="lang-es">${a.descEs}</span>
+          <span class="lang-en">${a.descEn}</span>
+        </p>
+      </div>
+    </div>
+  `).join('');
+}
+
 function bindTableEvents(tbody) {
-  if (!state.isAdmin && state.activeProjectRole !== 'admin') return;
+  if (!state.isAdmin && state.activeProjectRole !== 'admin') {
+    tbody.querySelectorAll('tr[data-row-id]').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const det = document.getElementById(`det-${tr.dataset.rowId}`);
+        if (det) {
+          tr.classList.toggle('expanded');
+          det.classList.toggle('hidden');
+        }
+      });
+    });
+    return;
+  }
 
   tbody.querySelectorAll('.edit-btn').forEach(btn =>
     btn.addEventListener('click', e => {
       e.stopPropagation();
       openRecordModal('edit', btn.dataset.id);
-    })
+    }),
   );
 
   tbody.querySelectorAll('.del-btn').forEach(btn =>
@@ -298,16 +486,18 @@ function bindTableEvents(tbody) {
           } catch (err) {
             showToast(`${t('error')}: ${err.message}`, 'error');
           }
-        }
+        },
       });
-    })
+    }),
   );
 
   tbody.querySelectorAll('tr[data-row-id]').forEach(tr => {
     tr.addEventListener('click', () => {
-      tr.classList.toggle('expanded');
       const det = document.getElementById(`det-${tr.dataset.rowId}`);
-      if (det) det.classList.toggle('hidden');
+      if (det) {
+        tr.classList.toggle('expanded');
+        det.classList.toggle('hidden');
+      }
     });
   });
 }
@@ -329,9 +519,9 @@ function handleToggleChartMode(chartKey, mode) {
   }
 }
 
-// ── Export CSV Handler ────────────────────────────────────────────────────────
+// ── Export & Import CSV Handlers ──────────────────────────────────────────────
 function handleExportCsv() {
-  if (!state.processedData || state.processedData.length === 0) {
+  if (!state.rawData || state.rawData.length === 0) {
     showToast(state.lang === 'es' ? 'No hay lecturas registradas para exportar' : 'No readings available to export', 'error');
     return;
   }
@@ -346,14 +536,38 @@ function handleExportCsv() {
     'Generacion Solar (kWh)',
     'Rendimiento Especifico (kWh/kWp)',
     'Horas Sol Pico (HSP)',
+    'Performance Ratio (%)',
     'Generacion Diaria (kWh/dia)',
     'Consumo Total (kWh)',
     'Autonomia (%)',
     'Tarifa kW (COP)',
     'Ahorro Generado (COP)',
     'Reinicio Inversor',
-    'Reinicio Medidor Red'
+    'Reinicio Medidor Red',
   ];
+
+  const baseRec = getBaseRecord(state.rawData);
+  const baseRow = baseRec
+    ? [[
+        `"${baseRec.label} (Base)"`,
+        `"${baseRec.fecha}"`,
+        0,
+        baseRec.lecturaRed ?? 0,
+        baseRec.lecturaSolar ?? 0,
+        '0.00',
+        '0.00',
+        '0.00',
+        '0.00',
+        '0.00',
+        '0.00',
+        '0.00',
+        '0.00',
+        baseRec.precioKw ?? 0,
+        '0.00',
+        baseRec.inverter_reset ? 'SI' : 'NO',
+        baseRec.meter_reset ? 'SI' : 'NO',
+      ]]
+    : [];
 
   const rows = state.processedData.map(d => [
     `"${d.label}"`,
@@ -365,16 +579,17 @@ function handleExportCsv() {
     (d.prodBruta ?? 0).toFixed(2),
     (d.specificYield ?? 0).toFixed(2),
     (d.hsp ?? 0).toFixed(2),
+    (d.pr ?? 0).toFixed(2),
     (d.prodDiaria ?? 0).toFixed(2),
     (d.consumoTotal ?? 0).toFixed(2),
     (d.autonomia ?? 0).toFixed(2),
     d.precioKw ?? 0,
     (d.ahorroReal ?? 0).toFixed(2),
     d.inverter_reset ? 'SI' : 'NO',
-    d.meter_reset ? 'SI' : 'NO'
+    d.meter_reset ? 'SI' : 'NO',
   ]);
 
-  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const csvContent = '\uFEFF' + [headers.join(','), ...baseRow.map(r => r.join(',')), ...rows.map(r => r.join(','))].join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -387,13 +602,31 @@ function handleExportCsv() {
   showToast(state.lang === 'es' ? 'Reporte CSV descargado correctamente' : 'CSV Report downloaded successfully', 'success');
 }
 
+async function handleImportCsv(records) {
+  if (!records || records.length === 0) return;
+  try {
+    showToast(state.lang === 'es' ? `Importando ${records.length} registros...` : `Importing ${records.length} records...`, 'info');
+    const count = await batchUpsertRecords(records);
+    await reloadProjectData();
+    renderDashboardData();
+    showToast(
+      state.lang === 'es'
+        ? `${count} registros importados exitosamente`
+        : `${count} records imported successfully`,
+      'success',
+    );
+  } catch (err) {
+    showToast(`${t('error')}: ${err.message}`, 'error');
+  }
+}
+
 // ── Data Loading ──────────────────────────────────────────────────────────────
 async function loadProjects() {
   if (!state.user) return;
   try {
     const projects = await getUserProjects(state.user.id, state.isAdmin);
     state.projects = projects || [];
-  } catch (e) {
+  } catch {
     state.projects = [];
   }
 }
@@ -554,12 +787,12 @@ async function handleCreateProject() {
           description: document.getElementById('cp-description')?.value || '',
           location: document.getElementById('cp-location')?.value || '',
           capacity_kw: parseFloat(document.getElementById('cp-capacity')?.value) || 0,
-          panel_count: parseInt(document.getElementById('cp-panels')?.value) || 0,
+          panel_count: parseInt(document.getElementById('cp-panels')?.value, 10) || 0,
           inverter_model: document.getElementById('cp-inverter')?.value || '',
           monitoring_url: document.getElementById('cp-monitoring')?.value || '',
           owner_id: state.user.id,
         }, state.user.email);
-        
+
         closeGlobalModal();
         showToast(state.lang === 'es' ? 'Proyecto creado exitosamente' : 'Project created successfully', 'success');
         await navigate('projects');
@@ -572,6 +805,7 @@ async function handleCreateProject() {
 
 function handleSidebarNavigate(viewName) {
   if (viewName === 'projects' || viewName === 'switch-project') {
+    setActiveProject(null, null);
     navigate('projects');
     return;
   }
@@ -617,14 +851,15 @@ async function handleSaveRecord(dataOrEvent) {
   if (dataOrEvent && typeof dataOrEvent.preventDefault === 'function') {
     dataOrEvent.preventDefault();
   }
-  
+
   const editId = document.getElementById('edit-id')?.value;
   const fecha = document.getElementById('new-fecha')?.value;
   if (!fecha) return;
   const [year, month, day] = fecha.split('-');
-  
+  const projPrefix = state.activeProject?.id ? `${state.activeProject.id.slice(0, 8)}_` : '';
+
   const rec = {
-    id: editId || `${year}-${month}-${day || '01'}`,
+    id: editId || `${projPrefix}${year}-${month}-${day || '01'}`,
     year: parseInt(year, 10),
     monthIdx: parseInt(month, 10),
     fecha,
@@ -672,7 +907,7 @@ async function handleDeleteRecord(id, fecha) {
       } catch (err) {
         showToast(`${t('error')}: ${err.message}`, 'error');
       }
-    }
+    },
   });
 }
 
@@ -693,6 +928,7 @@ async function handleSaveSettings(data) {
     if (!result) throw new Error('No se pudo guardar la configuración.');
     const updated = await getProject(state.activeProject.id);
     if (updated) setActiveProject(updated, state.activeProjectRole);
+    state.processedData = processData(state.rawData);
     showToast(state.lang === 'es' ? 'Configuración guardada' : 'Settings saved', 'success');
   } catch (err) {
     showToast(`${t('error')}: ${err.message}`, 'error');
@@ -753,7 +989,7 @@ async function handleDeletePhase(investmentId) {
       } catch (err) {
         showToast(`${t('error')}: ${err.message}`, 'error');
       }
-    }
+    },
   });
 }
 
@@ -776,7 +1012,7 @@ async function handleRemoveMember(memberId) {
     titleEs: 'Remover Miembro',
     titleEn: 'Remove Member',
     messageEs: '¿Deseas revocar el acceso de este usuario al proyecto?',
-    messageEn: 'Do you want to revoke this user\'s access to the project?',
+    messageEn: "Do you want to revoke this user's access to the project?",
     confirmBtnEs: 'Remover',
     confirmBtnEn: 'Remove',
     isDanger: true,
@@ -789,7 +1025,7 @@ async function handleRemoveMember(memberId) {
       } catch (err) {
         showToast(`${t('error')}: ${err.message}`, 'error');
       }
-    }
+    },
   });
 }
 
@@ -813,6 +1049,8 @@ const setText = (id, val) => {
 window.__navigate = (view) => handleSidebarNavigate(view);
 window.__logout = handleLogout;
 window.__changeLang = changeLang;
+window.__toggleTheme = toggleTheme;
+window.__toggleKiosk = toggleKioskMode;
 window.__openRecordModal = (action, id) => openRecordModal(action, id);
 window.__closeRecordModal = () => document.getElementById('add-record-modal')?.classList.add('hidden');
 window.__handleToggleChartMode = handleToggleChartMode;
@@ -839,6 +1077,10 @@ window.__handleExportCsv = handleExportCsv;
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  // Apply persisted language & theme
+  document.body.setAttribute('data-lang', state.lang || 'es');
+  applyTheme(state.theme || 'dark');
+
   try {
     const session = await getSession();
     if (session?.user) {
@@ -846,17 +1088,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       const role = await getUserRole(state.user.email);
       state.isAdmin = role === 'admin';
 
+      await loadProjects();
+
+      // Restore last active project if still accessible
+      if (state.lastProjectId && state.projects.some(p => p.id === state.lastProjectId)) {
+        await navigate('dashboard', { projectId: state.lastProjectId });
+        return;
+      }
+
       if (state.isAdmin) {
         await navigate('projects');
+      } else if (state.projects.length === 1) {
+        await navigate('dashboard', { projectId: state.projects[0].id });
+      } else if (state.projects.length > 1) {
+        await navigate('projects');
       } else {
-        await loadProjects();
-        if (state.projects.length === 1) {
-          await navigate('dashboard', { projectId: state.projects[0].id });
-        } else if (state.projects.length > 1) {
-          await navigate('projects');
-        } else {
-          navigate('login');
-        }
+        navigate('login');
       }
     } else {
       navigate('login');
