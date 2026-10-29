@@ -529,7 +529,7 @@ export function calcFinancialSimulation(processed = [], investments = [], params
       yearCapexOutflow = totalInvestment;
     }
 
-    investmentLine.push(yearInvestment || totalInvestment);
+    investmentLine.push(phases.length === 0 ? totalInvestment : yearInvestment);
 
     const capacityMultiplier = (baseCapacity > 0 && yearCapacity > 0)
       ? yearCapacity / baseCapacity

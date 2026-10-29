@@ -612,9 +612,16 @@ export function renderPaybackChart() {
   const processed = state.processedData || [];
   const investments = (state.investments || []).map((inv) => ({
     date: inv.start_date || '',
+    month: inv.start_date ? inv.start_date.slice(0, 7) : '',
     amount: parseFloat(inv.investment_cop) || 0,
   }));
   const totalInvestment = investments.reduce((s, i) => s + i.amount, 0);
+
+  // Identify earliest installation month among phases that define a start date
+  const phasesWithDates = investments.filter((i) => i.month);
+  const minInstallMonth = phasesWithDates.length > 0
+    ? phasesWithDates.reduce((min, i) => (!min || i.month < min ? i.month : min), '')
+    : null;
 
   let cum = 0;
   const labels = [];
@@ -624,8 +631,26 @@ export function renderPaybackChart() {
     cum += d.ahorroReal || 0;
     labels.push(d.label);
     cumData.push(Math.round(cum));
-    const invested = investments.filter((i) => !i.date || i.date <= d.fecha).reduce((s, i) => s + i.amount, 0);
-    invData.push(invested || totalInvestment);
+
+    const recMonth = d.fecha && d.fecha.length >= 7
+      ? d.fecha.slice(0, 7)
+      : (d.year && d.monthIdx ? `${d.year}-${String(d.monthIdx).padStart(2, '0')}` : '');
+
+    let invested = 0;
+    if (!minInstallMonth) {
+      // If no phases have start dates, treat total investment as the baseline
+      invested = totalInvestment;
+    } else if (recMonth && recMonth < minInstallMonth) {
+      // Prior to solar plant installation, invested capital is 0
+      invested = 0;
+    } else {
+      // From installation onwards, take active phases into account and accumulate them
+      invested = investments
+        .filter((i) => !i.month || i.month <= recMonth || (i.date && d.fecha && i.date <= d.fecha))
+        .reduce((s, i) => s + i.amount, 0);
+    }
+
+    invData.push(invested);
   });
 
   const breakevenIdx = cumData.findIndex((v, i) => invData[i] > 0 && v >= invData[i]);
