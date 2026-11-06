@@ -61,6 +61,11 @@ export function render(contentHTML = null) {
                     <span class="lang-en">Cloud Log</span>
                     <span class="tab-count-badge" id="tab-readings-count">${state.rawData?.length || 0}</span>
                   </button>
+                  <button class="tab-btn" type="button" onclick="window.__navigate('solarman')">
+                    <i class="fa-solid fa-satellite-dish text-solar"></i>
+                    <span class="lang-es">Monitor Solarman (En Vivo)</span>
+                    <span class="lang-en">Solarman Live Monitor</span>
+                  </button>
                 </div>
               </div>
 
@@ -1214,6 +1219,19 @@ function _renderHeader(user, project, isAdmin) {
         ` : ''}
 
         <div class="header-divider"></div>
+
+        <!-- Solarman Live Quick Access / Back to Dashboard -->
+        ${state.currentView === 'solarman' ? `
+          <button class="btn btn-ghost" type="button" onclick="window.__navigate('dashboard')" title="Volver al Dashboard">
+            <i class="fa-solid fa-chart-line text-accent"></i>
+            <span class="hide-sm"><span class="lang-es">Dashboard</span><span class="lang-en">Dashboard</span></span>
+          </button>
+        ` : `
+          <button class="btn btn-ghost" type="button" onclick="window.__navigate('solarman')" title="Abrir Monitor Solarman En Vivo">
+            <i class="fa-solid fa-satellite-dish text-solar"></i>
+            <span class="hide-sm"><span class="lang-es">Solarman Live</span><span class="lang-en">Solarman Live</span></span>
+          </button>
+        `}
 
         <!-- Monitoring link -->
         <button id="btn-monitoring-link" class="btn btn-ghost btn-icon" type="button" title="URL de Monitoreo">

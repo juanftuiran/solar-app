@@ -1,6 +1,51 @@
 import { defineConfig } from 'vite';
+import { processSolarmanRequest } from './api/solarman.js';
+
+function solarmanLocalProxyPlugin() {
+  const attachMiddleware = (middlewares) => {
+    middlewares.use('/api/solarman', (req, res, next) => {
+      if (req.method === 'OPTIONS') {
+        res.statusCode = 200;
+        res.end();
+        return;
+      }
+      if (req.method !== 'POST') {
+        next();
+        return;
+      }
+      let raw = '';
+      req.on('data', chunk => {
+        raw += chunk;
+      });
+      req.on('end', async () => {
+        try {
+          const body = raw ? JSON.parse(raw) : {};
+          const result = await processSolarmanRequest(body);
+          res.statusCode = result.status || 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(result.data));
+        } catch (err) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ success: false, msg: err.message || 'Internal Proxy Error' }));
+        }
+      });
+    });
+  };
+
+  return {
+    name: 'solarman-local-proxy',
+    configureServer(server) {
+      attachMiddleware(server.middlewares);
+    },
+    configurePreviewServer(server) {
+      attachMiddleware(server.middlewares);
+    },
+  };
+}
 
 export default defineConfig({
+  plugins: [solarmanLocalProxyPlugin()],
   build: {
     outDir: 'dist',
     rollupOptions: {
@@ -9,5 +54,5 @@ export default defineConfig({
       },
     },
   },
-  server: { port: 3000, open: true },
+  server: { port: 7777, open: false },
 });

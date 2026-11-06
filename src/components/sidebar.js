@@ -6,10 +6,11 @@
 import { state } from '../modules/state.js';
 
 const NAV_ITEMS = [
-  { id: 'dashboard',   icon: 'fa-chart-line',   labelEs: 'Dashboard',            labelEn: 'Dashboard' },
-  { id: 'investments', icon: 'fa-layer-group',   labelEs: 'Fases de Inversión',   labelEn: 'Investment Phases' },
-  { id: 'settings',    icon: 'fa-gear',          labelEs: 'Configuración',        labelEn: 'Settings' },
-  { id: 'members',     icon: 'fa-users',         labelEs: 'Miembros',             labelEn: 'Members' },
+  { id: 'dashboard',   icon: 'fa-chart-line',      labelEs: 'Dashboard',            labelEn: 'Dashboard' },
+  { id: 'solarman',    icon: 'fa-satellite-dish',  labelEs: 'Monitor Solarman',     labelEn: 'Solarman Live' },
+  { id: 'investments', icon: 'fa-layer-group',     labelEs: 'Fases de Inversión',   labelEn: 'Investment Phases' },
+  { id: 'settings',    icon: 'fa-gear',            labelEs: 'Configuración',        labelEn: 'Settings' },
+  { id: 'members',     icon: 'fa-users',           labelEs: 'Miembros',             labelEn: 'Members' },
 ];
 
 export function renderSidebar(activeView) {

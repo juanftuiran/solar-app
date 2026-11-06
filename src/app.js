@@ -57,6 +57,18 @@ import * as projectSelectorView from './views/projectSelectorView.js';
 import * as dashboardView from './views/dashboardView.js';
 import * as projectSettingsView from './views/projectSettingsView.js';
 import * as membersView from './views/membersView.js';
+import * as solarmanView from './views/solarmanView.js';
+import {
+  solarmanRuntime,
+  getSolarmanSession,
+  clearSolarmanSession,
+  resetSolarmanRuntime,
+  authenticateSolarman,
+  activateDemoSolarmanSession,
+  syncProjectSolarmanTelemetry,
+  startSolarmanLiveSync,
+  stopSolarmanLiveSync,
+} from './modules/solarman.js';
 
 import { showModal, showConfirmModal, closeModal as closeGlobalModal } from './components/modal.js';
 
@@ -186,6 +198,10 @@ async function navigate(view, opts = {}) {
       renderDashboardView('members');
       break;
 
+    case 'solarman':
+      renderDashboardView('solarman');
+      break;
+
     default:
       navigate('login');
   }
@@ -193,6 +209,9 @@ async function navigate(view, opts = {}) {
 
 // ── Dashboard View Rendering ──────────────────────────────────────────────────
 async function renderDashboardView(subView) {
+  if (subView !== 'solarman') {
+    stopSolarmanLiveSync();
+  }
   state.currentView = subView;
 
   let contentHTML = null;
@@ -203,6 +222,8 @@ async function renderDashboardView(subView) {
   } else if (subView === 'members') {
     members = state.activeProject ? await getProjectMembers(state.activeProject.id) : [];
     contentHTML = membersView.render(members);
+  } else if (subView === 'solarman') {
+    contentHTML = solarmanView.render();
   }
 
   app().innerHTML = dashboardView.render(contentHTML);
@@ -251,11 +272,246 @@ async function renderDashboardView(subView) {
         onChangeRole: handleChangeRole,
       });
       break;
+
+    case 'solarman':
+      await initAndSyncSolarmanView();
+      break;
   }
 }
 
 async function loadAndRenderMembers() {
   await renderDashboardView('members');
+}
+
+// ── Solarman Live View Orchestration ──────────────────────────────────────────
+function refreshSolarmanDOM() {
+  if (state.currentView !== 'solarman') return;
+  const contentArea = document.getElementById('dashboard-content-area');
+  if (!contentArea) return;
+  contentArea.innerHTML = solarmanView.render();
+  bindSolarmanViewCallbacks();
+}
+
+function bindSolarmanViewCallbacks() {
+  solarmanView.init({
+    onConnect: async (creds) => {
+      try {
+        solarmanRuntime.error = null;
+        await authenticateSolarman(creds);
+        solarmanRuntime.loading = true;
+        refreshSolarmanDOM();
+        await syncProjectSolarmanTelemetry(state.activeProject);
+        solarmanRuntime.loading = false;
+        refreshSolarmanDOM();
+        showToast(
+          state.lang === 'en'
+            ? 'Connected to Solarman Cloud successfully'
+            : 'Conectado a Solarman Cloud exitosamente',
+          'success',
+        );
+        startSolarmanLiveSync({
+          getActiveProject: () => state.activeProject,
+          onUpdate: (rt) => {
+            refreshSolarmanDOM();
+            if (rt.justUpdatedPacket) {
+              showToast(
+                state.lang === 'en'
+                  ? 'New inverter packet received from Solarman!'
+                  : '¡Nuevo paquete del inversor recibido desde Solarman!',
+                'success',
+              );
+            }
+          },
+          onTick: () => solarmanView.updateLiveTickerLabels(),
+        });
+      } catch (err) {
+        solarmanRuntime.loading = false;
+        solarmanRuntime.error = err.message;
+        refreshSolarmanDOM();
+        showToast(`${t('error')}: ${err.message}`, 'error');
+      }
+    },
+
+    onActivateDemo: async () => {
+      try {
+        solarmanRuntime.error = null;
+        activateDemoSolarmanSession(state.activeProject);
+        solarmanRuntime.loading = true;
+        refreshSolarmanDOM();
+        await syncProjectSolarmanTelemetry(state.activeProject);
+        solarmanRuntime.loading = false;
+        refreshSolarmanDOM();
+        showToast(
+          state.lang === 'en'
+            ? 'Multi-Plant Demo Mode activated (updates every 15s)'
+            : 'Modo Demo Multi-Planta activado (actualiza cada 15s)',
+          'info',
+        );
+        startSolarmanLiveSync({
+          getActiveProject: () => state.activeProject,
+          onUpdate: () => refreshSolarmanDOM(),
+          onTick: () => solarmanView.updateLiveTickerLabels(),
+        });
+      } catch (err) {
+        solarmanRuntime.loading = false;
+        solarmanRuntime.error = err.message;
+        refreshSolarmanDOM();
+      }
+    },
+
+    onDisconnect: () => {
+      clearSolarmanSession();
+      refreshSolarmanDOM();
+      showToast(
+        state.lang === 'en' ? 'Solarman account disconnected' : 'Cuenta de Solarman desconectada',
+        'info',
+      );
+    },
+
+    onSelectStation: async (stationId) => {
+      try {
+        solarmanRuntime.error = null;
+        solarmanRuntime.loading = true;
+        solarmanRuntime.showStationPicker = false;
+        refreshSolarmanDOM();
+        await syncProjectSolarmanTelemetry(state.activeProject, stationId, null);
+        solarmanRuntime.loading = false;
+        refreshSolarmanDOM();
+        const stName = solarmanRuntime.activeStation?.name || stationId;
+        showToast(
+          state.lang === 'en'
+            ? `Plant "${stName}" bound to ${state.activeProject?.name}`
+            : `Planta "${stName}" vinculada al proyecto ${state.activeProject?.name}`,
+          'success',
+        );
+        startSolarmanLiveSync({
+          getActiveProject: () => state.activeProject,
+          onUpdate: () => refreshSolarmanDOM(),
+          onTick: () => solarmanView.updateLiveTickerLabels(),
+        });
+      } catch (err) {
+        solarmanRuntime.loading = false;
+        solarmanRuntime.error = err.message;
+        refreshSolarmanDOM();
+      }
+    },
+
+    onOpenStationPicker: () => {
+      solarmanRuntime.showStationPicker = true;
+      refreshSolarmanDOM();
+    },
+
+    onCloseStationPicker: () => {
+      solarmanRuntime.showStationPicker = false;
+      refreshSolarmanDOM();
+    },
+
+    onSelectDevice: async (deviceSn) => {
+      try {
+        solarmanRuntime.loading = true;
+        refreshSolarmanDOM();
+        await syncProjectSolarmanTelemetry(
+          state.activeProject,
+          solarmanRuntime.activeStation?.id,
+          deviceSn,
+        );
+        solarmanRuntime.loading = false;
+        refreshSolarmanDOM();
+      } catch (err) {
+        solarmanRuntime.loading = false;
+        solarmanRuntime.error = err.message;
+        refreshSolarmanDOM();
+      }
+    },
+
+    onManualRefresh: async () => {
+      try {
+        solarmanRuntime.loading = true;
+        refreshSolarmanDOM();
+        await syncProjectSolarmanTelemetry(
+          state.activeProject,
+          solarmanRuntime.activeStation?.id,
+          solarmanRuntime.activeDeviceSn,
+        );
+        solarmanRuntime.loading = false;
+        refreshSolarmanDOM();
+        showToast(
+          state.lang === 'en'
+            ? 'Solarman telemetry updated'
+            : 'Telemetría de Solarman actualizada',
+          'success',
+        );
+      } catch (err) {
+        solarmanRuntime.loading = false;
+        solarmanRuntime.error = err.message;
+        refreshSolarmanDOM();
+        showToast(`${t('error')}: ${err.message}`, 'error');
+      }
+    },
+
+    onPushReadingToCloud: (totalKwh) => {
+      openRecordModal('new');
+      const lsInput = document.getElementById('new-lectura-solar');
+      if (lsInput && totalKwh > 0) {
+        lsInput.value = String(totalKwh);
+      }
+      // Pre-fill latest tariff and grid reading as helpful reference if available
+      if (state.rawData && state.rawData.length > 0) {
+        const lastRec = state.rawData[state.rawData.length - 1];
+        const pInput = document.getElementById('new-precio');
+        if (pInput && (!pInput.value || pInput.value === '0') && lastRec.precioKw) {
+          pInput.value = String(lastRec.precioKw);
+        }
+      }
+      lsInput?.dispatchEvent(new Event('input'));
+      showToast(
+        state.lang === 'en'
+          ? `Inverter reading (${totalKwh} kWh) loaded into form`
+          : `Lectura acumulada del inversor (${totalKwh} kWh) cargada en el formulario`,
+        'info',
+      );
+    },
+  });
+}
+
+async function initAndSyncSolarmanView() {
+  bindSolarmanViewCallbacks();
+  const session = getSolarmanSession();
+  if (!session || !state.activeProject) return;
+
+  // Ensure we load the station strictly bound to the current activeProject.id
+  if (
+    solarmanRuntime.loadedProjectId !== state.activeProject.id ||
+    (!solarmanRuntime.activeStation && !solarmanRuntime.showStationPicker)
+  ) {
+    try {
+      solarmanRuntime.loading = true;
+      refreshSolarmanDOM();
+      await syncProjectSolarmanTelemetry(state.activeProject);
+      solarmanRuntime.loading = false;
+      refreshSolarmanDOM();
+    } catch (err) {
+      solarmanRuntime.loading = false;
+      solarmanRuntime.error = err.message;
+      refreshSolarmanDOM();
+    }
+  }
+
+  startSolarmanLiveSync({
+    getActiveProject: () => state.activeProject,
+    onUpdate: (rt) => {
+      refreshSolarmanDOM();
+      if (rt.justUpdatedPacket) {
+        showToast(
+          state.lang === 'en'
+            ? 'New inverter packet received from Solarman!'
+            : '¡Nuevo paquete del inversor recibido desde Solarman!',
+          'success',
+        );
+      }
+    },
+    onTick: () => solarmanView.updateLiveTickerLabels(),
+  });
 }
 
 // ── Dashboard Data Rendering ──────────────────────────────────────────────────
@@ -633,6 +889,12 @@ async function loadProjects() {
 
 async function loadProjectData(projectId) {
   try {
+    // Isolate Solarman runtime state when switching projects
+    if (solarmanRuntime.loadedProjectId && solarmanRuntime.loadedProjectId !== projectId) {
+      stopSolarmanLiveSync();
+      resetSolarmanRuntime();
+    }
+
     const project = await getProject(projectId);
     if (!project) throw new Error('Project not found');
 
@@ -711,6 +973,8 @@ async function handleLogin(email, password) {
 }
 
 async function handleLogout() {
+  stopSolarmanLiveSync();
+  resetSolarmanRuntime();
   await signOut();
   state.user = null;
   state.isAdmin = false;
@@ -805,6 +1069,8 @@ async function handleCreateProject() {
 
 function handleSidebarNavigate(viewName) {
   if (viewName === 'projects' || viewName === 'switch-project') {
+    stopSolarmanLiveSync();
+    resetSolarmanRuntime();
     setActiveProject(null, null);
     navigate('projects');
     return;
