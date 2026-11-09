@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import { processSolarmanRequest } from './api/solarman.js';
 
 function solarmanLocalProxyPlugin() {
@@ -44,15 +44,25 @@ function solarmanLocalProxyPlugin() {
   };
 }
 
-export default defineConfig({
-  plugins: [solarmanLocalProxyPlugin()],
-  build: {
-    outDir: 'dist',
-    rollupOptions: {
-      output: {
-        manualChunks: { vendor: ['@supabase/supabase-js', 'chart.js'] },
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  if (env.SOLARMAN_APP_ID && !process.env.SOLARMAN_APP_ID) {
+    process.env.SOLARMAN_APP_ID = env.SOLARMAN_APP_ID;
+  }
+  if (env.SOLARMAN_APP_SECRET && !process.env.SOLARMAN_APP_SECRET) {
+    process.env.SOLARMAN_APP_SECRET = env.SOLARMAN_APP_SECRET;
+  }
+
+  return {
+    plugins: [solarmanLocalProxyPlugin()],
+    build: {
+      outDir: 'dist',
+      rollupOptions: {
+        output: {
+          manualChunks: { vendor: ['@supabase/supabase-js', 'chart.js'] },
+        },
       },
     },
-  },
-  server: { port: 7777, open: false },
+    server: { port: 7777, open: false },
+  };
 });

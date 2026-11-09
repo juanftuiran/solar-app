@@ -672,23 +672,29 @@ export function parseDeviceCurrentData(rawCurrentData = {}, stationRealTime = {}
   for (let i = 1; i <= 4; i++) {
     const vItem = findItem([
       new RegExp(`^dc\\s*voltage\\s*pv${i}$`, 'i'),
-      new RegExp(`pv${i}\\s*voltage`, 'i'),
+      new RegExp(`^pv${i}\\s*voltage`, 'i'),
+      new RegExp(`^voltage\\s*pv${i}`, 'i'),
       new RegExp(`^dv${i}$`, 'i'),
       new RegExp(`^v_?pv${i}$`, 'i'),
       new RegExp(`string\\s*${i}\\s*voltage`, 'i'),
+      new RegExp(`pv\\s*${i}\\s*voltage`, 'i'),
     ]);
     const cItem = findItem([
       new RegExp(`^dc\\s*current\\s*pv${i}$`, 'i'),
-      new RegExp(`pv${i}\\s*current`, 'i'),
+      new RegExp(`^pv${i}\\s*current`, 'i'),
+      new RegExp(`^current\\s*pv${i}`, 'i'),
       new RegExp(`^dc${i}$`, 'i'),
       new RegExp(`^i_?pv${i}$`, 'i'),
       new RegExp(`string\\s*${i}\\s*current`, 'i'),
+      new RegExp(`pv\\s*${i}\\s*current`, 'i'),
     ]);
     const pItem = findItem([
       new RegExp(`^dc\\s*power\\s*pv${i}$`, 'i'),
-      new RegExp(`pv${i}\\s*power`, 'i'),
+      new RegExp(`^pv${i}\\s*power`, 'i'),
+      new RegExp(`^power\\s*pv${i}`, 'i'),
       new RegExp(`^dp${i}$`, 'i'),
       new RegExp(`^p_?pv${i}$`, 'i'),
+      new RegExp(`pv\\s*${i}\\s*power`, 'i'),
     ]);
 
     const voltageV = vItem ? parseFloat(vItem.value) || 0 : 0;
@@ -709,15 +715,84 @@ export function parseDeviceCurrentData(rawCurrentData = {}, stationRealTime = {}
     }
   }
 
-  // 2. Extract AC Output Phases (L1 / R, L2 / S, L3 / T)
+  // 2. Extract AC Output / Grid Phases (L1, L2, L3)
   const acPhases = [];
   const phaseAliases = [
-    { id: 'L1', patternsV: [/ac\s*voltage\s*(r|u|a|l1|1)\b/i, /^grid\s*voltage\s*(l1|r|a)?$/i, /^av1$/i, /^vac1$/i], patternsI: [/ac\s*current\s*(r|u|a|l1|1)\b/i, /^grid\s*current\s*(l1|r|a)?$/i, /^ac1$/i, /^iac1$/i] },
-    { id: 'L2', patternsV: [/ac\s*voltage\s*(s|v|b|l2|2)\b/i, /^grid\s*voltage\s*(l2|s|b)$/i, /^av2$/i, /^vac2$/i], patternsI: [/ac\s*current\s*(s|v|b|l2|2)\b/i, /^grid\s*current\s*(l2|s|b)$/i, /^ac2$/i, /^iac2$/i] },
-    { id: 'L3', patternsV: [/ac\s*voltage\s*(t|w|c|l3|3)\b/i, /^grid\s*voltage\s*(l3|t|c)$/i, /^av3$/i, /^vac3$/i], patternsI: [/ac\s*current\s*(t|w|c|l3|3)\b/i, /^grid\s*current\s*(l3|t|c)$/i, /^ac3$/i, /^iac3$/i] },
+    {
+      id: 'L1',
+      patternsV: [
+        /ac\s*voltage\s*(r|u|a|l1|1)\b/i,
+        /^(output|inverter|load)\s*(l1|1)?\s*voltage\b/i,
+        /^grid\s*voltage\s*(l1|r|a)?$/i,
+        /^av1$/i,
+        /^vac1$/i,
+        /^u_ac1$/i,
+        /^vac_l1$/i,
+      ],
+      patternsI: [
+        /ac\s*current\s*(r|u|a|l1|1)\b/i,
+        /^(output|inverter|load)\s*(l1|1)?\s*current\b/i,
+        /^grid\s*current\s*(l1|r|a)?$/i,
+        /^ac1$/i,
+        /^iac1$/i,
+        /^i_ac1$/i,
+        /^iac_l1$/i,
+      ],
+    },
+    {
+      id: 'L2',
+      patternsV: [
+        /ac\s*voltage\s*(s|v|b|l2|2)\b/i,
+        /^(output|inverter|load)\s*(l2|2)\s*voltage\b/i,
+        /^grid\s*voltage\s*(l2|s|b)$/i,
+        /^av2$/i,
+        /^vac2$/i,
+        /^u_ac2$/i,
+        /^vac_l2$/i,
+      ],
+      patternsI: [
+        /ac\s*current\s*(s|v|b|l2|2)\b/i,
+        /^(output|inverter|load)\s*(l2|2)\s*current\b/i,
+        /^grid\s*current\s*(l2|s|b)$/i,
+        /^ac2$/i,
+        /^iac2$/i,
+        /^i_ac2$/i,
+        /^iac_l2$/i,
+      ],
+    },
+    {
+      id: 'L3',
+      patternsV: [
+        /ac\s*voltage\s*(t|w|c|l3|3)\b/i,
+        /^(output|inverter|load)\s*(l3|3)\s*voltage\b/i,
+        /^grid\s*voltage\s*(l3|t|c)$/i,
+        /^av3$/i,
+        /^vac3$/i,
+        /^u_ac3$/i,
+        /^vac_l3$/i,
+      ],
+      patternsI: [
+        /ac\s*current\s*(t|w|c|l3|3)\b/i,
+        /^(output|inverter|load)\s*(l3|3)\s*current\b/i,
+        /^grid\s*current\s*(l3|t|c)$/i,
+        /^ac3$/i,
+        /^iac3$/i,
+        /^i_ac3$/i,
+        /^iac_l3$/i,
+      ],
+    },
   ];
 
-  const freqItem = findItem([/ac\s*output\s*frequency/i, /grid\s*frequency/i, /frequency/i, /^fac$/i, /^f_ac$/i]);
+  const freqItem = findItem([
+    /ac\s*output\s*frequency/i,
+    /output\s*frequency/i,
+    /inverter\s*frequency/i,
+    /grid\s*frequency/i,
+    /frequency/i,
+    /^fac$/i,
+    /^f_ac$/i,
+    /^a_fo1$/i,
+  ]);
   const gridFreqHz = freqItem ? parseFloat(freqItem.value) || 0 : 0;
 
   for (const ph of phaseAliases) {
@@ -735,76 +810,129 @@ export function parseDeviceCurrentData(rawCurrentData = {}, stationRealTime = {}
     }
   }
 
+  // Detect split-phase (e.g. 120V / 240V split-phase common in Colombia / Americas)
+  const isSplitPhase =
+    acPhases.length >= 2 &&
+    acPhases[0].voltageV >= 90 &&
+    acPhases[0].voltageV <= 145 &&
+    acPhases[1].voltageV >= 90 &&
+    acPhases[1].voltageV <= 145;
+
   // 3. Extract Core Power & Energy Totals
   const acPowerItem = findItem([
     /total\s*ac\s*output\s*power/i,
+    /^output\s*(active\s*)?power$/i,
+    /^inverter\s*(ac\s*)?power$/i,
     /^active\s*power$/i,
-    /^output\s*active\s*power$/i,
     /^generation\s*power$/i,
     /^pac$/i,
     /^APo_t1$/i,
   ]);
+
   const dcPowerItem = findItem([
     /total\s*dc\s*input\s*power/i,
     /total\s*pv\s*power/i,
+    /^pv\s*power$/i,
     /^dc\s*power$/i,
     /^DPi_t1$/i,
+    /^p_pv$/i,
   ]);
 
-  const dailyYieldItem = findItem([
-    /daily\s*production/i,
-    /daily\s*generation/i,
-    /today.*energy/i,
-    /daily\s*energy/i,
-    /^Etdy_ge1$/i,
-  ]);
+  // Daily Solar Production (Strictly excludes grid export/import, load consumption, battery charge/discharge)
+  let dailyYieldItem = null;
+  for (const item of dataList) {
+    const name = String(item.name || '').trim();
+    const key = String(item.key || '').trim();
+    const combined = `${name} ${key}`.toLowerCase();
 
-  const totalYieldItem = findItem([
-    /cumulative\s*production/i,
-    /total\s*production/i,
-    /total\s*solar\s*generation/i,
-    /total\s*energy/i,
-    /total\s*generation/i,
-    /^Et_ge0$/i,
-  ]);
+    // Skip grid export/import, load, consumption, battery charge/discharge
+    if (/(export|sold|import|bought|load|consumption|consumo|charge|discharge|battery|bater[ií]a|grid|red|meter)/i.test(combined)) {
+      continue;
+    }
+
+    // Match well-known keys
+    if (/^(etdy_ge[0-9]|etdy|e_day|e-day|eday|e_today|e-today|etoday|et_day|e_pday|ep_day|e_tdy|daily_energy|today_energy|e_today1|e_day1)$/i.test(key)) {
+      dailyYieldItem = item;
+      break;
+    }
+
+    // Match well-known names across Inverter brands (SRNE, Deye, Solis, Sofar, Growatt)
+    if (
+      /^(today'?s?\s*(production|generation|yield|pv|solar|energy)|daily\s*(production|generation|yield|pv|solar|energy|ac\s*generation)|day\s*(generation|production|energy|yield)|pv\s*(today|daily)|solar\s*(today|daily)|generaci[oó]n\s*(de\s*hoy|diaria|del\s*d[ií]a)|producci[oó]n\s*(de\s*hoy|diaria|del\s*d[ií]a))/i.test(name) ||
+      (/today/i.test(name) && /(production|generation|yield)/i.test(name)) ||
+      (/daily/i.test(name) && /(production|generation|yield)/i.test(name))
+    ) {
+      dailyYieldItem = item;
+      break;
+    }
+  }
+
+  // Cumulative / Lifetime Inverter Production (Strictly excludes grid export/import, load, battery, and daily counters)
+  let totalYieldItem = null;
+  for (const item of dataList) {
+    const name = String(item.name || '').trim();
+    const key = String(item.key || '').trim();
+    const combined = `${name} ${key}`.toLowerCase();
+
+    // Skip non-solar totals and time-scoped counters (today, daily, monthly, yearly)
+    if (/(export|sold|import|bought|load|consumption|consumo|charge|discharge|battery|bater[ií]a|grid|red|meter)/i.test(combined)) {
+      continue;
+    }
+    if (/(today|daily|day|month|year|hourly|hoy|diari|mes|a[ñn]o)/i.test(combined)) {
+      continue;
+    }
+
+    // Match well-known keys for cumulative inverter production
+    if (/^(et_ge[0-9]|et_total|e_total|e-total|etotal|e_ptotal|ep_total|e_tot|tot_energy|total_energy|total_generation|e_total1|tot_gen)$/i.test(key)) {
+      totalYieldItem = item;
+      break;
+    }
+
+    // Match well-known names for cumulative production
+    if (
+      /^(total\s*(solar|pv)?\s*(production|generation|yield|energy\s*yield)|cumulative\s*(solar|pv)?\s*(production|generation|yield|energy)|lifetime\s*generation|total\s*active\s*energy|accumulated\s*(solar|pv)?\s*(generation|production)|producci[oó]n\s*total|generaci[oó]n\s*total)/i.test(name) ||
+      /^total\s*(production|generation)\b/i.test(name) ||
+      (/^total\s*(energy|yield)$/i.test(name))
+    ) {
+      totalYieldItem = item;
+      break;
+    }
+  }
 
   const sumPvPowerW = pvStrings.reduce((acc, s) => acc + (s.powerW || 0), 0);
   const rtGenPowerW = parseFloat(stationRealTime?.generationPower) || parseFloat(activeStation?.generationPower) || 0;
 
-  const acPowerW = acPowerItem
-    ? toWatts(acPowerItem.value, acPowerItem.unit)
-    : rtGenPowerW > 0
-      ? rtGenPowerW
-      : sumPvPowerW;
-
-  const dcPowerW = dcPowerItem
-    ? toWatts(dcPowerItem.value, dcPowerItem.unit)
-    : sumPvPowerW > 0
-      ? sumPvPowerW
-      : acPowerW > 0
-        ? Math.round(acPowerW / 0.972)
-        : 0;
-
-  const dailyEnergyKwh = dailyYieldItem
-    ? toKwh(dailyYieldItem.value, dailyYieldItem.unit)
-    : parseFloat(stationRealTime?.generationValue) || 0;
-
-  const totalEnergyKwh = totalYieldItem
-    ? toKwh(totalYieldItem.value, totalYieldItem.unit)
-    : 0;
-
-  const gridPowerItem = findItem([/total\s*grid\s*power/i, /grid\s*power/i, /meter\s*active\s*power/i]);
-  const loadPowerItem = findItem([/total\s*consumption\s*power/i, /load\s*power/i, /consumption\s*power/i]);
-  const battPowerItem = findItem([/battery\s*power/i]);
-  const battSocItem = findItem([/battery\s*soc/i, /soc/i]);
+  // Grid, Load and Battery Telemetry
+  const gridPowerItem = findItem([/total\s*grid\s*power/i, /grid\s*power/i, /meter\s*active\s*power/i, /^pg_pt1$/i]);
+  const loadPowerItem = findItem([/total\s*consumption\s*power/i, /load\s*power/i, /consumption\s*power/i, /^e_puse_t1$/i, /^p_load$/i]);
+  const battPowerItem = findItem([/battery\s*power/i, /bater[ií]a.*potencia/i, /^p_batt$/i]);
+  const battSocItem = findItem([
+    /battery\s*soc/i,
+    /^soc$/i,
+    /battery\s*capacity/i,
+    /battery\s*level/i,
+    /state\s*of\s*charge/i,
+    /bater[ií]a.*soc/i,
+    /^battery$/i,
+  ]);
+  const battVoltageItem = findItem([/battery\s*voltage/i, /bater[ií]a.*voltaje/i, /^v_batt$/i]);
+  const battCurrentItem = findItem([/battery\s*current/i, /bater[ií]a.*corriente/i, /^i_batt$/i]);
 
   const gridPowerW = gridPowerItem
     ? toWatts(gridPowerItem.value, gridPowerItem.unit)
     : parseFloat(stationRealTime?.gridPower ?? stationRealTime?.wirePower) || 0;
 
-  const loadPowerW = loadPowerItem
+  // If load power not given as single metric, try summing phase loads (e.g. SRNE Load L1 + Load L2)
+  let loadPowerW = loadPowerItem
     ? toWatts(loadPowerItem.value, loadPowerItem.unit)
     : parseFloat(stationRealTime?.usePower) || 0;
+
+  if (!loadPowerW) {
+    const l1p = findItem([/load\s*l1\s*power/i, /load\s*1\s*power/i]);
+    const l2p = findItem([/load\s*l2\s*power/i, /load\s*2\s*power/i]);
+    const sumPhaseLoads = (l1p ? toWatts(l1p.value, l1p.unit) : 0) + (l2p ? toWatts(l2p.value, l2p.unit) : 0);
+    if (sumPhaseLoads > 0) loadPowerW = sumPhaseLoads;
+  }
 
   const batteryPowerW = battPowerItem
     ? toWatts(battPowerItem.value, battPowerItem.unit)
@@ -814,7 +942,72 @@ export function parseDeviceCurrentData(rawCurrentData = {}, stationRealTime = {}
     ? parseFloat(battSocItem.value) || 0
     : parseFloat(stationRealTime?.batterySoc) || null;
 
-  // 4. Temperatures
+  const batteryVoltageV = battVoltageItem ? parseFloat(battVoltageItem.value) || 0 : null;
+  const batteryCurrentA = battCurrentItem ? parseFloat(battCurrentItem.value) || 0 : null;
+
+  // System topology classification: Off-Grid vs Hybrid vs On-Grid
+  const rawGridType = String(activeStation?.gridInterconnectionType || '').toUpperCase();
+  const hasBattery = batterySocPct !== null || batteryPowerW !== 0 || batteryVoltageV !== null;
+  const isOffGrid =
+    rawGridType === 'OFF_GRID' ||
+    rawGridType === 'ISLAND' ||
+    rawGridType === 'STAND_ALONE' ||
+    (hasBattery && gridPowerW === 0 && (loadPowerW > 0 || sumPvPowerW > 0) && rawGridType !== 'GRID_TIED');
+
+  const systemType = isOffGrid
+    ? 'off_grid'
+    : hasBattery
+      ? 'hybrid'
+      : 'on_grid';
+
+  const dcPowerW = dcPowerItem
+    ? toWatts(dcPowerItem.value, dcPowerItem.unit)
+    : sumPvPowerW > 0
+      ? sumPvPowerW
+      : rtGenPowerW > 0
+        ? Math.round(rtGenPowerW / 0.972)
+        : 0;
+
+  // In off-grid/hybrid, solar power can be charging battery while AC output is just load
+  const acPowerW = acPowerItem
+    ? toWatts(acPowerItem.value, acPowerItem.unit)
+    : rtGenPowerW > 0
+      ? rtGenPowerW
+      : isOffGrid && loadPowerW > 0
+        ? loadPowerW
+        : sumPvPowerW;
+
+  // Daily energy resolution with extensive fallbacks
+  const dailyEnergyKwh = dailyYieldItem
+    ? toKwh(dailyYieldItem.value, dailyYieldItem.unit)
+    : parseFloat(
+        stationRealTime?.generationValue ??
+        stationRealTime?.todayEnergy ??
+        stationRealTime?.dailyEnergy ??
+        stationRealTime?.dayEnergy ??
+        stationRealTime?.eToday ??
+        activeStation?.generationValue ??
+        activeStation?.dailyEnergy ??
+        0,
+      ) || 0;
+
+  // Cumulative energy resolution with station fallback and sanity check
+  const stationTotalKwh = parseFloat(
+    stationRealTime?.totalEnergy ??
+    stationRealTime?.totalGeneration ??
+    stationRealTime?.cumulativeEnergy ??
+    activeStation?.totalEnergy ??
+    activeStation?.totalGeneration ??
+    0,
+  ) || 0;
+
+  let totalEnergyKwh = totalYieldItem ? toKwh(totalYieldItem.value, totalYieldItem.unit) : 0;
+  // If inverter returned 0 (or suspicious <= 1.0 test value while station total is larger), use station total
+  if ((!totalEnergyKwh || totalEnergyKwh <= 1.0) && stationTotalKwh > 1.0) {
+    totalEnergyKwh = stationTotalKwh;
+  }
+
+  // 4. Intelligent Temperature Classification & Prioritization
   const tempItems = dataList.filter(
     it =>
       /temp/i.test(String(it.name || '')) ||
@@ -822,14 +1015,72 @@ export function parseDeviceCurrentData(rawCurrentData = {}, stationRealTime = {}
       String(it.unit || '').includes('℃') ||
       String(it.unit || '').includes('°C'),
   );
+
   const temperatures = tempItems.map(t => ({
     name: t.name || t.key,
+    key: t.key || '',
     valueC: parseFloat(t.value) || 0,
+    unit: t.unit || '°C',
   }));
 
-  const mainTempC = temperatures.length > 0 ? temperatures[0].valueC : null;
+  let inverterTemp = null;
+  let radiatorTemp = null;
+  let batteryTemp = null;
+  let ambientTemp = null;
+  const otherTemps = [];
+
+  for (const t of temperatures) {
+    const combined = `${t.name} ${t.key}`.toLowerCase();
+    if (/(battery|bater[ií]a|batt)/i.test(combined)) {
+      if (!batteryTemp || (batteryTemp.valueC === 0 && t.valueC > 0)) {
+        batteryTemp = t;
+      }
+    } else if (/(radiator|radiador|heatsink|heat\s*sink|disipador)/i.test(combined)) {
+      if (!radiatorTemp || (radiatorTemp.valueC === 0 && t.valueC > 0)) {
+        radiatorTemp = t;
+      }
+    } else if (/(ambient|environment|externa)/i.test(combined) && !/(inversor|inverter)/i.test(combined)) {
+      if (!ambientTemp || (ambientTemp.valueC === 0 && t.valueC > 0)) {
+        ambientTemp = t;
+      }
+    } else if (/(inverter|internal|module|igbt|power|dc\s*temp|ac\s*temp|transformer|inversor|placa|^temperature$|^temp$|device\s*temp)/i.test(combined)) {
+      if (!inverterTemp || (inverterTemp.valueC === 0 && t.valueC > 0)) {
+        inverterTemp = t;
+      }
+    } else {
+      otherTemps.push(t);
+    }
+  }
+
+  // Priority for main inverter operating temperature:
+  // 1) Valid (>0 and <150) inverter or radiator temperature
+  // 2) Any non-battery temperature with valid reading >0
+  // 3) Any temperature with valid reading >0
+  // 4) Inverter temp or first temperature in list
+  let mainTempC = null;
+  if (inverterTemp && inverterTemp.valueC > 0 && inverterTemp.valueC < 150) {
+    mainTempC = inverterTemp.valueC;
+  } else if (radiatorTemp && radiatorTemp.valueC > 0 && radiatorTemp.valueC < 150) {
+    mainTempC = radiatorTemp.valueC;
+  } else {
+    const validOther = otherTemps.find(t => t.valueC > 0 && t.valueC < 150);
+    if (validOther) {
+      mainTempC = validOther.valueC;
+    } else if (ambientTemp && ambientTemp.valueC > 0 && ambientTemp.valueC < 150) {
+      mainTempC = ambientTemp.valueC;
+    } else if (batteryTemp && batteryTemp.valueC > 0 && batteryTemp.valueC < 150) {
+      mainTempC = batteryTemp.valueC;
+    } else if (inverterTemp) {
+      mainTempC = inverterTemp.valueC;
+    } else if (radiatorTemp) {
+      mainTempC = radiatorTemp.valueC;
+    } else if (temperatures.length > 0) {
+      mainTempC = temperatures[0].valueC;
+    }
+  }
+
   const capacityKw = parseFloat(project?.capacity_kw) || parseFloat(activeStation?.installedCapacity) || 0;
-  const loadFactorPct = capacityKw > 0 ? Math.min(100, ((acPowerW / 1000) / capacityKw) * 100) : 0;
+  const loadFactorPct = capacityKw > 0 ? Math.min(100, ((Math.max(acPowerW, dcPowerW) / 1000) / capacityKw) * 100) : 0;
   const inverterEfficiencyPct = dcPowerW > 0 && acPowerW > 0
     ? Math.min(99.5, (acPowerW / dcPowerW) * 100)
     : 0;
@@ -838,6 +1089,9 @@ export function parseDeviceCurrentData(rawCurrentData = {}, stationRealTime = {}
     deviceSn: rawCurrentData.deviceSn || '',
     deviceState: Number(rawCurrentData.deviceState) || 1,
     collectionTime,
+    systemType,
+    isOffGrid,
+    isSplitPhase,
     summary: {
       acPowerW,
       acPowerKw: acPowerW / 1000,
@@ -849,10 +1103,19 @@ export function parseDeviceCurrentData(rawCurrentData = {}, stationRealTime = {}
       loadPowerW,
       batteryPowerW,
       batterySocPct,
+      batteryVoltageV,
+      batteryCurrentA,
       mainTempC,
+      inverterTempC: inverterTemp?.valueC ?? mainTempC,
+      radiatorTempC: radiatorTemp?.valueC ?? null,
+      batteryTempC: batteryTemp?.valueC ?? null,
+      ambientTempC: ambientTemp?.valueC ?? null,
       capacityKw,
       loadFactorPct,
       inverterEfficiencyPct,
+      isOffGrid,
+      systemType,
+      isSplitPhase,
     },
     pvStrings,
     acPhases,
@@ -953,35 +1216,38 @@ function _buildDemoStations(activeProject) {
 
   return [
     {
-      id: 901001,
-      name: `${projName} (Solarman Cloud)`,
+      id: 66202957,
+      name: `${projName} (On-Grid Principal)`,
       locationAddress: projLoc,
       installedCapacity: projCap,
       generationPower: Math.round(projCap * 740),
       networkStatus: 'NORMAL',
       lastUpdateTime: Math.floor(Date.now() / 1000) - 42,
+      gridInterconnectionType: 'GRID_TIED',
       _defaultSn: 'SN2409881024',
       _seedOffset: 0,
     },
     {
-      id: 901002,
-      name: 'Planta Comercial Sede Norte (Solarman #2)',
-      locationAddress: 'Medellín, Antioquia',
-      installedCapacity: 15.0,
-      generationPower: 11420,
+      id: 66547052,
+      name: 'Beija-flor Sopetran (Off-Grid / Aislada)',
+      locationAddress: 'Sopetrán, Antioquia',
+      installedCapacity: 7.0,
+      generationPower: 3463,
       networkStatus: 'NORMAL',
       lastUpdateTime: Math.floor(Date.now() / 1000) - 95,
-      _defaultSn: 'SN2411550901',
+      gridInterconnectionType: 'OFF_GRID',
+      _defaultSn: 'SR-2512290049-100207',
       _seedOffset: 100,
     },
     {
       id: 901003,
-      name: 'Planta Agroindustrial Sabana (Solarman #3)',
+      name: 'Planta Comercial Sabana (Híbrida C&I)',
       locationAddress: 'Bogotá / Cundinamarca',
       installedCapacity: 25.0,
       generationPower: 18650,
       networkStatus: 'NORMAL',
       lastUpdateTime: Math.floor(Date.now() / 1000) - 120,
+      gridInterconnectionType: 'STORAGE',
       _defaultSn: 'SN2419004412',
       _seedOffset: 250,
     },
@@ -990,7 +1256,8 @@ function _buildDemoStations(activeProject) {
 
 function _populateDemoTelemetry(project, activeStation, requestedSn) {
   const capKw = parseFloat(activeStation.installedCapacity) || parseFloat(project?.capacity_kw) || 5.5;
-  const snMain = activeStation._defaultSn || `SN${String(activeStation.id)}01`;
+  const isOffGridPlant = String(activeStation.id) === '66547052' || activeStation.gridInterconnectionType === 'OFF_GRID';
+  const snMain = activeStation._defaultSn || (isOffGridPlant ? 'SR-2512290049-100207' : `SN${String(activeStation.id)}01`);
   const snLogger = `LSW3_${String(activeStation.id).slice(-4)}99`;
 
   solarmanRuntime.devices = [
@@ -1017,68 +1284,134 @@ function _populateDemoTelemetry(project, activeStation, requestedSn) {
     : snMain;
   solarmanRuntime.activeDeviceSn = chosenSn;
 
-  // Dynamic wave so demo updates slightly on each sync cycle
-  const wave = 0.68 + 0.14 * Math.sin(Date.now() / 20000 + (activeStation._seedOffset || 0));
-  const acPowerW = Math.round(capKw * 1000 * wave);
-  const dcPowerW = Math.round(acPowerW / 0.974);
-  const pv1W = Math.round(dcPowerW * 0.54);
-  const pv2W = dcPowerW - pv1W;
-  const pv1V = Number((362.4 + Math.sin(Date.now() / 10000) * 4.2).toFixed(1));
-  const pv2V = Number((358.8 + Math.cos(Date.now() / 12000) * 3.8).toFixed(1));
-  const pv1A = Number((pv1W / pv1V).toFixed(2));
-  const pv2A = Number((pv2W / pv2V).toFixed(2));
-
-  const vac = Number((228.5 + Math.sin(Date.now() / 9000) * 1.4).toFixed(1));
-  const iac = Number((acPowerW / vac).toFixed(2));
-  const dailyKwh = Number((capKw * 3.85).toFixed(2));
-  const baseTotalKwh = (Number(activeStation.id) === 901001 ? 8420.6 : Number(activeStation.id) === 901002 ? 24910.4 : 41280.9);
-  const totalKwh = Number((baseTotalKwh + (Date.now() % 100000) / 50000).toFixed(1));
-  const loadPowerW = Math.round(acPowerW * 0.72);
-  const gridPowerW = acPowerW - loadPowerW;
   const colTime = Math.floor(Date.now() / 1000);
 
-  solarmanRuntime.stationRealTime = {
-    generationPower: acPowerW,
-    usePower: loadPowerW,
-    gridPower: gridPowerW,
-    generationValue: dailyKwh,
-    lastUpdateTime: colTime,
-  };
+  let mockCurrentData;
+  let stationRt;
 
-  const mockCurrentData = {
-    deviceSn: chosenSn,
-    deviceState: 1,
-    collectionTime: colTime,
-    dataList: [
-      { key: 'APo_t1', name: 'Total AC Output Power (Active)', value: String(acPowerW), unit: 'W' },
-      { key: 'DPi_t1', name: 'Total DC Input Power', value: String(dcPowerW), unit: 'W' },
-      { key: 'Etdy_ge1', name: 'Daily Production (Active)', value: String(dailyKwh), unit: 'kWh' },
-      { key: 'Et_ge0', name: 'Cumulative Production (Active)', value: String(totalKwh), unit: 'kWh' },
-      { key: 'DV1', name: 'DC Voltage PV1', value: String(pv1V), unit: 'V' },
-      { key: 'DC1', name: 'DC Current PV1', value: String(pv1A), unit: 'A' },
-      { key: 'DP1', name: 'DC Power PV1', value: String(pv1W), unit: 'W' },
-      { key: 'DV2', name: 'DC Voltage PV2', value: String(pv2V), unit: 'V' },
-      { key: 'DC2', name: 'DC Current PV2', value: String(pv2A), unit: 'A' },
-      { key: 'DP2', name: 'DC Power PV2', value: String(pv2W), unit: 'W' },
-      { key: 'AV1', name: 'AC Voltage R/U/A', value: String(vac), unit: 'V' },
-      { key: 'AC1', name: 'AC Current R/U/A', value: String(iac), unit: 'A' },
-      { key: 'A_Fo1', name: 'AC Output Frequency R', value: '60.01', unit: 'Hz' },
-      { key: 'T_ac1', name: 'AC Radiator Temperature', value: '41.8', unit: '℃' },
-      { key: 'T_in1', name: 'Internal Module Temperature', value: '38.4', unit: '℃' },
-      { key: 'PG_pt1', name: 'Total Grid Power', value: String(gridPowerW), unit: 'W' },
-      { key: 'E_Puse_t1', name: 'Total Consumption Power', value: String(loadPowerW), unit: 'W' },
-      { key: 'INV_MODEL', name: 'Inverter Model', value: project?.inverter_model || 'DEYE SUN-SG04LP1', unit: '' },
-      { key: 'INV_STATUS', name: 'Inverter Status', value: 'Normal Grid-Tied', unit: '' },
-    ],
-  };
+  if (isOffGridPlant) {
+    // Exact SRNE Off-Grid / Hybrid Inverter telemetry as in Plant #66547052
+    const pvPowerW = 3463;
+    const pv1V = 290.8;
+    const pv1A = 11.9;
+    const loadW = 157;
+    const battSoc = 94;
+    const battP = pvPowerW - loadW; // ~3306 W charging battery
+    const todayProdKwh = 14.85;
+    const totalProdKwh = 3842.6;
 
+    stationRt = {
+      generationPower: pvPowerW,
+      usePower: loadW,
+      gridPower: 0,
+      batteryPower: battP,
+      batterySoc: battSoc,
+      generationValue: todayProdKwh,
+      totalEnergy: totalProdKwh,
+      lastUpdateTime: colTime,
+    };
+
+    mockCurrentData = {
+      deviceSn: chosenSn,
+      deviceState: 1,
+      collectionTime: colTime,
+      dataList: [
+        { key: 'DP1', name: 'PV1 Power', value: '3463', unit: 'W' },
+        { key: 'DV1', name: 'PV1 Voltage', value: String(pv1V), unit: 'V' },
+        { key: 'DC1', name: 'PV1 Current', value: String(pv1A), unit: 'A' },
+        { key: 'DP2', name: 'PV2 Power', value: '0', unit: 'W' },
+        { key: 'DV2', name: 'PV2 Voltage', value: '0.0', unit: 'V' },
+        { key: 'DC2', name: 'PV2 Current', value: '0.00', unit: 'A' },
+        { key: 'PV_POWER', name: 'PV Power', value: '3463', unit: 'W' },
+        // AC Split-Phase Output 120V / 240V
+        { key: 'OUT_V1', name: 'Output L1 Voltage', value: '120.1', unit: 'V' },
+        { key: 'OUT_I1', name: 'Output L1 Current', value: '1.50', unit: 'A' },
+        { key: 'OUT_V2', name: 'Output L2 Voltage', value: '119.8', unit: 'V' },
+        { key: 'OUT_I2', name: 'Output L2 Current', value: '1.50', unit: 'A' },
+        { key: 'OUT_F', name: 'Output Frequency', value: '59.99', unit: 'Hz' },
+        { key: 'LOAD_P', name: 'Load Power', value: String(loadW), unit: 'W' },
+        // Grid registers: Off-grid has 0 grid power
+        { key: 'GRID_P', name: 'Grid Power', value: '0', unit: 'W' },
+        // Battery registers
+        { key: 'BATT_SOC', name: 'Battery', value: String(battSoc), unit: '%' },
+        { key: 'BATT_P', name: 'Battery Power', value: String(battP), unit: 'W' },
+        { key: 'BATT_V', name: 'Battery Voltage', value: '51.8', unit: 'V' },
+        // Temperatures: Battery temp unattached (0.0), while inverter bridge has actual 42.8 °C
+        { key: 'T_BATT', name: 'Battery Temperature', value: '0.0', unit: '°C' },
+        { key: 'T_INV', name: 'Temperature', value: '42.8', unit: '°C' },
+        { key: 'T_AC', name: 'AC Temperature', value: '41.5', unit: '°C' },
+        { key: 'T_DC', name: 'DC Temperature', value: '43.2', unit: '°C' },
+        // Production registers (SRNE format: Today Production, Total Production, plus misleading test Total Energy Export = 1.0)
+        { key: 'F02F', name: 'Today Production', value: String(todayProdKwh), unit: 'kWh' },
+        { key: 'F038', name: 'Total Production', value: String(totalProdKwh), unit: 'kWh' },
+        { key: 'F032', name: 'Total Energy Export', value: '1.0', unit: 'kWh' },
+        { key: 'F048', name: 'Total Energy Import', value: '1.0', unit: 'kWh' },
+      ],
+    };
+  } else {
+    // Standard On-Grid Plant telemetry (Plant #66202957)
+    const wave = 0.68 + 0.14 * Math.sin(Date.now() / 20000 + (activeStation._seedOffset || 0));
+    const acPowerW = Math.round(capKw * 1000 * wave);
+    const dcPowerW = Math.round(acPowerW / 0.974);
+    const pv1W = Math.round(dcPowerW * 0.54);
+    const pv2W = dcPowerW - pv1W;
+    const pv1V = Number((362.4 + Math.sin(Date.now() / 10000) * 4.2).toFixed(1));
+    const pv2V = Number((358.8 + Math.cos(Date.now() / 12000) * 3.8).toFixed(1));
+    const pv1A = Number((pv1W / pv1V).toFixed(2));
+    const pv2A = Number((pv2W / pv2V).toFixed(2));
+    const vac = Number((228.5 + Math.sin(Date.now() / 9000) * 1.4).toFixed(1));
+    const iac = Number((acPowerW / vac).toFixed(2));
+    const dailyKwh = Number((capKw * 3.85).toFixed(2));
+    const baseTotalKwh = 8420.6;
+    const totalKwh = Number((baseTotalKwh + (Date.now() % 100000) / 50000).toFixed(1));
+    const loadPowerW = Math.round(acPowerW * 0.72);
+    const gridPowerW = acPowerW - loadPowerW;
+
+    stationRt = {
+      generationPower: acPowerW,
+      usePower: loadPowerW,
+      gridPower: gridPowerW,
+      generationValue: dailyKwh,
+      totalEnergy: totalKwh,
+      lastUpdateTime: colTime,
+    };
+
+    mockCurrentData = {
+      deviceSn: chosenSn,
+      deviceState: 1,
+      collectionTime: colTime,
+      dataList: [
+        { key: 'APo_t1', name: 'Total AC Output Power (Active)', value: String(acPowerW), unit: 'W' },
+        { key: 'DPi_t1', name: 'Total DC Input Power', value: String(dcPowerW), unit: 'W' },
+        { key: 'Etdy_ge1', name: 'Daily Production (Active)', value: String(dailyKwh), unit: 'kWh' },
+        { key: 'Et_ge0', name: 'Cumulative Production (Active)', value: String(totalKwh), unit: 'kWh' },
+        { key: 'DV1', name: 'DC Voltage PV1', value: String(pv1V), unit: 'V' },
+        { key: 'DC1', name: 'DC Current PV1', value: String(pv1A), unit: 'A' },
+        { key: 'DP1', name: 'DC Power PV1', value: String(pv1W), unit: 'W' },
+        { key: 'DV2', name: 'DC Voltage PV2', value: String(pv2V), unit: 'V' },
+        { key: 'DC2', name: 'DC Current PV2', value: String(pv2A), unit: 'A' },
+        { key: 'DP2', name: 'DC Power PV2', value: String(pv2W), unit: 'W' },
+        { key: 'AV1', name: 'AC Voltage R/U/A', value: String(vac), unit: 'V' },
+        { key: 'AC1', name: 'AC Current R/U/A', value: String(iac), unit: 'A' },
+        { key: 'A_Fo1', name: 'AC Output Frequency R', value: '60.01', unit: 'Hz' },
+        { key: 'T_ac1', name: 'AC Radiator Temperature', value: '41.8', unit: '℃' },
+        { key: 'T_in1', name: 'Internal Module Temperature', value: '38.4', unit: '℃' },
+        { key: 'PG_pt1', name: 'Total Grid Power', value: String(gridPowerW), unit: 'W' },
+        { key: 'E_Puse_t1', name: 'Total Consumption Power', value: String(loadPowerW), unit: 'W' },
+        { key: 'INV_MODEL', name: 'Inverter Model', value: project?.inverter_model || 'DEYE SUN-SG04LP1', unit: '' },
+        { key: 'INV_STATUS', name: 'Inverter Status', value: 'Normal Grid-Tied', unit: '' },
+      ],
+    };
+  }
+
+  solarmanRuntime.stationRealTime = stationRt;
   const parsed = parseDeviceCurrentData(mockCurrentData, solarmanRuntime.stationRealTime, activeStation, project);
   solarmanRuntime.justUpdatedPacket =
     solarmanRuntime.lastCollectionTime !== null && colTime > solarmanRuntime.lastCollectionTime;
   solarmanRuntime.lastCollectionTime = colTime;
   solarmanRuntime.deviceData = parsed;
   solarmanRuntime.lastCheckedAtMs = Date.now();
-  _recordLiveHistoryPoint(colTime, acPowerW);
+  _recordLiveHistoryPoint(colTime, parsed.summary.acPowerW || parsed.summary.dcPowerW || 0);
 
   return solarmanRuntime;
 }

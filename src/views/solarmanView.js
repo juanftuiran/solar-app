@@ -134,7 +134,8 @@ function _renderCredentialsGate(project) {
               <input
                 type="text"
                 id="sm-app-id"
-                placeholder="Ej: 202405180001234 (Requerido por Open API v1.0)"
+                value="${import.meta.env.VITE_SOLARMAN_APP_ID || ''}"
+                placeholder="Ej: 3026072046343756 (Configurable en .env)"
               >
             </div>
 
@@ -146,6 +147,7 @@ function _renderCredentialsGate(project) {
               <input
                 type="password"
                 id="sm-app-secret"
+                value="${import.meta.env.VITE_SOLARMAN_APP_SECRET || ''}"
                 placeholder="Clave secreta de API Solarman"
               >
             </div>
@@ -367,8 +369,15 @@ function _renderLiveMonitor(project, session, isAdmin) {
   });
 
   const isOnline = devData.deviceState !== 3;
+  const isOffGrid = Boolean(sum.isOffGrid || devData.isOffGrid || station.gridInterconnectionType === 'OFF_GRID' || station.gridInterconnectionType === 'ISLAND');
+  const isHybrid = !isOffGrid && Boolean(sum.systemType === 'hybrid' || sum.batterySocPct !== null);
+  const isSplitPhase = Boolean(devData.isSplitPhase || sum.isSplitPhase);
   const tempVal = sum.mainTempC;
   const tempClass = tempVal === null ? 'text-muted' : tempVal > 60 ? 'text-danger' : tempVal > 48 ? 'text-warning' : 'text-solar';
+
+  // In off-grid/hybrid systems, solar panels produce DC power that charges batteries and supplies inverter loads
+  const solarGenPowerW = Math.round(isOffGrid ? (sum.dcPowerW || sum.acPowerW || 0) : (sum.acPowerW || sum.dcPowerW || 0));
+  const solarGenPowerKw = solarGenPowerW / 1000;
 
   return `
     <div id="solarman-view" class="stack">
@@ -389,6 +398,10 @@ function _renderLiveMonitor(project, session, isAdmin) {
               </span>
               <strong class="val">${_escapeHTML(station.name || 'Planta Solarman')}</strong>
               <span class="meta-chip accent" title="ID de Planta en Solarman">ID #${_escapeHTML(String(station.id || ''))}</span>
+              <span class="meta-chip ${isOffGrid ? 'warning' : isHybrid ? 'ai' : 'solar'}" style="font-size:.72rem;">
+                <i class="fa-solid ${isOffGrid ? 'fa-bolt-slash' : isHybrid ? 'fa-car-battery' : 'fa-tower-observation'}"></i>
+                ${isOffGrid ? 'Off-Grid (Aislada)' : isHybrid ? 'Híbrida' : 'On-Grid'}
+              </span>
             </div>
             <div class="solarman-sync-meta">
               <span>
@@ -489,24 +502,31 @@ function _renderLiveMonitor(project, session, isAdmin) {
 
       <!-- ═══ Primary Live KPIs (4 Cards) ═══ -->
       <div class="kpi-grid">
-        <!-- 1. Instantaneous AC Output Power -->
+        <!-- 1. Instantaneous Solar Power -->
         <div class="card kpi-card solar">
           <div class="kpi-head">
             <span class="kpi-label">
-              <span class="lang-es">Potencia Solar Actual (AC)</span>
-              <span class="lang-en">Live Solar Power (AC)</span>
+              ${isOffGrid
+                ? `<span class="lang-es">Potencia Solar Generada (PV)</span><span class="lang-en">Solar PV Power (Live)</span>`
+                : isHybrid
+                  ? `<span class="lang-es">Potencia Solar Total (PV)</span><span class="lang-en">Total Solar Power (PV)</span>`
+                  : `<span class="lang-es">Potencia Solar Actual (AC)</span><span class="lang-en">Live Solar Power (AC)</span>`
+              }
             </span>
-            <div class="icon-tile sm solar"><i class="fa-solid fa-bolt"></i></div>
+            <div class="icon-tile sm solar"><i class="fa-solid fa-solar-panel"></i></div>
           </div>
           <div class="kpi-value text-solar tabular-nums">
-            ${sum.acPowerW >= 1000 ? `${fDec(sum.acPowerKw, 2)} kW` : `${Math.round(sum.acPowerW || 0)} W`}
+            ${solarGenPowerW >= 1000 ? `${fDec(solarGenPowerKw, 2)} kW` : `${solarGenPowerW} W`}
           </div>
           <div class="solarman-cap-bar">
             <div class="solarman-cap-bar-fill" style="width:${Math.min(100, sum.loadFactorPct || 0).toFixed(1)}%;"></div>
           </div>
           <div class="kpi-foot">
             <span class="delta up">${fDec(sum.loadFactorPct || 0, 1)}% cap.</span>
-            <span class="text-xs text-muted">DC: ${Math.round(sum.dcPowerW || 0)} W (${sum.inverterEfficiencyPct > 0 ? `${fDec(sum.inverterEfficiencyPct, 1)}% ef.` : 'MPPT'})</span>
+            ${isOffGrid
+              ? `<span class="text-xs text-muted">DC: ${Math.round(sum.dcPowerW || solarGenPowerW)} W · Consumo: ${Math.round(sum.loadPowerW || 0)} W</span>`
+              : `<span class="text-xs text-muted">DC: ${Math.round(sum.dcPowerW || 0)} W (${sum.inverterEfficiencyPct > 0 ? `${fDec(sum.inverterEfficiencyPct, 1)}% ef.` : 'MPPT'})</span>`
+            }
           </div>
         </div>
 
@@ -549,25 +569,41 @@ function _renderLiveMonitor(project, session, isAdmin) {
           </div>
         </div>
 
-        <!-- 4. Inverter Temperature & Grid Health -->
+        <!-- 4. Inverter Temperature & AC Grid / Output Health -->
         <div class="card kpi-card warning">
           <div class="kpi-head">
             <span class="kpi-label">
-              <span class="lang-es">Temperatura & Red AC</span>
-              <span class="lang-en">Temperature & AC Grid</span>
+              ${isOffGrid
+                ? `<span class="lang-es">Temperatura & Salida CA</span><span class="lang-en">Temperature & AC Output</span>`
+                : `<span class="lang-es">Temperatura & Red AC</span><span class="lang-en">Temperature & AC Grid</span>`
+              }
             </span>
             <div class="icon-tile sm warning"><i class="fa-solid fa-temperature-half"></i></div>
           </div>
           <div class="kpi-value ${tempClass} tabular-nums">
             ${tempVal !== null ? `${fDec(tempVal, 1)} °C` : 'Normal'}
           </div>
-          <div class="kpi-foot">
-            <span class="text-xs text-muted">
-              VAC: <strong>${devData.acPhases?.[0]?.voltageV ? `${fDec(devData.acPhases[0].voltageV, 1)} V` : '—'}</strong>
-            </span>
-            <span class="text-xs text-muted">
-              Frec: <strong>${devData.acPhases?.[0]?.freqHz ? `${fDec(devData.acPhases[0].freqHz, 2)} Hz` : '60 Hz'}</strong>
-            </span>
+          <div class="kpi-foot" style="display:flex;flex-direction:column;gap:.25rem;align-items:flex-start;">
+            <div style="display:flex;justify-content:space-between;width:100%;gap:.5rem;">
+              <span class="text-xs text-muted">
+                ${isSplitPhase
+                  ? `Salida: <strong>120/240 V Bifásico</strong>`
+                  : `VAC: <strong>${devData.acPhases?.[0]?.voltageV ? `${fDec(devData.acPhases[0].voltageV, 1)} V` : '—'}</strong>`
+                }
+              </span>
+              <span class="text-xs text-muted">
+                Frec: <strong>${devData.acPhases?.[0]?.freqHz ? `${fDec(devData.acPhases[0].freqHz, 2)} Hz` : '60 Hz'}</strong>
+              </span>
+            </div>
+            <div style="display:flex;justify-content:space-between;width:100%;gap:.5rem;font-size:.73rem;">
+              ${sum.batteryTempC !== null && sum.batteryTempC > 0
+                ? `<span class="text-ai"><i class="fa-solid fa-battery-half"></i> Batería: <strong>${fDec(sum.batteryTempC, 1)} °C</strong></span>`
+                : `<span class="${isOffGrid ? 'text-warning' : 'text-solar'}">${isOffGrid ? '⚡ Aislada / Off-Grid' : '🌐 Conectado a Red'}</span>`
+              }
+              <span class="meta-tag" style="font-size:.7rem;padding:.08rem .4rem;border-radius:var(--radius-full);background:var(--surface-3);color:var(--text-secondary);">
+                ${isOffGrid ? 'Off-Grid' : isHybrid ? 'Híbrido' : 'On-Grid'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -627,23 +663,27 @@ function _renderLiveMonitor(project, session, isAdmin) {
               <div class="icon-tile sm accent"><i class="fa-solid fa-plug-circle-check"></i></div>
               <div>
                 <h3>
-                  <span class="lang-es">Salida AC a Red & Flujo de Planta</span>
-                  <span class="lang-en">AC Grid Output & Plant Power Flow</span>
+                  ${isOffGrid
+                    ? `<span class="lang-es">Salida CA a Cargas & Flujo de Planta</span><span class="lang-en">AC Load Output & Plant Power Flow</span>`
+                    : `<span class="lang-es">Salida AC a Red & Flujo de Planta</span><span class="lang-en">AC Grid Output & Plant Power Flow</span>`
+                  }
                 </h3>
                 <p>
-                  <span class="lang-es">Parámetros eléctricos de sincronización con red y sensores térmicos</span>
-                  <span class="lang-en">Grid synchronization electrical parameters and thermal sensors</span>
+                  ${isOffGrid
+                    ? `<span class="lang-es">Parámetros de micro-red aislada, consumo y respaldo de baterías</span><span class="lang-en">Off-grid microgrid parameters, consumption and battery storage</span>`
+                    : `<span class="lang-es">Parámetros eléctricos de sincronización con red y sensores térmicos</span><span class="lang-en">Grid synchronization electrical parameters and thermal sensors</span>`
+                  }
                 </p>
               </div>
             </div>
-            <span class="meta-chip accent">${Math.round(sum.acPowerW || 0)} W AC</span>
+            <span class="meta-chip accent">${Math.round(isOffGrid ? (sum.loadPowerW || sum.acPowerW || 0) : (sum.acPowerW || 0))} W ${isOffGrid ? 'Cargas' : 'AC'}</span>
           </div>
 
           <!-- AC Phases -->
           <div class="solarman-phases-grid">
             ${devData.acPhases.map(ph => `
               <div class="solarman-phase-box">
-                <div class="phase-tag">Fase ${_escapeHTML(ph.id)}</div>
+                <div class="phase-tag">Fase ${_escapeHTML(ph.id)}${isSplitPhase ? ' (120V)' : ''}</div>
                 <div class="phase-val tabular-nums">${fDec(ph.voltageV, 1)} V</div>
                 <div class="phase-sub tabular-nums">${fDec(ph.currentA, 2)} A · ${ph.freqHz ? `${fDec(ph.freqHz, 2)} Hz` : '60 Hz'}</div>
               </div>
@@ -654,7 +694,7 @@ function _renderLiveMonitor(project, session, isAdmin) {
           <div class="solarman-flow-strip" style="margin-top:1rem;">
             <div class="flow-node">
               <span class="lbl"><i class="fa-solid fa-sun text-solar"></i> Solar</span>
-              <strong class="val text-solar">${Math.round(sum.acPowerW || 0)} W</strong>
+              <strong class="val text-solar">${Math.round(sum.dcPowerW || sum.acPowerW || 0)} W</strong>
             </div>
             <div class="flow-node">
               <span class="lbl"><i class="fa-solid fa-house-laptop text-accent"></i> <span class="lang-es">Consumo</span><span class="lang-en">Load</span></span>
@@ -662,12 +702,22 @@ function _renderLiveMonitor(project, session, isAdmin) {
             </div>
             <div class="flow-node">
               <span class="lbl"><i class="fa-solid fa-tower-observation text-warning"></i> <span class="lang-es">Red Eléctrica</span><span class="lang-en">Grid</span></span>
-              <strong class="val text-warning">${sum.gridPowerW ? `${Math.round(sum.gridPowerW)} W` : 'On-Grid'}</strong>
+              ${isOffGrid
+                ? `<strong class="val text-muted"><span class="lang-es">Aislada (Off-Grid)</span><span class="lang-en">Off-Grid (Island)</span></strong>`
+                : sum.gridPowerW > 0
+                  ? `<strong class="val text-warning">${Math.round(sum.gridPowerW)} W <small class="text-xs">(Imp.)</small></strong>`
+                  : sum.gridPowerW < 0
+                    ? `<strong class="val text-solar">${Math.round(Math.abs(sum.gridPowerW))} W <small class="text-xs">(Exp.)</small></strong>`
+                    : `<strong class="val text-muted">0 W (Sinc.)</strong>`
+              }
             </div>
             ${sum.batterySocPct !== null ? `
               <div class="flow-node">
                 <span class="lbl"><i class="fa-solid fa-battery-three-quarters text-ai"></i> Batería</span>
-                <strong class="val text-ai">${fDec(sum.batterySocPct, 0)}%</strong>
+                <strong class="val text-ai">
+                  ${fDec(sum.batterySocPct, 0)}%
+                  ${sum.batteryPowerW > 50 ? `<small class="text-solar" title="Cargando">(+${Math.round(sum.batteryPowerW)}W)</small>` : sum.batteryPowerW < -50 ? `<small class="text-warning" title="Descargando">(-${Math.round(Math.abs(sum.batteryPowerW))}W)</small>` : ''}
+                </strong>
               </div>
             ` : ''}
           </div>
