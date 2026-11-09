@@ -454,6 +454,8 @@ export async function fetchSolarmanStations(activeProject = null) {
     locationAddress: st.locationAddress || st.address || '',
     installedCapacity: parseFloat(st.installedCapacity) || 0,
     generationPower: parseFloat(st.generationPower) || 0,
+    generationTotal: parseFloat(st.generationTotal ?? st.totalGeneration ?? st.totalEnergy ?? st.cumulativeEnergy ?? 0) || 0,
+    generationValue: parseFloat(st.generationValue ?? st.todayEnergy ?? st.dailyEnergy ?? st.dayEnergy ?? 0) || 0,
     networkStatus: st.networkStatus || 'NORMAL',
     lastUpdateTime: st.lastUpdateTime || null,
     gridInterconnectionType: st.gridInterconnectionType || 'GRID_TIED',
@@ -838,67 +840,6 @@ export function parseDeviceCurrentData(rawCurrentData = {}, stationRealTime = {}
     /^p_pv$/i,
   ]);
 
-  // Daily Solar Production (Strictly excludes grid export/import, load consumption, battery charge/discharge)
-  let dailyYieldItem = null;
-  for (const item of dataList) {
-    const name = String(item.name || '').trim();
-    const key = String(item.key || '').trim();
-    const combined = `${name} ${key}`.toLowerCase();
-
-    // Skip grid export/import, load, consumption, battery charge/discharge
-    if (/(export|sold|import|bought|load|consumption|consumo|charge|discharge|battery|bater[ií]a|grid|red|meter)/i.test(combined)) {
-      continue;
-    }
-
-    // Match well-known keys
-    if (/^(etdy_ge[0-9]|etdy|e_day|e-day|eday|e_today|e-today|etoday|et_day|e_pday|ep_day|e_tdy|daily_energy|today_energy|e_today1|e_day1)$/i.test(key)) {
-      dailyYieldItem = item;
-      break;
-    }
-
-    // Match well-known names across Inverter brands (SRNE, Deye, Solis, Sofar, Growatt)
-    if (
-      /^(today'?s?\s*(production|generation|yield|pv|solar|energy)|daily\s*(production|generation|yield|pv|solar|energy|ac\s*generation)|day\s*(generation|production|energy|yield)|pv\s*(today|daily)|solar\s*(today|daily)|generaci[oó]n\s*(de\s*hoy|diaria|del\s*d[ií]a)|producci[oó]n\s*(de\s*hoy|diaria|del\s*d[ií]a))/i.test(name) ||
-      (/today/i.test(name) && /(production|generation|yield)/i.test(name)) ||
-      (/daily/i.test(name) && /(production|generation|yield)/i.test(name))
-    ) {
-      dailyYieldItem = item;
-      break;
-    }
-  }
-
-  // Cumulative / Lifetime Inverter Production (Strictly excludes grid export/import, load, battery, and daily counters)
-  let totalYieldItem = null;
-  for (const item of dataList) {
-    const name = String(item.name || '').trim();
-    const key = String(item.key || '').trim();
-    const combined = `${name} ${key}`.toLowerCase();
-
-    // Skip non-solar totals and time-scoped counters (today, daily, monthly, yearly)
-    if (/(export|sold|import|bought|load|consumption|consumo|charge|discharge|battery|bater[ií]a|grid|red|meter)/i.test(combined)) {
-      continue;
-    }
-    if (/(today|daily|day|month|year|hourly|hoy|diari|mes|a[ñn]o)/i.test(combined)) {
-      continue;
-    }
-
-    // Match well-known keys for cumulative inverter production
-    if (/^(et_ge[0-9]|et_total|e_total|e-total|etotal|e_ptotal|ep_total|e_tot|tot_energy|total_energy|total_generation|e_total1|tot_gen)$/i.test(key)) {
-      totalYieldItem = item;
-      break;
-    }
-
-    // Match well-known names for cumulative production
-    if (
-      /^(total\s*(solar|pv)?\s*(production|generation|yield|energy\s*yield)|cumulative\s*(solar|pv)?\s*(production|generation|yield|energy)|lifetime\s*generation|total\s*active\s*energy|accumulated\s*(solar|pv)?\s*(generation|production)|producci[oó]n\s*total|generaci[oó]n\s*total)/i.test(name) ||
-      /^total\s*(production|generation)\b/i.test(name) ||
-      (/^total\s*(energy|yield)$/i.test(name))
-    ) {
-      totalYieldItem = item;
-      break;
-    }
-  }
-
   const sumPvPowerW = pvStrings.reduce((acc, s) => acc + (s.powerW || 0), 0);
   const rtGenPowerW = parseFloat(stationRealTime?.generationPower) || parseFloat(activeStation?.generationPower) || 0;
 
@@ -977,6 +918,35 @@ export function parseDeviceCurrentData(rawCurrentData = {}, stationRealTime = {}
         ? loadPowerW
         : sumPvPowerW;
 
+  // Daily Solar Production (Strictly excludes grid export/import, load consumption, battery charge/discharge)
+  let dailyYieldItem = null;
+  for (const item of dataList) {
+    const name = String(item.name || '').trim();
+    const key = String(item.key || '').trim();
+    const combined = `${name} ${key}`.toLowerCase();
+
+    // Skip grid export/import, load, consumption, battery charge/discharge
+    if (/(export|sold|import|bought|load|consumption|consumo|charge|discharge|battery|bater[ií]a|grid|red|meter)/i.test(combined)) {
+      continue;
+    }
+
+    // Match well-known keys
+    if (/^(etdy_ge[0-9]|etdy|e_day|e-day|eday|e_today|e-today|etoday|et_day|e_pday|ep_day|e_tdy|daily_energy|today_energy|e_today1|e_day1|f02f|et_pv_day)$/i.test(key)) {
+      dailyYieldItem = item;
+      break;
+    }
+
+    // Match well-known names across Inverter brands (SRNE, Deye, Solis, Sofar, Growatt)
+    if (
+      /^(today'?s?\s*(production|generation|yield|pv|solar|energy)|daily\s*(production|generation|yield|pv|solar|energy|ac\s*generation)|day\s*(generation|production|energy|yield)|pv\s*(today|daily)|solar\s*(today|daily)|generaci[oó]n\s*(de\s*hoy|diaria|del\s*d[ií]a)|producci[oó]n\s*(de\s*hoy|diaria|del\s*d[ií]a))/i.test(name) ||
+      (/today/i.test(name) && /(production|generation|yield)/i.test(name)) ||
+      (/daily/i.test(name) && /(production|generation|yield)/i.test(name))
+    ) {
+      dailyYieldItem = item;
+      break;
+    }
+  }
+
   // Daily energy resolution with extensive fallbacks
   const dailyEnergyKwh = dailyYieldItem
     ? toKwh(dailyYieldItem.value, dailyYieldItem.unit)
@@ -991,20 +961,139 @@ export function parseDeviceCurrentData(rawCurrentData = {}, stationRealTime = {}
         0,
       ) || 0;
 
-  // Cumulative energy resolution with station fallback and sanity check
+  // Station summary cumulative energy (Solarman OpenAPI standard: generationTotal)
   const stationTotalKwh = parseFloat(
-    stationRealTime?.totalEnergy ??
+    stationRealTime?.generationTotal ??
     stationRealTime?.totalGeneration ??
+    stationRealTime?.totalEnergy ??
     stationRealTime?.cumulativeEnergy ??
-    activeStation?.totalEnergy ??
+    activeStation?.generationTotal ??
     activeStation?.totalGeneration ??
+    activeStation?.totalEnergy ??
+    activeStation?.cumulativeEnergy ??
     0,
   ) || 0;
 
-  let totalEnergyKwh = totalYieldItem ? toKwh(totalYieldItem.value, totalYieldItem.unit) : 0;
-  // If inverter returned 0 (or suspicious <= 1.0 test value while station total is larger), use station total
-  if ((!totalEnergyKwh || totalEnergyKwh <= 1.0) && stationTotalKwh > 1.0) {
+  // Cumulative / Lifetime Inverter Production (Intelligent Scored Candidate Resolver)
+  let bestTotalItem = null;
+  let bestTotalScore = -1;
+
+  for (const item of dataList) {
+    const name = String(item.name || '').trim();
+    const key = String(item.key || '').trim();
+    const combined = `${name} ${key}`.toLowerCase();
+    const valKwh = toKwh(item.value, item.unit);
+
+    // Completely disqualify non-positive or unparseable values
+    if (valKwh <= 0 || Number.isNaN(valKwh)) continue;
+
+    // Disqualify time-scoped periodic metrics (today, daily, monthly, yearly, hourly)
+    if (/(today|daily|day|month|monthly|year|yearly|anual|diari|hoy|hora|hour|hourly|week|seman)/i.test(combined)) {
+      continue;
+    }
+
+    // Disqualify pure grid import / bought
+    if (/(import|bought|compra|importad)/i.test(combined)) {
+      continue;
+    }
+
+    // Disqualify battery charge / discharge counters
+    if (/(charge|discharge|descarga|carga)/i.test(combined)) {
+      continue;
+    }
+
+    // Disqualify pure grid export / sold ONLY IF not explicitly labeled as solar production/generation
+    if (/(export|sold|venta|exportad)/i.test(combined) && !/(generation|production|generaci|producci)/i.test(combined)) {
+      continue;
+    }
+
+    // Disqualify battery status registers
+    if (/(battery|bater[ií]a)/i.test(combined)) {
+      continue;
+    }
+
+    let score = 0;
+
+    // 1. Key-based confidence scoring
+    if (/^(et_ge[0-9]?|et_total|e_total|e-total|etotal|e_ptotal|ep_total|e_tot|tot_energy|total_energy|total_generation|generation_total)$/i.test(key)) {
+      score += 100;
+    } else if (/^(et_pv[0-9]?|e_pv_total|epv_total|pv_e_total|e_pv_tot|pv_total_energy)$/i.test(key)) {
+      score += 95;
+    } else if (/^(f038|f039|f040|f041|inv_et|inv_e_total|e_total1|tot_gen|total_gen|total_prod|tot_prod|et_all|e_all)$/i.test(key)) {
+      score += 85;
+    }
+
+    // 2. Name-based confidence scoring (supports English, Spanish, multi-brand naming across SRNE, Deye, Solis, Sofar)
+    if (/^(total|cumulative|accumulat(ed|ive)|lifetime)\s*(pv|solar)?\s*(generation|production|yield|energy(\s*yield)?)\b/i.test(name)) {
+      score += 90;
+    } else if (/^(pv|solar)\s*(total|cumulative|accumulat(ed|ive))\s*(generation|production|yield|energy)\b/i.test(name)) {
+      score += 90;
+    } else if (/^(generaci[oó]n|producci[oó]n|energ[ií]a)\s*total\b/i.test(name)) {
+      score += 90;
+    } else if (/^total\s*(solar|pv)\s*energy\b/i.test(name)) {
+      score += 85;
+    } else if (/^total\s*(generation|production|yield)\b/i.test(name)) {
+      score += 80;
+    } else if (/total\s*active\s*(energy|generation|production)/i.test(name)) {
+      score += 80;
+    } else if (/inverter\s*(total|cumulative|accumulat(ed|ive))\s*(energy|generation|yield|production)/i.test(name)) {
+      score += 80;
+    } else if (/^total\s*(energy|yield)$/i.test(name)) {
+      score += 70;
+    } else if (/(cumulative|accumulat(ed|ive))\s*(energy|generation|production|yield)/i.test(name)) {
+      score += 75;
+    } else if (/total\s*(output|ac)\s*energy/i.test(name)) {
+      score += 65;
+    } else if (isOffGrid && /total\s*load\s*energy/i.test(name)) {
+      score += 55;
+    }
+
+    if (score === 0) continue;
+
+    // 3. Sanity cross-validation with daily generation (cumulative odometer must be >= daily generation)
+    if (dailyEnergyKwh > 1.0) {
+      if (valKwh >= dailyEnergyKwh * 0.95) {
+        score += 20;
+      } else {
+        score -= 70; // Penalize impossible values smaller than today's production
+      }
+    }
+
+    // 4. Cross-validation with station-level summary total
+    if (stationTotalKwh > 1.0) {
+      const diffRatio = Math.abs(valKwh - stationTotalKwh) / stationTotalKwh;
+      if (diffRatio < 0.05) {
+        score += 40;
+      } else if (diffRatio < 0.20) {
+        score += 20;
+      }
+    }
+
+    // 5. Heavy penalty for dummy test counter (1.0 kWh) when day production is higher
+    if (Math.abs(valKwh - 1.0) < 0.05 && dailyEnergyKwh > 1.5) {
+      score -= 80;
+    }
+
+    if (score > bestTotalScore) {
+      bestTotalScore = score;
+      bestTotalItem = item;
+    }
+  }
+
+  let totalEnergyKwh = (bestTotalItem && bestTotalScore > 0) ? toKwh(bestTotalItem.value, bestTotalItem.unit) : 0;
+
+  // Multi-tier Fallback Cascade for Inverter Cumulative Reading:
+  // Tier 1: If inverter item is 0, suspicious <= 1.0, or smaller than today's generation, use station total
+  if ((!totalEnergyKwh || totalEnergyKwh <= 1.0 || (dailyEnergyKwh > 1.5 && totalEnergyKwh < dailyEnergyKwh * 0.8)) && stationTotalKwh > 1.0) {
     totalEnergyKwh = stationTotalKwh;
+  }
+  // Tier 2: If inverter register wasn't found but station realTime total is valid
+  if (totalEnergyKwh <= 0 && stationTotalKwh > 0) {
+    totalEnergyKwh = stationTotalKwh;
+  }
+  // Tier 3: If both are missing/0 but daily generation is already positive, baseline to daily generation
+  if (totalEnergyKwh <= 0 && dailyEnergyKwh > 0) {
+    totalEnergyKwh = dailyEnergyKwh;
   }
 
   // 4. Intelligent Temperature Classification & Prioritization
@@ -1221,6 +1310,8 @@ function _buildDemoStations(activeProject) {
       locationAddress: projLoc,
       installedCapacity: projCap,
       generationPower: Math.round(projCap * 740),
+      generationTotal: 8420.6,
+      generationValue: 21.18,
       networkStatus: 'NORMAL',
       lastUpdateTime: Math.floor(Date.now() / 1000) - 42,
       gridInterconnectionType: 'GRID_TIED',
@@ -1233,6 +1324,8 @@ function _buildDemoStations(activeProject) {
       locationAddress: 'Sopetrán, Antioquia',
       installedCapacity: 7.0,
       generationPower: 3463,
+      generationTotal: 3842.6,
+      generationValue: 14.85,
       networkStatus: 'NORMAL',
       lastUpdateTime: Math.floor(Date.now() / 1000) - 95,
       gridInterconnectionType: 'OFF_GRID',
@@ -1307,6 +1400,7 @@ function _populateDemoTelemetry(project, activeStation, requestedSn) {
       batteryPower: battP,
       batterySoc: battSoc,
       generationValue: todayProdKwh,
+      generationTotal: totalProdKwh,
       totalEnergy: totalProdKwh,
       lastUpdateTime: colTime,
     };
@@ -1372,6 +1466,7 @@ function _populateDemoTelemetry(project, activeStation, requestedSn) {
       usePower: loadPowerW,
       gridPower: gridPowerW,
       generationValue: dailyKwh,
+      generationTotal: totalKwh,
       totalEnergy: totalKwh,
       lastUpdateTime: colTime,
     };
