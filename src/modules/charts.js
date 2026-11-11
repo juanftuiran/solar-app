@@ -15,17 +15,17 @@ import { calcFinancialSimulation } from './analytics.js';
 // Theme
 // ---------------------------------------------------------------------------
 export const CHART_COLORS = {
-  solar: '#34d399',
-  solarDeep: '#10b981',
-  grid: '#fb7185',
+  solar: '#10b981',
+  solarDeep: '#059669',
+  grid: '#f43f5e',
   accent: '#38bdf8',
-  warning: '#fbbf24',
-  ai: '#a78bfa',
-  text: '#e6ebf3',
-  muted: '#8b98ad',
-  dim: '#5f6b80',
+  warning: '#f59e0b',
+  ai: '#6366f1',
+  text: '#f8fafc',
+  muted: '#7e8fa6',
+  dim: '#58677d',
   gridLine: 'rgba(148, 163, 184, 0.08)',
-  surface: '#0d1320',
+  surface: '#0c121e',
 };
 const C = CHART_COLORS;
 
@@ -35,26 +35,37 @@ const L = (es, en) => (isEn() ? en : es);
 /** Sync chart colors with active theme (dark vs light) */
 export function syncChartTheme() {
   const isLight = state.theme === 'light';
-  C.text = isLight ? '#0f172a' : '#e6ebf3';
-  C.muted = isLight ? '#475569' : '#8b98ad';
-  C.dim = isLight ? '#64748b' : '#5f6b80';
-  C.gridLine = isLight ? 'rgba(15, 23, 42, 0.07)' : 'rgba(148, 163, 184, 0.08)';
-  C.surface = isLight ? '#ffffff' : '#0d1320';
+  C.solar = isLight ? '#047857' : '#10b981';
+  C.solarDeep = isLight ? '#065f46' : '#059669';
+  C.grid = isLight ? '#be123c' : '#f43f5e';
+  C.accent = isLight ? '#0369a1' : '#38bdf8';
+  C.warning = isLight ? '#b45309' : '#f59e0b';
+  C.ai = isLight ? '#4338ca' : '#6366f1';
+  C.text = isLight ? '#090f1a' : '#f8fafc';
+  C.muted = isLight ? '#334155' : '#7e8fa6';
+  C.dim = isLight ? '#475569' : '#58677d';
+  C.gridLine = isLight ? 'rgba(15, 23, 42, 0.11)' : 'rgba(148, 163, 184, 0.08)';
+  C.surface = isLight ? '#e6ebf2' : '#0c121e';
 
   Chart.defaults.color = C.muted;
   Chart.defaults.plugins.legend.labels.color = C.muted;
   const tt = Chart.defaults.plugins.tooltip;
-  tt.backgroundColor = isLight ? 'rgba(15, 23, 42, 0.94)' : 'rgba(13, 19, 32, 0.96)';
+  tt.backgroundColor = isLight ? 'rgba(220, 226, 235, 0.98)' : 'rgba(12, 18, 30, 0.94)';
+  tt.titleColor = isLight ? '#090f1a' : '#ffffff';
+  tt.bodyColor = isLight ? '#162032' : '#cbd5e1';
+  tt.footerColor = C.muted;
+  tt.borderColor = isLight ? 'rgba(15, 23, 42, 0.18)' : 'rgba(148, 163, 184, 0.2)';
 }
 
 // ---------------------------------------------------------------------------
 // Chart.js global defaults
 // ---------------------------------------------------------------------------
 Chart.defaults.color = C.muted;
-Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-Chart.defaults.font.size = 11;
-Chart.defaults.animation.duration = 750;
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif";
+Chart.defaults.font.size = 11.5;
+Chart.defaults.animation.duration = 600;
 Chart.defaults.animation.easing = 'easeOutQuart';
+Chart.defaults.transitions.resize = { animation: { duration: 0 } };
 
 Chart.defaults.plugins.legend.position = 'top';
 Chart.defaults.plugins.legend.align = 'end';
@@ -226,11 +237,11 @@ function doughnutCenterPlugin(getText) {
   return {
     id: 'doughnutCenter',
     afterDraw(chart) {
-      const meta = chart.getDatasetMeta(0);
-      if (!meta?.data?.length) return;
-      const { x, y } = meta.data[0];
+      const { chartArea, ctx } = chart;
+      if (!chartArea) return;
+      const x = (chartArea.left + chartArea.right) / 2;
+      const y = (chartArea.top + chartArea.bottom) / 2;
       const { value, label } = getText();
-      const { ctx } = chart;
       ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -855,8 +866,8 @@ export function renderProjectionChart() {
     tbody.innerHTML = tableRows
       .map(
         (r, i) =>
-          `<tr${i === breakevenIdx ? ' style="background:rgba(52,211,153,0.07);"' : ''}>
-            <td class="cell-primary">${r.year}${i === breakevenIdx ? ' <span class="badge-reset" style="background:rgba(52,211,153,.12);color:#34d399;border-color:rgba(52,211,153,.3);margin-left:.35rem;"><i class="fa-solid fa-flag-checkered"></i> ROI</span>' : ''}</td>
+          `<tr${i === breakevenIdx ? ' style="background:var(--solar-subtle);"' : ''}>
+            <td class="cell-primary">${r.year}${i === breakevenIdx ? ' <span class="badge-reset" style="background:var(--solar-subtle);color:var(--solar);border-color:var(--solar-glow);margin-left:var(--space-2xs);"><i class="fa-solid fa-flag-checkered"></i> ROI</span>' : ''}</td>
             <td class="text-right" style="color:var(--ai);">${fDec(r.gen, 0)} kWh</td>
             <td class="text-right" style="color:var(--accent);">${fCOP(r.savings)}</td>
             <td class="text-right" style="color:var(--solar);font-weight:700;">${fCOP(r.cumSavings)}</td>

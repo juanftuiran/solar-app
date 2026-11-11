@@ -37,7 +37,7 @@ export function renderProjectCard(project, role, investmentCount, onSelect) {
   let readingBadge = '';
   if (lastDate) {
     readingBadge = `
-      <span class="meta-chip" style="color:var(--solar);border-color:rgba(52,211,153,0.25);background:var(--solar-subtle);" title="Última lectura registrada">
+      <span class="meta-chip" style="color:var(--solar);border-color:var(--solar-glow);background:var(--solar-subtle);" title="Última lectura registrada">
         <i class="fa-solid fa-calendar-check"></i> ${lastDate} (${readingCount})
       </span>
     `;

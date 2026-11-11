@@ -1,0 +1,216 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   JF Solar Cloud — Design System Tokens v4.2
+   Apple HIG (SF Pro & Clarity) × Samsung One UI (Tactile Squircles)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces — Deep Obsidian */
+  --bg: #070b12;
+  --bg-elevated: #0c121e;
+  --bg-subtle: #111927;
+  --surface: rgba(16, 23, 38, 0.78);
+  --surface-solid: #101726;
+  --surface-1: #0e1522;
+  --surface-2: #151f32;
+  --surface-3: #1c2840;
+  --card: var(--surface);
+  --card-solid: var(--surface-solid);
+  --card-hover: var(--surface-3);
+  --inset-bg: rgba(7, 11, 18, 0.50);
+
+  /* Lines & Borders */
+  --border: rgba(148, 163, 184, 0.11);
+  --border-medium: rgba(148, 163, 184, 0.18);
+  --border-strong: rgba(148, 163, 184, 0.28);
+  --border-focus: rgba(14, 165, 233, 0.60);
+  --inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --color-backdrop: rgba(0, 0, 0, 0.65);
+
+  /* Brand & Telemetry Semantics */
+  --accent: #38bdf8;
+  --accent-strong: #0ea5e9;
+  --accent-hover: #0284c7;
+  --accent-glow: rgba(56, 189, 248, 0.24);
+  --accent-subtle: rgba(56, 189, 248, 0.12);
+
+  --solar: #10b981;
+  --solar-strong: #059669;
+  --solar-hover: #047857;
+  --solar-glow: rgba(16, 185, 129, 0.24);
+  --solar-subtle: rgba(16, 185, 129, 0.12);
+
+  --grid-c: #f43f5e;
+  --grid-subtle: rgba(244, 63, 94, 0.12);
+
+  --ai: #6366f1;
+  --ai-glow: rgba(99, 102, 241, 0.24);
+  --ai-subtle: rgba(99, 102, 241, 0.12);
+
+  --warning: #f59e0b;
+  --warning-subtle: rgba(245, 158, 11, 0.12);
+
+  --danger: #ef4444;
+  --danger-strong: #dc2626;
+  --danger-subtle: rgba(239, 68, 68, 0.12);
+
+  /* Text & Contrast */
+  --text-strong: #f8fafc;
+  --text: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --muted-light: #7e8fa6;
+  --muted: #58677d;
+
+  /* Typography Stack — Apple System + Fallbacks */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Typography Scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.84rem;
+  --text-md: 0.95rem;
+  --text-lg: 1.15rem;
+  --text-xl: 1.4rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+
+  /* Shape & Radii — Samsung One UI Squircle Scale */
+  --radius-xl: 1.5rem;    /* 24px */
+  --radius-lg: 1.25rem;   /* 20px */
+  --radius-md: 0.875rem;  /* 14px (alias) */
+  --radius: 0.875rem;     /* 14px */
+  --radius-sm: 0.625rem;  /* 10px */
+  --radius-xs: 0.4375rem; /* 7px */
+  --radius-full: 9999px;
+
+  /* Elevation & Shadows */
+  --shadow-sm: 0 2px 8px -2px rgba(0, 0, 0, 0.38);
+  --shadow-md: 0 12px 28px -6px rgba(0, 0, 0, 0.52);
+  --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.70);
+
+  /* Z-Index Scale */
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-sticky-nav: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --transition-fast: 0.15s var(--ease);
+  --transition: 0.25s var(--ease);
+
+  /* Layout */
+  --container: 1440px;
+  --sidebar-w: 256px;
+
+  /* Compatibility Aliases */
+  --color-paper: var(--bg-elevated);
+  --color-paper-2: var(--surface-solid);
+  --color-paper-3: var(--bg);
+  --color-ink: var(--text-strong);
+  --color-ink-2: var(--text);
+  --color-muted: var(--muted-light);
+  --color-rule: var(--border);
+  --color-rule-2: var(--border-medium);
+  --color-accent: var(--accent);
+  --color-accent-ink: #04130d;
+  --color-cool: var(--accent);
+  --color-cool-soft: var(--accent-subtle);
+  --color-ok: var(--solar);
+  --color-ok-soft: var(--solar-subtle);
+  --color-warn: var(--warning);
+  --color-bad: var(--danger);
+  --color-focus: var(--border-focus);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Alabaster Daylight Mode (Light Theme)
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Surfaces — Soft Architectural Slate-Stone (no white glare, high legibility) */
+  --bg: #cfd6e0;
+  --bg-elevated: #dde3ec;
+  --bg-subtle: #c5cedb;
+  --surface: rgba(230, 235, 242, 0.96);
+  --surface-solid: #e6ebf2;
+  --surface-1: #dce2eb;
+  --surface-2: #d5dce6;
+  --surface-3: #cad2df;
+  --card: var(--surface);
+  --card-solid: var(--surface-solid);
+  --card-hover: var(--surface-3);
+  --inset-bg: #d6dde7;
+
+  /* Lines & Borders */
+  --border: rgba(15, 23, 42, 0.14);
+  --border-medium: rgba(15, 23, 42, 0.22);
+  --border-strong: rgba(15, 23, 42, 0.32);
+  --border-focus: rgba(3, 105, 161, 0.65);
+  --inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  --color-backdrop: rgba(15, 23, 42, 0.45);
+
+  /* Brand & Telemetry Semantics */
+  --accent: #0369a1;
+  --accent-strong: #075985;
+  --accent-hover: #0c4a6e;
+  --accent-glow: rgba(3, 105, 161, 0.22);
+  --accent-subtle: rgba(3, 105, 161, 0.13);
+
+  --solar: #047857;
+  --solar-strong: #065f46;
+  --solar-hover: #064e3b;
+  --solar-glow: rgba(4, 120, 87, 0.22);
+  --solar-subtle: rgba(4, 120, 87, 0.13);
+
+  --grid-c: #be123c;
+  --grid-subtle: rgba(190, 18, 60, 0.12);
+
+  --ai: #4338ca;
+  --ai-glow: rgba(67, 56, 202, 0.22);
+  --ai-subtle: rgba(67, 56, 202, 0.12);
+
+  --warning: #b45309;
+  --warning-subtle: rgba(180, 83, 9, 0.13);
+
+  --danger: #b91c1c;
+  --danger-strong: #991b1b;
+  --danger-subtle: rgba(185, 28, 28, 0.12);
+
+  /* Text & Contrast */
+  --text-strong: #090f1a;
+  --text: #162032;
+  --text-secondary: #334155;
+  --muted-light: #475569;
+  --muted: #526277;
+
+  /* Elevation & Shadows */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 12px -4px rgba(15, 23, 42, 0.10);
+  --shadow-md: 0 10px 24px -6px rgba(15, 23, 42, 0.14);
+  --shadow-lg: 0 20px 40px -12px rgba(15, 23, 42, 0.20);
+
+  /* Compatibility Aliases */
+  --color-paper: var(--bg-elevated);
+  --color-paper-2: var(--surface-solid);
+  --color-paper-3: var(--bg);
+  --color-ink: var(--text-strong);
+  --color-ink-2: var(--text);
+  --color-muted: var(--muted-light);
+  --color-rule: var(--border);
+  --color-rule-2: var(--border-medium);
+  --color-accent: var(--accent);
+  --color-accent-ink: #ffffff;
+  --color-cool: var(--accent);
+  --color-cool-soft: var(--accent-subtle);
+  --color-ok: var(--solar);
+  --color-ok-soft: var(--solar-subtle);
+  --color-warn: var(--warning);
+  --color-bad: var(--danger);
+  --color-focus: var(--border-focus);
+}

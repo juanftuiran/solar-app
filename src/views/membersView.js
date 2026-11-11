@@ -80,7 +80,7 @@ export function render(members) {
           <tr>
             <td>
               <div class="member-cell">
-                <div class="avatar-pill" style="background:linear-gradient(135deg, ${isAdminRole ? '#38bdf8, #818cf8' : '#34d399, #38bdf8'});">
+                <div class="avatar-pill">
                   ${initials}
                 </div>
                 <div>

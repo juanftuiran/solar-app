@@ -4,6 +4,7 @@
  * Main entry point, router, and orchestrator
  */
 import './app.css';
+import './refine.css';
 import { state, setUser, setActiveProject, clearProjectData, setView, savePrefs } from './modules/state.js';
 import {
   signIn,

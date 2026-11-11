@@ -106,7 +106,7 @@ export function render(contentHTML = null) {
 
           <div class="app-footer">
             <i class="fa-solid fa-leaf" style="color:var(--solar);"></i>
-            <span>JF SOLAR CLOUD v4.0 · ENTERPRISE CLEAN ENERGY ANALYTICS PLATFORM</span>
+            <span>JF Solar Cloud v4.0 / Plataforma empresarial de analítica fotovoltaica</span>
           </div>
         </div>
       </div>
@@ -117,7 +117,7 @@ export function render(contentHTML = null) {
       <div class="kiosk-bar-brand">
         <span class="online-dot"></span>
         <strong>${_escapeHTML(project.name || 'Planta Solar')}</strong>
-        <span class="kiosk-tag">LIVE KIOSK</span>
+        <span class="kiosk-tag">${state.lang === 'en' ? 'Live Kiosk' : 'Kiosk en vivo'}</span>
       </div>
       <div class="kiosk-bar-actions">
         <button type="button" id="btn-kiosk-autorotate" class="btn btn-ghost btn-xs">
@@ -240,12 +240,12 @@ export function init(callbacks) {
       savePrefs();
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabKey));
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === `pane-${tabKey}`));
-      if (typeof onTabChange === 'function') {
-        onTabChange(tabKey);
-      }
-      setTimeout(() => {
+      requestAnimationFrame(() => {
+        if (typeof onTabChange === 'function') {
+          onTabChange(tabKey);
+        }
         Object.values(state.charts).forEach(c => c?.resize?.());
-      }, 50);
+      });
     });
   });
 
@@ -703,17 +703,17 @@ export function openExecutiveReportModal() {
       <!-- Report Institutional Header -->
       <div class="exec-sheet-header">
         <div>
-          <div class="exec-sheet-brand">JF SOLAR CLOUD · ENTERPRISE TELEMETRY & VALUATION</div>
+          <div class="exec-sheet-brand">JF Solar Cloud / Telemetría y Valoración Fotovoltaica</div>
           <h1 class="exec-sheet-title">${_escapeHTML(project.name || 'Planta Solar Fotovoltaica')}</h1>
           <div class="exec-sheet-meta">
             <span><i class="fa-solid fa-location-dot"></i> ${_escapeHTML(project.location || 'Colombia')}</span>
-            <span>•</span>
+            <span>/</span>
             <span><i class="fa-solid fa-bolt"></i> ${fDec(capacity, 1)} kWp (${project.panel_count || 0} paneles)</span>
-            ${project.inverter_model ? `<span>•</span><span><i class="fa-solid fa-microchip"></i> ${_escapeHTML(project.inverter_model)}</span>` : ''}
+            ${project.inverter_model ? `<span>/</span><span><i class="fa-solid fa-microchip"></i> ${_escapeHTML(project.inverter_model)}</span>` : ''}
           </div>
         </div>
         <div class="exec-sheet-stamp">
-          <div class="exec-stamp-label">${state.lang === 'en' ? 'ISSUED DATE' : 'FECHA DE EMISIÓN'}</div>
+          <div class="exec-stamp-label">${state.lang === 'en' ? 'Issued Date' : 'Fecha de emisión'}</div>
           <div class="exec-stamp-val">${nowStr}</div>
           <div class="exec-stamp-sub">IEC 61724 Compliant</div>
         </div>
@@ -871,7 +871,7 @@ export function renderTableRows(data, isAdmin = false, baseRecord = null) {
       <tr class="data-row base-record-row" data-row-id="${baseRecord.id}">
         <td>
           <div class="cell-period">
-            <div class="row-chevron" style="color:var(--accent);border-color:rgba(56,189,248,.3);"><i class="fa-solid fa-flag"></i></div>
+            <div class="row-chevron" style="color:var(--accent);border-color:var(--border-focus);"><i class="fa-solid fa-flag"></i></div>
             <div>
               <div class="cell-primary text-accent">${baseRecord.label}</div>
               <div class="cell-sub">${baseRecord.fecha}</div>
@@ -1604,8 +1604,8 @@ function _renderChartsGrid() {
               <span class="lang-en">Plant Performance & Peak Sun Hours (PSH)</span>
             </h3>
             <p class="chart-subtitle">
-              <span class="lang-es">Estándar IEC 61724 · Líneas de referencia: Óptimo (4.0) y Mínimo (3.2)</span>
-              <span class="lang-en">IEC 61724 Standard · Target references: 4.0 Optimal, 3.2 Min</span>
+              <span class="lang-es">Estándar IEC 61724 (referencias: Óptimo 4.0, Mínimo 3.2)</span>
+              <span class="lang-en">IEC 61724 Standard (Target: 4.0 Optimal, 3.2 Min)</span>
             </p>
           </div>
         </div>
@@ -2020,7 +2020,7 @@ function _renderCsvImportModal() {
                 <span class="lang-es">Seleccionar archivo .CSV</span>
                 <span class="lang-en">Choose .CSV file</span>
               </strong>
-              <span style="font-size:.75rem;color:var(--muted-light);">UTF-8 · Separado por comas</span>
+              <span style="font-size:var(--text-xs);color:var(--muted-light);">Codificación UTF-8, delimitado por comas</span>
             </div>
             <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none;">
           </label>
