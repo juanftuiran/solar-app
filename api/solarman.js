@@ -39,6 +39,9 @@ export async function processSolarmanRequest(body = {}) {
     stationId,
     deviceSn,
     deviceId,
+    timeType,
+    startTime,
+    endTime,
     page = 1,
     size = 50,
   } = body;
@@ -164,6 +167,63 @@ export async function processSolarmanRequest(body = {}) {
         url.searchParams.set('language', language);
 
         const reqBody = {};
+        if (deviceSn) reqBody.deviceSn = String(deviceSn).trim();
+        if (deviceId) reqBody.deviceId = Number(deviceId) || deviceId;
+
+        const res = await fetch(url.toString(), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `bearer ${token}`,
+          },
+          body: JSON.stringify(reqBody),
+        });
+        const data = await res.json().catch(() => ({}));
+        return { status: res.status || 200, data };
+      }
+
+      case 'stationHistory': {
+        if (!token || !stationId || !startTime || !endTime) {
+          return {
+            status: 400,
+            data: { success: false, msg: 'Missing token, stationId, startTime or endTime' },
+          };
+        }
+        const url = new URL(`${baseUrl}/station/v1.0/history`);
+        url.searchParams.set('language', language);
+
+        const res = await fetch(url.toString(), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `bearer ${token}`,
+          },
+          body: JSON.stringify({
+            stationId: Number(stationId) || stationId,
+            timeType: Number(timeType) || 1,
+            startTime: String(startTime),
+            endTime: String(endTime),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        return { status: res.status || 200, data };
+      }
+
+      case 'deviceHistorical': {
+        if (!token || (!deviceSn && !deviceId) || !startTime || !endTime) {
+          return {
+            status: 400,
+            data: { success: false, msg: 'Missing token, deviceSn/deviceId, startTime or endTime' },
+          };
+        }
+        const url = new URL(`${baseUrl}/device/v1.0/historical`);
+        url.searchParams.set('language', language);
+
+        const reqBody = {
+          timeType: Number(timeType) || 1,
+          startTime: String(startTime),
+          endTime: String(endTime),
+        };
         if (deviceSn) reqBody.deviceSn = String(deviceSn).trim();
         if (deviceId) reqBody.deviceId = Number(deviceId) || deviceId;
 

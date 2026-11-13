@@ -1,0 +1,454 @@
+/**
+ * @file mobile.css
+ * @description Solarman Intraday/Historical Chart panel styles + Mobile-first UX enhancements.
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1. Solarman Daily History & Live Parameter Charts Panel
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.solarman-history-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.sm-chart-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--inset-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.sm-date-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.sm-date-input {
+  height: 34px;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-medium);
+  background: var(--surface-solid);
+  color: var(--text-strong);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color-scheme: dark;
+  transition: border-color var(--t-fast);
+}
+
+:root[data-theme="light"] .sm-date-input {
+  color-scheme: light;
+}
+
+.sm-date-input:focus {
+  outline: none;
+  border-color: var(--solar);
+  box-shadow: 0 0 0 3px var(--solar-subtle);
+}
+
+.sm-hist-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.sm-hist-stat {
+  padding: 0.75rem 0.95rem;
+  background: var(--inset-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.sm-hist-stat .lbl {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sm-hist-stat .val {
+  font-family: var(--font-mono);
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sm-chart-wrap {
+  height: 300px;
+  min-height: 240px;
+  position: relative;
+}
+
+.sm-chart-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: rgba(7, 11, 18, 0.55);
+  backdrop-filter: blur(3px);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+:root[data-theme="light"] .sm-chart-loading {
+  background: rgba(207, 214, 224, 0.65);
+}
+
+/* Crisp WCAG AA+ contrast for primary & solar buttons in Light Stone theme */
+:root[data-theme="light"] .btn-primary,
+:root[data-theme="light"] .btn-solar,
+:root[data-theme="light"] .btn-accent {
+  color: #ffffff;
+}
+
+:root[data-theme="light"] .btn-primary:hover:not(:disabled),
+:root[data-theme="light"] .btn-solar:hover:not(:disabled),
+:root[data-theme="light"] .btn-accent:hover:not(:disabled) {
+  color: #ffffff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2. Subtle User-Friendly Hover & Focus Micro-Polish
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.btn,
+.tab-btn,
+.segmented-btn,
+.project-card,
+.solarman-station-card {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.table-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. Tablet & Mobile Responsive Optimization (<= 960px, <= 640px, <= 420px)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 960px) {
+  .content-area {
+    padding: 0.9rem 1rem 2rem;
+  }
+
+  /* Clear fixed top-left sidebar toggle cleanly when sidebar is active */
+  .sidebar-toggle {
+    display: flex !important;
+    z-index: 80;
+    left: 1.15rem;
+    top: 1.25rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .app-layout.has-sidebar .app-header {
+    padding-left: 3.75rem;
+  }
+
+  .app-header {
+    position: static;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+    padding: 1rem 1.1rem;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .header-divider {
+    display: none;
+  }
+
+  /* Horizontal swipe capsule tab bar */
+  .dashboard-tabs-row {
+    margin: 0 -0.25rem;
+    padding: 0 0.25rem;
+  }
+
+  .dashboard-tabs {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 0.3rem;
+  }
+
+  .dashboard-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
+
+  /* Solarman history & KPIs */
+  .sm-hist-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .solarman-topbar {
+    padding: 1rem 1.1rem;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .solarman-topbar-left {
+    flex: 1 1 auto;
+  }
+
+  .solarman-topbar-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .content-area {
+    padding: 0.75rem 0.75rem 2.25rem;
+  }
+
+  .section-card,
+  .card {
+    padding: 1rem 1rem;
+  }
+
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.65rem;
+  }
+
+  .header-project-name {
+    font-size: 1.15rem;
+  }
+
+  .header-actions .btn,
+  .header-actions .select-pill,
+  .header-actions .lang-btn {
+    min-height: 38px;
+  }
+
+  .kpi-grid,
+  .kpi-grid.cols-4 {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+
+  .kpi-value {
+    font-size: 1.45rem;
+  }
+
+  .chart-wrap,
+  .chart-card {
+    height: auto;
+    padding: 1rem;
+    overflow: hidden;
+  }
+
+  .chart-header {
+    flex-wrap: wrap;
+    min-height: 0;
+  }
+
+  .chart-wrap > .chart-container,
+  .chart-wrap > .chart-container.tall,
+  .sm-chart-wrap {
+    height: 235px;
+    min-height: 210px;
+    max-width: 100%;
+  }
+
+  .chart-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  /* Solarman mobile ergonomics */
+  .sm-chart-toolbar {
+    padding: 0.65rem;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sm-date-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .sm-date-input {
+    flex: 1 1 130px;
+    min-height: 38px;
+    font-size: 0.85rem;
+  }
+
+  .sm-metric-pills {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sm-metric-pills .segmented-btn {
+    justify-content: center;
+    padding: 0.45rem 0.4rem;
+    font-size: 0.74rem;
+  }
+
+  .solarman-device-select-wrap {
+    width: 100%;
+  }
+
+  .solarman-device-select-wrap select {
+    flex: 1;
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .solarman-string-metrics {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+  }
+
+  .solarman-phases-grid,
+  .solarman-flow-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Prevent iOS zoom on form inputs & improve tap target ergonomics */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="url"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .field-row {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  /* Project Selector & Top Nav mobile layout */
+  .projects-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+  }
+
+  .projects-topbar-right {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .projects-hero {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+  }
+
+  .portfolio-summary-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .projects-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Finance & 25Y Simulator mobile balance */
+  .proj-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .stat-tile {
+    padding: 0.8rem 0.85rem;
+  }
+
+  .stat-tile-val {
+    font-size: 0.98rem;
+  }
+
+  /* Audit table & detail breakdown */
+  .detail-inner {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding: 0.85rem;
+  }
+
+  /* Modals act like sleek bottom-anchored mobile sheets */
+  .modal-overlay {
+    padding: 0.5rem;
+    align-items: flex-end;
+  }
+
+  .modal-box {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92dvh;
+    border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-sm);
+    padding: 1.1rem 1rem 1.25rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .sm-hist-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .solarman-phases-grid,
+  .solarman-flow-strip,
+  .portfolio-summary-strip,
+  .proj-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .header-actions #btn-open-new-record {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}

@@ -59,10 +59,13 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       rollupOptions: {
         output: {
-          manualChunks: { vendor: ['@supabase/supabase-js', 'chart.js'] },
+          manualChunks: {
+            'vendor-supabase': ['@supabase/supabase-js'],
+            'vendor-charts': ['chart.js'],
+          },
         },
       },
     },
-    server: { port: 7777, open: false },
+    server: { port: 6600, open: false },
   };
 });

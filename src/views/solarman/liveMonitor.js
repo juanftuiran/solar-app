@@ -1,0 +1,503 @@
+/**
+ * @module solarman/liveMonitor
+ * @description Live inverter telemetry KPIs, MPPT DC strings, AC phases, and raw parameters table.
+ */
+
+import { state } from "../../modules/state.js";
+import { fDec } from "../../modules/formatters.js";
+import { solarmanRuntime } from "../../modules/solarman.js";
+import { escapeHTML } from "../../modules/utils.js";
+import { renderHistoryChartsPanel } from "./historyChartsPanel.js";
+
+export function renderLiveMonitor(project, session, isAdmin) {
+  return _renderLiveMonitor(project, session, isAdmin);
+}
+
+export function renderLoadingState(project) {
+  return _renderLoadingState(project);
+}
+
+function _renderLiveMonitor(project, session, isAdmin) {
+  const station = solarmanRuntime.activeStation || {};
+  const devData = solarmanRuntime.deviceData || {
+    summary: {},
+    pvStrings: [],
+    acPhases: [],
+    temperatures: [],
+    rawList: [],
+  };
+  const sum = devData.summary || {};
+  const devices = solarmanRuntime.devices || [];
+
+  const colTimeSec = solarmanRuntime.lastCollectionTime || Math.floor(Date.now() / 1000);
+  const colDate = new Date(colTimeSec * 1000);
+  const colTimeStr = colDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const colDateStr = colDate.toLocaleDateString(state.lang === 'en' ? 'en-US' : 'es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  const isOnline = devData.deviceState !== 3;
+  const isOffGrid = Boolean(sum.isOffGrid || devData.isOffGrid || station.gridInterconnectionType === 'OFF_GRID' || station.gridInterconnectionType === 'ISLAND');
+  const isHybrid = !isOffGrid && Boolean(sum.systemType === 'hybrid' || sum.batterySocPct !== null);
+  const isSplitPhase = Boolean(devData.isSplitPhase || sum.isSplitPhase);
+  const tempVal = sum.mainTempC;
+  const tempClass = tempVal === null ? 'text-muted' : tempVal > 60 ? 'text-danger' : tempVal > 48 ? 'text-warning' : 'text-solar';
+
+  // In off-grid/hybrid systems, solar panels produce DC power that charges batteries and supplies inverter loads
+  const solarGenPowerW = Math.round(isOffGrid ? (sum.dcPowerW || sum.acPowerW || 0) : (sum.acPowerW || sum.dcPowerW || 0));
+  const solarGenPowerKw = solarGenPowerW / 1000;
+
+  return `
+    <div id="solarman-view" class="stack">
+      <!-- ═══ Top Control & Multi-Plant Binding Bar ═══ -->
+      <div class="card solarman-topbar">
+        <div class="solarman-topbar-left">
+          <div class="solarman-live-badge ${solarmanRuntime.justUpdatedPacket ? 'pulse-highlight' : ''}" id="sm-live-status-pill">
+            <span class="online-dot"></span>
+            <span>${session.isDemo ? 'DEMO LIVE' : isOnline ? 'SOLARMAN ONLINE' : 'STANDBY / OFFLINE'}</span>
+          </div>
+
+          <div class="solarman-plant-binding-info">
+            <div class="solarman-plant-title-row">
+              <span class="lbl">
+                <i class="fa-solid fa-link text-solar"></i>
+                <span class="lang-es">Planta Vinculada:</span>
+                <span class="lang-en">Bound Plant:</span>
+              </span>
+              <strong class="val">${escapeHTML(station.name || 'Planta Solarman')}</strong>
+              <span class="meta-chip accent" title="ID de Planta en Solarman">ID #${escapeHTML(String(station.id || ''))}</span>
+              <span class="meta-chip ${isOffGrid ? 'warning' : isHybrid ? 'ai' : 'solar'}" style="font-size:.72rem;">
+                <i class="fa-solid ${isOffGrid ? 'fa-bolt-slash' : isHybrid ? 'fa-car-battery' : 'fa-tower-observation'}"></i>
+                ${isOffGrid ? 'Off-Grid (Aislada)' : isHybrid ? 'Híbrida' : 'On-Grid'}
+              </span>
+            </div>
+            <div class="solarman-sync-meta">
+              <span>
+                <i class="fa-regular fa-clock text-accent"></i>
+                <span class="lang-es">Último reporte del inversor:</span>
+                <span class="lang-en">Last inverter packet:</span>
+                <strong id="sm-last-packet-time">${colTimeStr} (${colDateStr})</strong>
+                <span id="sm-packet-age-label" class="text-muted"></span>
+              </span>
+              <span class="sep">·</span>
+              <span id="sm-next-sync-countdown" class="text-muted">
+                <i class="fa-solid fa-rotate"></i>
+                <span class="lang-es">Sincronización automática activa</span>
+                <span class="lang-en">Auto-sync active</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="solarman-topbar-actions">
+          <!-- Device / Inverter Selector -->
+          ${devices.length > 0 ? `
+            <div class="solarman-device-select-wrap">
+              <label for="sm-device-select" class="text-xs text-muted">
+                <i class="fa-solid fa-microchip"></i>
+                <span class="lang-es">Equipo:</span><span class="lang-en">Device:</span>
+              </label>
+              <select id="sm-device-select" class="select-pill">
+                ${devices.map(d => `
+                  <option value="${escapeHTML(d.deviceSn)}" ${d.deviceSn === solarmanRuntime.activeDeviceSn ? 'selected' : ''}>
+                    ${escapeHTML(d.deviceType)}: ${escapeHTML(d.deviceSn)}
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+          ` : ''}
+
+          <!-- Button to Switch / Select Plant among account plants -->
+          <button
+            type="button"
+            id="btn-solarman-pick-station"
+            class="btn btn-ghost btn-sm"
+            title="Elegir otra planta de la cuenta Solarman para este proyecto"
+          >
+            <i class="fa-solid fa-arrows-UpDownLeftRight fa-repeat text-accent"></i>
+            <span class="lang-es">Cambiar Planta (${solarmanRuntime.stations?.length || 1})</span>
+            <span class="lang-en">Switch Plant (${solarmanRuntime.stations?.length || 1})</span>
+          </button>
+
+          <!-- Manual Refresh Button -->
+          <button
+            type="button"
+            id="btn-solarman-refresh"
+            class="btn btn-accent btn-sm"
+            ${solarmanRuntime.loading ? 'disabled' : ''}
+          >
+            <i class="fa-solid fa-arrows-rotate ${solarmanRuntime.loading ? 'spin' : ''}"></i>
+            <span class="lang-es">Actualizar Ahora</span>
+            <span class="lang-en">Refresh Now</span>
+          </button>
+
+          ${isAdmin && sum.totalEnergyKwh > 0 ? `
+            <!-- Bridge to Cloud Log Modal -->
+            <button
+              type="button"
+              id="btn-solarman-push-reading"
+              class="btn btn-solar btn-sm"
+              data-total-kwh="${sum.totalEnergyKwh}"
+              title="Pre-llenar un Nuevo Registro en el Historial Cloud con la lectura acumulada actual del inversor"
+            >
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              <span class="lang-es">Usar ${fDec(sum.totalEnergyKwh, 1)} kWh en Registro</span>
+              <span class="lang-en">Use ${fDec(sum.totalEnergyKwh, 1)} kWh in Record</span>
+            </button>
+          ` : ''}
+
+          <!-- Disconnect / Change Account -->
+          <button
+            type="button"
+            id="btn-solarman-disconnect"
+            class="btn btn-ghost btn-icon btn-sm"
+            title="Desconectar cuenta Solarman (${escapeHTML(session.email)})"
+          >
+            <i class="fa-solid fa-plug-circle-xmark text-danger"></i>
+          </button>
+        </div>
+      </div>
+
+      ${solarmanRuntime.error ? `
+        <div class="anomaly-banner warning">
+          <div class="anomaly-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div class="anomaly-content">
+            <strong><span class="lang-es">Alerta de Telemetría Solarman</span><span class="lang-en">Solarman Telemetry Alert</span></strong>
+            <p>${escapeHTML(solarmanRuntime.error)}</p>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- ═══ Primary Live KPIs (4 Cards) ═══ -->
+      <div class="kpi-grid">
+        <!-- 1. Instantaneous Solar Power -->
+        <div class="card kpi-card solar">
+          <div class="kpi-head">
+            <span class="kpi-label">
+              ${isOffGrid
+                ? `<span class="lang-es">Potencia Solar Generada (PV)</span><span class="lang-en">Solar PV Power (Live)</span>`
+                : isHybrid
+                  ? `<span class="lang-es">Potencia Solar Total (PV)</span><span class="lang-en">Total Solar Power (PV)</span>`
+                  : `<span class="lang-es">Potencia Solar Actual (AC)</span><span class="lang-en">Live Solar Power (AC)</span>`
+              }
+            </span>
+            <div class="icon-tile sm solar"><i class="fa-solid fa-solar-panel"></i></div>
+          </div>
+          <div class="kpi-value text-solar tabular-nums">
+            ${solarGenPowerW >= 1000 ? `${fDec(solarGenPowerKw, 2)} kW` : `${solarGenPowerW} W`}
+          </div>
+          <div class="solarman-cap-bar">
+            <div class="solarman-cap-bar-fill" style="width:${Math.min(100, sum.loadFactorPct || 0).toFixed(1)}%;"></div>
+          </div>
+          <div class="kpi-foot">
+            <span class="delta up">${fDec(sum.loadFactorPct || 0, 1)}% cap.</span>
+            ${isOffGrid
+              ? `<span class="text-xs text-muted">DC: ${Math.round(sum.dcPowerW || solarGenPowerW)} W · Consumo: ${Math.round(sum.loadPowerW || 0)} W</span>`
+              : `<span class="text-xs text-muted">DC: ${Math.round(sum.dcPowerW || 0)} W (${sum.inverterEfficiencyPct > 0 ? `${fDec(sum.inverterEfficiencyPct, 1)}% ef.` : 'MPPT'})</span>`
+            }
+          </div>
+        </div>
+
+        <!-- 2. Daily Energy Production -->
+        <div class="card kpi-card accent">
+          <div class="kpi-head">
+            <span class="kpi-label">
+              <span class="lang-es">Generación del Día (Hoy)</span>
+              <span class="lang-en">Daily Yield (Today)</span>
+            </span>
+            <div class="icon-tile sm accent"><i class="fa-solid fa-sun"></i></div>
+          </div>
+          <div class="kpi-value text-accent tabular-nums">
+            ${fDec(sum.dailyEnergyKwh || 0, 2)} <small style="font-size:.55em;font-weight:600;">kWh</small>
+          </div>
+          <div class="kpi-foot">
+            <span class="text-xs text-muted">
+              <i class="fa-solid fa-gauge-high text-solar"></i>
+              HSP Hoy: <strong>${sum.capacityKw > 0 ? fDec((sum.dailyEnergyKwh || 0) / sum.capacityKw, 2) : '—'} h</strong>
+            </span>
+            <span class="text-xs text-muted">Cap: ${fDec(sum.capacityKw || 0, 1)} kWp</span>
+          </div>
+        </div>
+
+        <!-- 3. Cumulative Inverter Production (Total kWh) -->
+        <div class="card kpi-card ai">
+          <div class="kpi-head">
+            <span class="kpi-label">
+              <span class="lang-es">Lectura Acumulada Inversor</span>
+              <span class="lang-en">Cumulative Inverter Yield</span>
+            </span>
+            <div class="icon-tile sm ai"><i class="fa-solid fa-microchip"></i></div>
+          </div>
+          <div class="kpi-value text-ai tabular-nums">
+            ${sum.totalEnergyKwh > 0 ? `${fDec(sum.totalEnergyKwh, 1)} <small style="font-size:.55em;font-weight:600;">kWh</small>` : '—'}
+          </div>
+          <div class="kpi-foot">
+            <span class="text-xs text-muted">SN: <strong>${escapeHTML(solarmanRuntime.activeDeviceSn || 'N/A')}</strong></span>
+            <span class="text-xs text-solar"><i class="fa-solid fa-check"></i> Odómetro Total</span>
+          </div>
+        </div>
+
+        <!-- 4. Inverter Temperature & AC Grid / Output Health -->
+        <div class="card kpi-card warning">
+          <div class="kpi-head">
+            <span class="kpi-label">
+              ${isOffGrid
+                ? `<span class="lang-es">Temperatura & Salida CA</span><span class="lang-en">Temperature & AC Output</span>`
+                : `<span class="lang-es">Temperatura & Red AC</span><span class="lang-en">Temperature & AC Grid</span>`
+              }
+            </span>
+            <div class="icon-tile sm warning"><i class="fa-solid fa-temperature-half"></i></div>
+          </div>
+          <div class="kpi-value ${tempClass} tabular-nums">
+            ${tempVal !== null ? `${fDec(tempVal, 1)} °C` : 'Normal'}
+          </div>
+          <div class="kpi-foot" style="display:flex;flex-direction:column;gap:.25rem;align-items:flex-start;">
+            <div style="display:flex;justify-content:space-between;width:100%;gap:.5rem;">
+              <span class="text-xs text-muted">
+                ${isSplitPhase
+                  ? `Salida: <strong>120/240 V Bifásico</strong>`
+                  : `VAC: <strong>${devData.acPhases?.[0]?.voltageV ? `${fDec(devData.acPhases[0].voltageV, 1)} V` : '—'}</strong>`
+                }
+              </span>
+              <span class="text-xs text-muted">
+                Frec: <strong>${devData.acPhases?.[0]?.freqHz ? `${fDec(devData.acPhases[0].freqHz, 2)} Hz` : '60 Hz'}</strong>
+              </span>
+            </div>
+            <div style="display:flex;justify-content:space-between;width:100%;gap:.5rem;font-size:.73rem;">
+              ${sum.batteryTempC !== null && sum.batteryTempC > 0
+                ? `<span class="text-ai"><i class="fa-solid fa-battery-half"></i> Batería: <strong>${fDec(sum.batteryTempC, 1)} °C</strong></span>`
+                : `<span class="${isOffGrid ? 'text-warning' : 'text-solar'}">${isOffGrid ? '⚡ Aislada / Off-Grid' : '🌐 Conectado a Red'}</span>`
+              }
+              <span class="meta-tag" style="font-size:.7rem;padding:.08rem .4rem;border-radius:var(--radius-full);background:var(--surface-3);color:var(--text-secondary);">
+                ${isOffGrid ? 'Off-Grid' : isHybrid ? 'Híbrido' : 'On-Grid'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Live Power Flow Diagram + MPPT DC Strings & AC Phases ═══ -->
+      ${renderHistoryChartsPanel(solarmanRuntime, session)}
+
+      <div class="solarman-detail-grid">
+        <!-- Left Column: MPPT Strings (DC Input) -->
+        <div class="card section-card">
+          <div class="section-head" style="margin-bottom:1rem;">
+            <div class="section-head-title">
+              <div class="icon-tile sm solar"><i class="fa-solid fa-solar-panel"></i></div>
+              <div>
+                <h3>
+                  <span class="lang-es">Telemetría de Cadenas DC (Strings MPPT)</span>
+                  <span class="lang-en">DC Strings Telemetry (MPPT Inputs)</span>
+                </h3>
+                <p>
+                  <span class="lang-es">Voltaje, corriente y potencia instantánea por entrada de paneles</span>
+                  <span class="lang-en">Live voltage, current and power per PV string input</span>
+                </p>
+              </div>
+            </div>
+            <span class="meta-chip solar">${Math.round(sum.dcPowerW || 0)} W DC</span>
+          </div>
+
+          <div class="solarman-strings-list">
+            ${devData.pvStrings.map(st => {
+              const sharePct = sum.dcPowerW > 0 ? Math.min(100, Math.round((st.powerW / sum.dcPowerW) * 100)) : 0;
+              return `
+                <div class="solarman-string-row ${st.active ? 'active' : 'idle'}">
+                  <div class="solarman-string-head">
+                    <div>
+                      <strong>${escapeHTML(st.label)}</strong>
+                      <span class="status-tag ${st.active ? 'on' : 'off'}">${st.active ? 'ACTIVO' : '0 W'}</span>
+                    </div>
+                    <div class="solarman-string-power text-solar tabular-nums">
+                      ${Math.round(st.powerW)} W <small class="text-muted">(${sharePct}%)</small>
+                    </div>
+                  </div>
+                  <div class="solarman-string-metrics">
+                    <span><i class="fa-solid fa-bolt text-accent"></i> Voltaje DC: <strong>${fDec(st.voltageV, 1)} V</strong></span>
+                    <span><i class="fa-solid fa-wave-square text-warning"></i> Corriente DC: <strong>${fDec(st.currentA, 2)} A</strong></span>
+                  </div>
+                  <div class="solarman-cap-bar" style="margin-top:.45rem;">
+                    <div class="solarman-cap-bar-fill" style="width:${sharePct}%;"></div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Right Column: AC Output Phases, Station Flow & Session History -->
+        <div class="card section-card">
+          <div class="section-head" style="margin-bottom:1rem;">
+            <div class="section-head-title">
+              <div class="icon-tile sm accent"><i class="fa-solid fa-plug-circle-check"></i></div>
+              <div>
+                <h3>
+                  ${isOffGrid
+                    ? `<span class="lang-es">Salida CA a Cargas & Flujo de Planta</span><span class="lang-en">AC Load Output & Plant Power Flow</span>`
+                    : `<span class="lang-es">Salida AC a Red & Flujo de Planta</span><span class="lang-en">AC Grid Output & Plant Power Flow</span>`
+                  }
+                </h3>
+                <p>
+                  ${isOffGrid
+                    ? `<span class="lang-es">Parámetros de micro-red aislada, consumo y respaldo de baterías</span><span class="lang-en">Off-grid microgrid parameters, consumption and battery storage</span>`
+                    : `<span class="lang-es">Parámetros eléctricos de sincronización con red y sensores térmicos</span><span class="lang-en">Grid synchronization electrical parameters and thermal sensors</span>`
+                  }
+                </p>
+              </div>
+            </div>
+            <span class="meta-chip accent">${Math.round(isOffGrid ? (sum.loadPowerW || sum.acPowerW || 0) : (sum.acPowerW || 0))} W ${isOffGrid ? 'Cargas' : 'AC'}</span>
+          </div>
+
+          <!-- AC Phases -->
+          <div class="solarman-phases-grid">
+            ${devData.acPhases.map(ph => `
+              <div class="solarman-phase-box">
+                <div class="phase-tag">Fase ${escapeHTML(ph.id)}${isSplitPhase ? ' (120V)' : ''}</div>
+                <div class="phase-val tabular-nums">${fDec(ph.voltageV, 1)} V</div>
+                <div class="phase-sub tabular-nums">${fDec(ph.currentA, 2)} A · ${ph.freqHz ? `${fDec(ph.freqHz, 2)} Hz` : '60 Hz'}</div>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- Plant Flow Summary (if meter/consumption data exists) -->
+          <div class="solarman-flow-strip" style="margin-top:1rem;">
+            <div class="flow-node">
+              <span class="lbl"><i class="fa-solid fa-sun text-solar"></i> Solar</span>
+              <strong class="val text-solar">${Math.round(sum.dcPowerW || sum.acPowerW || 0)} W</strong>
+            </div>
+            <div class="flow-node">
+              <span class="lbl"><i class="fa-solid fa-house-laptop text-accent"></i> <span class="lang-es">Consumo</span><span class="lang-en">Load</span></span>
+              <strong class="val text-accent">${sum.loadPowerW ? `${Math.round(sum.loadPowerW)} W` : '—'}</strong>
+            </div>
+            <div class="flow-node">
+              <span class="lbl"><i class="fa-solid fa-tower-observation text-warning"></i> <span class="lang-es">Red Eléctrica</span><span class="lang-en">Grid</span></span>
+              ${isOffGrid
+                ? `<strong class="val text-muted"><span class="lang-es">Aislada (Off-Grid)</span><span class="lang-en">Off-Grid (Island)</span></strong>`
+                : sum.gridPowerW > 0
+                  ? `<strong class="val text-warning">${Math.round(sum.gridPowerW)} W <small class="text-xs">(Imp.)</small></strong>`
+                  : sum.gridPowerW < 0
+                    ? `<strong class="val text-solar">${Math.round(Math.abs(sum.gridPowerW))} W <small class="text-xs">(Exp.)</small></strong>`
+                    : `<strong class="val text-muted">0 W (Sinc.)</strong>`
+              }
+            </div>
+            ${sum.batterySocPct !== null ? `
+              <div class="flow-node">
+                <span class="lbl"><i class="fa-solid fa-battery-three-quarters text-ai"></i> Batería</span>
+                <strong class="val text-ai">
+                  ${fDec(sum.batterySocPct, 0)}%
+                  ${sum.batteryPowerW > 50 ? `<small class="text-solar" title="Cargando">(+${Math.round(sum.batteryPowerW)}W)</small>` : sum.batteryPowerW < -50 ? `<small class="text-warning" title="Descargando">(-${Math.round(Math.abs(sum.batteryPowerW))}W)</small>` : ''}
+                </strong>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Recent Live Packets Log during current session -->
+          <div style="margin-top:1rem;">
+            <div class="text-xs text-muted" style="margin-bottom:.4rem;display:flex;justify-content:space-between;">
+              <span><i class="fa-solid fa-timeline"></i> <span class="lang-es">Historial de paquetes recibidos en esta sesión</span><span class="lang-en">Packets received in this session</span></span>
+              <span>${solarmanRuntime.liveHistory.length} muestras</span>
+            </div>
+            <div class="solarman-session-pills">
+              ${solarmanRuntime.liveHistory.slice(-6).reverse().map(pt => `
+                <span class="session-pt-pill">
+                  <strong>${pt.timeLabel}</strong>: <span class="text-solar">${Math.round(pt.powerW)} W</span>
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Full Inverter Parameter Explorer (dataList) ═══ -->
+      <div class="card section-card">
+        <div class="section-head" style="margin-bottom:1rem;flex-wrap:wrap;gap:.75rem;">
+          <div class="section-head-title">
+            <div class="icon-tile sm ai"><i class="fa-solid fa-list-check"></i></div>
+            <div>
+              <h3>
+                <span class="lang-es">Tabla Completa de Registros del Inversor (Solarman <code>currentData</code>)</span>
+                <span class="lang-en">Full Inverter Register Table (Solarman <code>currentData</code>)</span>
+              </h3>
+              <p>
+                <span class="lang-es">Todos los parámetros reportados por el datalogger en el último corte (${devData.rawList.length} variables)</span>
+                <span class="lang-en">All parameters reported by the datalogger in the latest packet (${devData.rawList.length} variables)</span>
+              </p>
+            </div>
+          </div>
+
+          <div style="min-width:240px;">
+            <input
+              type="search"
+              id="sm-param-search"
+              placeholder="Filtrar parámetro (ej. Voltage, Power, Temp...)"
+              style="width:100%;padding:.48rem .75rem;border-radius:var(--radius-sm);border:1px solid var(--border-medium);background:var(--bg-elevated);color:var(--text);font-size:.82rem;"
+            >
+          </div>
+        </div>
+
+        <div class="table-wrap" style="max-height:360px;overflow-y:auto;">
+          <table class="data-table" id="sm-raw-params-table">
+            <thead>
+              <tr>
+                <th><span class="lang-es">Código / Key</span><span class="lang-en">Key</span></th>
+                <th><span class="lang-es">Parámetro del Inversor</span><span class="lang-en">Inverter Parameter</span></th>
+                <th class="text-right"><span class="lang-es">Valor Reciente</span><span class="lang-en">Current Value</span></th>
+                <th><span class="lang-es">Unidad</span><span class="lang-en">Unit</span></th>
+              </tr>
+            </thead>
+            <tbody id="sm-raw-params-tbody">
+              ${devData.rawList.map(item => `
+                <tr class="sm-param-row">
+                  <td style="font-family:monospace;font-size:.76rem;color:var(--muted-light);">${escapeHTML(item.key || '—')}</td>
+                  <td class="cell-primary">${escapeHTML(item.name || item.key || '—')}</td>
+                  <td class="text-right font-bold text-solar tabular-nums">${escapeHTML(String(item.value ?? '—'))}</td>
+                  <td style="color:var(--accent);font-size:.8rem;">${escapeHTML(item.unit || '')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+
+function _renderLoadingState(project) {
+  return `
+    <div id="solarman-view" class="stack">
+      <div class="card section-card" style="text-align:center;padding:3.5rem 1.5rem;">
+        <i class="fa-solid fa-satellite-dish fa-2x spin text-solar" style="margin-bottom:1rem;"></i>
+        <h3>
+          <span class="lang-es">Sincronizando telemetría remota con Solarman Cloud...</span>
+          <span class="lang-en">Synchronizing remote telemetry with Solarman Cloud...</span>
+        </h3>
+        <p class="text-muted" style="margin-top:.4rem;">
+          <span class="lang-es">Consultando datos recientes para ${escapeHTML(project.name || 'el proyecto activo')}</span>
+          <span class="lang-en">Fetching latest values for ${escapeHTML(project.name || 'the active project')}</span>
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Event Listeners Initialization
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Bind interactive events for the Solarman view.
+ * @param {Object} callbacks
+ * @param {Function} callbacks.onConnect - Submit credentials form
+ * @param {Function} callbacks.onActivateDemo - Start demo session
+ * @param {Function} callbacks.onDisconnect - Clear session
+ * @param {Function} callbacks.onSelectStation - Bind stationId to active project
+ * @param {Function} callbacks.onOpenStationPicker - Show multi-plant selector
+ * @param {Function} callbacks.onCloseStationPicker - Cancel multi-plant selector
+ * @param {Function} callbacks.onSelectDevice - Switch inverter deviceSn
+ * @param {Function} callbacks.onManualRefresh - Force telemetry refresh now
+ * @param {Function} callbacks.onPushReadingToCloud - Pre-fill New Record modal with cumulative kWh
+ */

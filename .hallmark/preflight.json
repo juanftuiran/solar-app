@@ -1,0 +1,19 @@
+{
+  "scanned": "2026-11-11",
+  "findings": {
+    "fonts": "Host Grotesk 400/500 + Atkinson Hyperlegible Mono",
+    "palette": "OKLCH graphite ground, pale ink, amber human accent, cool instrument telemetry",
+    "motion": "CSS transitions on opacity and transform, prefers-reduced-motion fallback",
+    "spacing": "4px base scale (--space-*)",
+    "framework": "Vite 5 + Vanilla ES Modules + Chart.js + Supabase"
+  },
+  "preserve": [
+    "100% event handlers, routing, modal logic, data transformations, chart rendering, forms, i18n"
+  ],
+  "introduce": [
+    "src/tokens.css with strict OKLCH design tokens",
+    "src/base.css with Hallmark floor foundations and accessibility",
+    "Console modern-minimal technical editorial design language",
+    "src/pages/Dashboard.tsx for clean component representation"
+  ]
+}

@@ -1,0 +1,11 @@
+[
+ {
+  "mode": "redesign",
+  "scope": "app",
+  "depth": "full",
+  "theme": "console",
+  "signature": "real-time telemetry readout bar with live solar-green pulse and tabular mono numbers",
+  "prompt": "Redesign solar app dashboard: technical / editorial / minimalist sober with balanced contrast and strict accessibility",
+  "date": "2026-11-11"
+ }
+]
