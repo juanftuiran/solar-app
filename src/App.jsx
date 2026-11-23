@@ -23,6 +23,42 @@ const RecordModal = lazy(() => import('./views/dashboard/RecordModal.jsx'));
 const CsvModal = lazy(() => import('./views/dashboard/CsvModal.jsx'));
 const ExecutiveReportModal = lazy(() => import('./views/dashboard/ExecutiveReportModal.jsx'));
 
+class ViewErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.viewKey !== this.props.viewKey && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <StatePanel
+          variant="error"
+          title={this.props.errorTitle}
+          description={this.state.error?.message || this.props.errorDesc}
+          onRetry={() => {
+            this.setState({ error: null });
+            if (/chunk|dynamically imported module|loading css/i.test(String(this.state.error?.message || ''))) {
+              window.location.reload();
+            }
+          }}
+        />
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function AppRouter() {
   const { activeTab, setActiveTab, kioskMode, toggleKioskMode, selectedYear, t } = useApp();
   const { isConfigured, user, isAdmin, authReady, signOut } = useAuth();
@@ -304,28 +340,34 @@ function AppRouter() {
             />
 
             <div id="dashboard-content-area" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <Suspense fallback={<StatePanel variant="loading" />}>
-                {view === 'settings' || view === 'investments' ? (
-                  <ProjectSettingsView mode={view} />
-                ) : view === 'members' ? (
-                  <MembersView />
-                ) : view === 'solarman' ? (
-                  <SolarmanView
-                    onPushReadingToCloud={(kwh) => {
-                      setRecordModal({ open: true, mode: 'new', id: null, prefillKwh: kwh });
-                    }}
-                  />
-                ) : (
-                  <DashboardView
-                    onNavigate={handleNavigate}
-                    onOpenNewRecord={() => setRecordModal({ open: true, mode: 'new', id: null, prefillKwh: null })}
-                    onOpenEditRecord={(id) => setRecordModal({ open: true, mode: 'edit', id, prefillKwh: null })}
-                    onDeleteRecord={(id, fecha) => setDeleteTarget({ id, fecha })}
-                    onOpenCsvModal={() => setCsvModalOpen(true)}
-                    onRetryProject={() => activeState.project?.id && loadProjectData(activeState.project.id)}
-                  />
-                )}
-              </Suspense>
+              <ViewErrorBoundary
+                viewKey={view}
+                errorTitle={t('networkErrorTitle')}
+                errorDesc={t('networkErrorDesc')}
+              >
+                <Suspense fallback={<StatePanel variant="loading" />}>
+                  {view === 'settings' || view === 'investments' ? (
+                    <ProjectSettingsView mode={view} />
+                  ) : view === 'members' ? (
+                    <MembersView />
+                  ) : view === 'solarman' ? (
+                    <SolarmanView
+                      onPushReadingToCloud={(kwh) => {
+                        setRecordModal({ open: true, mode: 'new', id: null, prefillKwh: kwh });
+                      }}
+                    />
+                  ) : (
+                    <DashboardView
+                      onNavigate={handleNavigate}
+                      onOpenNewRecord={() => setRecordModal({ open: true, mode: 'new', id: null, prefillKwh: null })}
+                      onOpenEditRecord={(id) => setRecordModal({ open: true, mode: 'edit', id, prefillKwh: null })}
+                      onDeleteRecord={(id, fecha) => setDeleteTarget({ id, fecha })}
+                      onOpenCsvModal={() => setCsvModalOpen(true)}
+                      onRetryProject={() => activeState.project?.id && loadProjectData(activeState.project.id)}
+                    />
+                  )}
+                </Suspense>
+              </ViewErrorBoundary>
             </div>
 
             <footer className="app-footer">

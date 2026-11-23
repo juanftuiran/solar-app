@@ -236,18 +236,24 @@ export default function DashboardHeader({
           </button>
         )}
 
-        {project.monitoring_url && (
-          <button
-            id="btn-monitoring-link"
-            className="btn btn-ghost btn-icon"
-            type="button"
-            title={t('monitoringUrl')}
-            aria-label={t('monitoringUrl')}
-            onClick={() => window.open(project.monitoring_url, '_blank', 'noopener,noreferrer')}
-          >
-            <ExternalLink size={16} aria-hidden="true" />
-          </button>
-        )}
+        <button
+          id="btn-monitoring-link"
+          className="btn btn-ghost btn-icon"
+          type="button"
+          title={t('monitoringUrl')}
+          aria-label={t('monitoringUrl')}
+          onClick={() => {
+            const rawUrl = (project.monitoring_url || '').trim();
+            if (!rawUrl) {
+              onNavigate('settings');
+              return;
+            }
+            const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+            window.open(normalizedUrl, '_blank', 'noopener,noreferrer');
+          }}
+        >
+          <ExternalLink size={16} aria-hidden="true" />
+        </button>
 
         <button
           id="btn-dashboard-logout"

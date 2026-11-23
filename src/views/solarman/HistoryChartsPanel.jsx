@@ -80,9 +80,12 @@ export default function HistoryChartsPanel({
   const isYesterday = selectedDate === yesterdayISO;
   const isMonth = runtime.historyRange === 'month';
   const metric = runtime.historyMetric || 'power';
-  const stats = useMemo(() => computeHistoryStats(runtime), [runtime]);
-
   const points = isMonth ? (runtime.monthlyHistoryPoints || []) : (runtime.dailyHistoryPoints || []);
+  const stats = useMemo(
+    () => computeHistoryStats(runtime),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isMonth, selectedDate, runtime.dailyHistoryPoints, runtime.monthlyHistoryPoints],
+  );
 
   return (
     <div className="card section-card solarman-history-card" id="solarman-history-card">
