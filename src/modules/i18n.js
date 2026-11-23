@@ -1,15 +1,11 @@
 /**
  * @module i18n
  * Internationalization / translation system for the solar monitoring app.
- * Supports Spanish (es) and English (en). Uses state.lang to resolve keys.
+ * Supports Spanish (es) and English (en). Uses explicit language or state.lang.
  */
 
 import { state } from './state.js';
 
-/**
- * Month name arrays keyed by language code.
- * @type {{ es: string[], en: string[] }}
- */
 export const MONTHS = {
   es: [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -21,183 +17,543 @@ export const MONTHS = {
   ],
 };
 
-/**
- * All application translation strings keyed by translation key,
- * then by language code.
- * @type {Object<string, { es: string, en: string }>}
- */
 export const T = {
   // General
-  deleteConfirm:      { es: '¿Estás seguro de que deseas eliminar?', en: 'Are you sure you want to delete?' },
-  noData:             { es: 'Sin datos', en: 'No data' },
-  admin:              { es: 'Administrador', en: 'Admin' },
-  observer:           { es: 'Observador', en: 'Observer' },
-  error:              { es: 'Error', en: 'Error' },
-  saving:             { es: 'Guardando...', en: 'Saving...' },
-  connecting:         { es: 'Conectando...', en: 'Connecting...' },
+  deleteConfirm: { es: '¿Estás seguro de que deseas eliminar?', en: 'Are you sure you want to delete?' },
+  noData: { es: 'Sin datos', en: 'No data' },
+  admin: { es: 'Administrador', en: 'Admin' },
+  administrator: { es: 'Administrador', en: 'Administrator' },
+  observer: { es: 'Observador', en: 'Observer' },
+  error: { es: 'Error', en: 'Error' },
+  saving: { es: 'Guardando...', en: 'Saving...' },
+  connecting: { es: 'Conectando...', en: 'Connecting...' },
+  loading: { es: 'Cargando...', en: 'Loading...' },
+  retry: { es: 'Reintentar', en: 'Retry' },
+  close: { es: 'Cerrar', en: 'Close' },
+  notifications: { es: 'Notificaciones', en: 'Notifications' },
+  closeNotification: { es: 'Cerrar notificación', en: 'Close notification' },
+  online: { es: 'En Línea', en: 'Online' },
+  systemOnline: { es: 'Sistema En Línea', en: 'System Online' },
+  allYears: { es: 'Todos los Años', en: 'All Years' },
+  logout: { es: 'Salir', en: 'Logout' },
+  signOut: { es: 'Cerrar Sesión', en: 'Sign Out' },
+  toggleTheme: { es: 'Cambiar tema', en: 'Toggle theme' },
+  switchLanguage: { es: 'Cambiar idioma', en: 'Switch language' },
+  actions: { es: 'Acciones', en: 'Actions' },
+  action: { es: 'Acción', en: 'Action' },
 
-  // Project selection
-  selectProject:      { es: 'Seleccionar proyecto', en: 'Select project' },
-  myProjects:         { es: 'Mis proyectos', en: 'My projects' },
-  createProject:      { es: 'Crear proyecto', en: 'Create project' },
-  enterProject:       { es: 'Entrar al proyecto', en: 'Enter project' },
+  // Auth & Login
+  loginTitle: { es: 'Iniciar Sesión', en: 'Sign In' },
+  loginSubtitle: { es: 'Accede a tus plantas solares y telemetría', en: 'Access your solar plants and telemetry' },
+  email: { es: 'Correo electrónico', en: 'Email address' },
+  password: { es: 'Contraseña', en: 'Password' },
+  togglePasswordVisibility: { es: 'Mostrar u ocultar contraseña', en: 'Toggle password visibility' },
+  signInBtn: { es: 'Acceder al Sistema', en: 'Sign In' },
+  invalidCredentials: { es: 'Verifica tus credenciales', en: 'Check your credentials' },
+  sslBadge: { es: 'SSL Seguro 256-bit', en: '256-bit SSL' },
+  heroHeadlinePrefix: { es: 'Monitoreo y telemetría', en: 'High-fidelity solar' },
+  heroHeadlineAccent: { es: 'fotovoltaica de alta fidelidad', en: 'monitoring & telemetry' },
+  heroLead: {
+    es: 'Supervisa balances de red, generación solar, costos de kWh y retorno de inversión en tiempo real con estándares de ingeniería.',
+    en: 'Monitor grid balances, solar generation, kWh tariffs, and return on investment in real time with engineering standards.',
+  },
+  heroFeatIecTitle: { es: 'Estándar Solar IEC 61724', en: 'IEC 61724 Solar Standard' },
+  heroFeatIecDesc: { es: 'Rendimiento específico (kWh/kWp) y Horas Sol Pico (HSP).', en: 'Specific yield (kWh/kWp) and Peak Sun Hours (PSH).' },
+  heroFeatWlsTitle: { es: 'Pronóstico Econométrico WLS', en: 'WLS Econometric Forecast' },
+  heroFeatWlsDesc: { es: 'Modelos predictivos ponderados para anticipar aumentos en tarifa.', en: 'Weighted predictive models to anticipate tariff increases.' },
+  heroFeatRoiTitle: { es: 'Retorno de Inversión Multi-Fase', en: 'Multi-Phase Return on Investment' },
+  heroFeatRoiDesc: { es: 'Seguimiento de amortización por expansiones y capacidad añadida.', en: 'Payback tracking across expansions and added capacity.' },
+  heroFooter: { es: '© 2026 JF Solar Cloud · Plataforma de Analítica de Energía Solar', en: '© 2026 JF Solar Cloud · Solar Energy Analytics Platform' },
+  supabaseConfigMissingTitle: { es: 'Configuración de Supabase requerida', en: 'Supabase Configuration Required' },
+  supabaseConfigMissingDesc: {
+    es: 'Faltan las variables de entorno VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY. Configúralas en tu archivo .env o en las variables del despliegue para habilitar el acceso.',
+    en: 'Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variables. Configure them in your .env file or deployment environment to enable sign-in.',
+  },
+
+  // Project selection / Portfolio
+  selectProject: { es: 'Seleccionar proyecto', en: 'Select project' },
+  myProjects: { es: 'Mis proyectos', en: 'My projects' },
+  portfolio: { es: 'Portafolio', en: 'Portfolio' },
+  portfolioTitle: { es: 'Portafolio de Plantas Fotovoltaicas', en: 'Solar Power Plants Portfolio' },
+  portfolioSubtitle: {
+    es: 'Monitoreo multi-proyecto de generación solar, balances de red, valoración financiera (VPN/TIR) y retorno en tiempo real.',
+    en: 'Multi-project monitoring of solar generation, grid balances, financial valuation (NPV/IRR), and real-time ROI.',
+  },
+  createProject: { es: 'Crear proyecto', en: 'Create project' },
+  newPlant: { es: 'Nueva Planta', en: 'New Plant' },
+  newSolarProject: { es: 'Nuevo Proyecto Solar', en: 'New Solar Project' },
+  addNewPlantTile: { es: 'Agregar Nueva Planta Solar', en: 'Add New Solar Plant' },
+  createSolarProjectBtn: { es: 'Crear Proyecto Solar', en: 'Create Solar Project' },
+  projectCreated: { es: 'Proyecto creado exitosamente', en: 'Project created successfully' },
+  enterProject: { es: 'Entrar al proyecto', en: 'Enter project' },
+  openPlant: { es: 'Abrir Planta', en: 'Open Plant' },
+  plantsAndPanels: { es: 'Plantas & Paneles', en: 'Plants & Panels' },
+  installedCapacity: { es: 'Capacidad Instalada', en: 'Installed Capacity' },
+  portfolioCapital: { es: 'Capital en Portafolio', en: 'Portfolio Capital' },
+  accessLevel: { es: 'Nivel de Acceso', en: 'Access Level' },
+  searchProjectsPlaceholder: { es: 'Buscar por nombre, ubicación o inversor...', en: 'Search by name, location or inverter...' },
+  noLocation: { es: 'Sin ubicación', en: 'No location' },
+  noReadingsChip: { es: 'Sin lecturas', en: 'No readings' },
+  cloudReadingsCount: { es: '{count} lecturas cloud', en: '{count} cloud readings' },
+  peakPower: { es: 'Potencia', en: 'Peak Power' },
+  phases: { es: 'Fases', en: 'Phases' },
+  slotsCount: { es: '({count}/{max} cupos)', en: '({count}/{max} slots)' },
 
   // Project fields
-  projectName:        { es: 'Nombre del proyecto', en: 'Project name' },
-  location:           { es: 'Ubicación', en: 'Location' },
-  description:        { es: 'Descripción', en: 'Description' },
-  capacity:           { es: 'Capacidad (kW)', en: 'Capacity (kW)' },
-  panels:             { es: 'Paneles', en: 'Panels' },
-  inverter:           { es: 'Inversor', en: 'Inverter' },
-  monitoringUrl:      { es: 'URL de monitoreo', en: 'Monitoring URL' },
+  projectName: { es: 'Nombre del Proyecto', en: 'Project Name' },
+  location: { es: 'Ubicación', en: 'Location' },
+  geoLocation: { es: 'Ubicación Geográfica', en: 'Geographic Location' },
+  description: { es: 'Descripción', en: 'Description' },
+  descriptionNotes: { es: 'Descripción / Notas de la Instalación', en: 'Description / Installation Notes' },
+  capacity: { es: 'Capacidad (kW)', en: 'Capacity (kW)' },
+  nominalCapacity: { es: 'Capacidad Nominal (kWp)', en: 'Nominal Capacity (kWp)' },
+  panels: { es: 'Paneles', en: 'Panels' },
+  panelCount: { es: 'Cantidad de Paneles', en: 'Panel Count' },
+  inverter: { es: 'Inversor', en: 'Inverter' },
+  inverterModel: { es: 'Modelo del Inversor', en: 'Inverter Model' },
+  monitoringUrl: { es: 'URL Portal de Monitoreo', en: 'Monitoring URL' },
+  remoteMonitoringUrl: { es: 'URL Portal de Monitoreo Remoto', en: 'Remote Monitoring URL' },
 
   // Investment phases
-  investmentPhases:   { es: 'Fases de inversión', en: 'Investment phases' },
-  newPhase:           { es: 'Nueva fase', en: 'New phase' },
-  phaseName:          { es: 'Nombre de la fase', en: 'Phase name' },
-  phaseDescription:   { es: 'Descripción de la fase', en: 'Phase description' },
-  investmentAmount:   { es: 'Monto de inversión', en: 'Investment amount' },
-  capacityAdded:      { es: 'Capacidad agregada (kW)', en: 'Capacity added (kW)' },
-  panelsAdded:        { es: 'Paneles agregados', en: 'Panels added' },
-  startDate:          { es: 'Fecha de inicio', en: 'Start date' },
+  investmentPhases: { es: 'Fases de Inversión', en: 'Investment Phases' },
+  investmentPhasesTitle: { es: 'Fases de Inversión y Expansión (CAPEX)', en: 'Investment & Expansion Phases (CAPEX)' },
+  investmentPhasesDesc: {
+    es: 'Historial de capital desembolsado para el cálculo de amortización, VPN, TIR y retorno (ROI)',
+    en: 'Capital outlays for dynamic payback, NPV, IRR, and ROI tracking',
+  },
+  newPhase: { es: 'Nueva Fase', en: 'New Phase' },
+  newInvestmentPhase: { es: 'Nueva Fase de Inversión', en: 'New Investment Phase' },
+  editInvestmentPhase: { es: 'Editar Fase de Inversión', en: 'Edit Investment Phase' },
+  savePhase: { es: 'Guardar Fase', en: 'Save Phase' },
+  phaseCreated: { es: 'Fase de inversión creada', en: 'Investment phase created' },
+  phaseUpdated: { es: 'Fase actualizada', en: 'Phase updated' },
+  phaseDeleted: { es: 'Fase eliminada', en: 'Phase deleted' },
+  deletePhaseTitle: { es: 'Eliminar Fase de Inversión', en: 'Delete Investment Phase' },
+  deletePhaseMessage: {
+    es: '¿Estás seguro de eliminar esta fase de inversión? Afectará el cálculo de ROI y proyección.',
+    en: 'Are you sure you want to delete this phase? This will affect ROI and projection calculations.',
+  },
+  deletePhaseBtn: { es: 'Eliminar Fase', en: 'Delete Phase' },
+  phaseName: { es: 'Nombre de la Fase', en: 'Phase Name' },
+  phaseDescription: { es: 'Descripción', en: 'Description' },
+  investmentAmount: { es: 'Inversión (COP)', en: 'Investment (COP)' },
+  capacityAdded: { es: 'Capacidad Agregada (kWp)', en: 'Added Capacity (kWp)' },
+  panelsAdded: { es: 'Paneles Agregados', en: 'Added Panels' },
+  startDate: { es: 'Fecha de Inicio', en: 'Start Date' },
+  noPhasesTitle: { es: 'No hay fases de inversión registradas', en: 'No investment phases recorded' },
+  noPhasesDesc: {
+    es: 'Agrega la primera fase para calcular el retorno de inversión automáticamente.',
+    en: 'Add your first phase to calculate ROI automatically.',
+  },
+  phaseTag: { es: 'Fase {index}', en: 'Phase {index}' },
+  totalInvestedSummary: { es: 'Resumen Total de Capital Invertido', en: 'Total Invested Capital Summary' },
+  accumulatedInvestment: { es: 'Inversión Acumulada', en: 'Total Invested' },
+  totalCapacityAdded: { es: 'Potencia Total Añadida', en: 'Total Capacity Added' },
+  totalPanelsPhases: { es: 'Total Paneles Fases', en: 'Total Panels in Phases' },
 
-  // Investment totals
-  totalInvestment:    { es: 'Inversión total', en: 'Total investment' },
-  totalCapacity:      { es: 'Capacidad total', en: 'Total capacity' },
+  // Settings & Members
+  settings: { es: 'Configuración', en: 'Settings' },
+  generalSettingsTitle: { es: 'Configuración General del Proyecto', en: 'General Project Settings' },
+  generalSettingsDesc: {
+    es: 'Especificaciones técnicas y parámetros operativos del sistema fotovoltaico',
+    en: 'Technical specifications and operating parameters of the PV plant',
+  },
+  editMode: { es: 'Modo Edición', en: 'Edit Mode' },
+  readOnlyMode: { es: 'Modo Lectura', en: 'Read Only' },
+  saveSettings: { es: 'Guardar Configuración', en: 'Save Settings' },
+  settingsSaved: { es: 'Configuración guardada', en: 'Settings saved' },
+  members: { es: 'Miembros', en: 'Members' },
+  membersTitle: { es: 'Gestión de Miembros y Accesos', en: 'Members & Access Management' },
+  membersDesc: { es: 'Control de accesos y roles asignados para esta planta solar', en: 'Access control and assigned roles for this solar plant' },
+  membersCountPill: { es: '{count} Miembros', en: '{count} Members' },
+  inviteMemberTitle: { es: 'Invitar / Agregar Nuevo Miembro', en: 'Invite / Add New Member' },
+  inviteMemberDesc: {
+    es: 'Otorga permisos de visualización o administración a usuarios registrados',
+    en: 'Grant viewing or admin privileges to registered users',
+  },
+  userEmailLabel: { es: 'Correo Electrónico del Usuario', en: 'User Email Address' },
+  addMember: { es: 'Agregar Miembro', en: 'Add Member' },
+  memberAdded: { es: 'Miembro agregado exitosamente', en: 'Member added successfully' },
+  memberRemoved: { es: 'Miembro removido', en: 'Member removed' },
+  roleUpdated: { es: 'Rol actualizado', en: 'Role updated' },
+  removeMemberTitle: { es: 'Remover Miembro', en: 'Remove Member' },
+  removeMemberMsg: {
+    es: '¿Deseas revocar el acceso de este usuario al proyecto?',
+    en: "Do you want to revoke this user's access to the project?",
+  },
+  remove: { es: 'Remover', en: 'Remove' },
+  noMembersTitle: { es: 'No hay miembros registrados', en: 'No members found' },
+  noMembersDesc: {
+    es: 'Agrega usuarios con correo para otorgarles acceso de visualización o administración a esta planta solar.',
+    en: 'Add user emails to grant view or administration privileges to this solar plant.',
+  },
+  membersWithAccess: { es: 'Miembros con Acceso Asignado', en: 'Members with Assigned Access' },
+  userEmailCol: { es: 'Usuario / Correo', en: 'User / Email' },
+  assignedRoleCol: { es: 'Rol Asignado', en: 'Assigned Role' },
+  joinedCol: { es: 'Miembro Desde', en: 'Joined' },
+  roleAdminFull: { es: 'Admin (Control Total)', en: 'Admin (Full Control)' },
+  roleObserverRead: { es: 'Observer (Solo Lectura)', en: 'Observer (Read Only)' },
+  save: { es: 'Guardar', en: 'Save' },
+  cancel: { es: 'Cancelar', en: 'Cancel' },
+  delete: { es: 'Eliminar', en: 'Delete' },
+  edit: { es: 'Editar', en: 'Edit' },
+  back: { es: 'Atrás', en: 'Back' },
+  backToProjects: { es: 'Volver a proyectos', en: 'Back to projects' },
 
-  // Settings / members
-  settings:           { es: 'Configuración', en: 'Settings' },
-  members:            { es: 'Miembros', en: 'Members' },
-  addMember:          { es: 'Agregar miembro', en: 'Add member' },
-  removeMember:       { es: 'Eliminar miembro', en: 'Remove member' },
-  email:              { es: 'Correo electrónico', en: 'Email' },
-  role:               { es: 'Rol', en: 'Role' },
-  save:               { es: 'Guardar', en: 'Save' },
-  cancel:             { es: 'Cancelar', en: 'Cancel' },
-  delete:             { es: 'Eliminar', en: 'Delete' },
-  edit:               { es: 'Editar', en: 'Edit' },
-  back:               { es: 'Atrás', en: 'Back' },
-  backToProjects:     { es: 'Volver a proyectos', en: 'Back to projects' },
+  // Sidebar
+  activePlant: { es: 'Planta Activa', en: 'Active Plant' },
+  mainMenu: { es: 'Menú Principal', en: 'Main Menu' },
+  projectsSection: { es: 'Proyectos', en: 'Projects' },
+  switchPlant: { es: 'Cambiar de Planta', en: 'Switch Plant' },
+  toggleSidebar: { es: 'Alternar menú lateral', en: 'Toggle sidebar' },
 
-  // Empty states
+  // Empty & Error states
   noProjectsAssigned: { es: 'No tienes proyectos asignados', en: 'No projects assigned to you' },
-  contactAdmin:       { es: 'Contacta al administrador', en: 'Contact the administrator' },
+  noProjectsDesc: {
+    es: 'Crea tu primer proyecto solar para comenzar a monitorear la producción, balances y ahorro económico.',
+    en: 'Create your first solar project to start monitoring production, balances, and economic savings.',
+  },
+  contactAdmin: { es: 'Contacta al administrador para obtener acceso a una planta.', en: 'Contact the administrator to gain access to a plant.' },
+  networkErrorTitle: { es: 'No pudimos conectar con la base de datos', en: 'Could not connect to database' },
+  networkErrorDesc: {
+    es: 'Ocurrió un problema de red o permisos al cargar los datos. Verifica tu conexión e intenta nuevamente.',
+    en: 'A network or permission error occurred while loading data. Check your connection and try again.',
+  },
+  noProjectReadingsTitle: { es: 'Este proyecto aún no tiene lecturas', en: 'This project has no readings yet' },
+  noProjectReadingsDesc: {
+    es: 'Registra la lectura base inicial (t₀) o importa tu historial desde CSV para activar la analítica IEC 61724.',
+    en: 'Add an initial base reading (t₀) or import your CSV history to enable IEC 61724 analytics.',
+  },
 
   // Navigation / views
-  dashboard:          { es: 'Panel de control', en: 'Dashboard' },
-  projectConfig:      { es: 'Configuración del proyecto', en: 'Project configuration' },
-  memberManagement:   { es: 'Gestión de miembros', en: 'Member management' },
+  dashboard: { es: 'Dashboard', en: 'Dashboard' },
+  solarmanLive: { es: 'Monitor Solarman', en: 'Solarman Live' },
+  solarmanLiveTab: { es: 'Monitor Solarman (En Vivo)', en: 'Solarman Live Monitor' },
 
-  // KPIs
-  savingsGenerated:   { es: 'Ahorro generado', en: 'Savings generated' },
-  netGeneration:      { es: 'Generación neta', en: 'Net generation' },
-  energyIndependence: { es: 'Independencia energética', en: 'Energy independence' },
-  kwVariation:        { es: 'Variación kW', en: 'kW variation' },
-  paybackTime:        { es: 'Tiempo de retorno', en: 'Payback time' },
-  avgMonthlySavings:  { es: 'Ahorro mensual promedio', en: 'Average monthly savings' },
-
-  // Chart sections
-  energyBalance:        { es: 'Balance energético', en: 'Energy balance' },
-  kwPriceFluctuation:   { es: 'Fluctuación del precio kW', en: 'kW price fluctuation' },
-  projection25Years:    { es: 'Proyección a 25 años', en: '25-year projection' },
-  cloudLog:             { es: 'Registro en la nube', en: 'Cloud log' },
-
-  // Data entry
-  gridMeter:          { es: 'Medidor de red', en: 'Grid meter' },
-  solarInverter:      { es: 'Inversor solar', en: 'Solar inverter' },
-  costPerKw:          { es: 'Costo por kW', en: 'Cost per kW' },
-  readingDate:        { es: 'Fecha de lectura', en: 'Reading date' },
-  saveToCloud:        { es: 'Guardar en la nube', en: 'Save to cloud' },
-  syncToDb:           { es: 'Sincronizar con BD', en: 'Sync to DB' },
-
-  // Record actions
-  newRecord:          { es: 'Nuevo registro', en: 'New record' },
-  editRecord:         { es: 'Editar registro', en: 'Edit record' },
-
-  // ROI
-  roiGlobal:              { es: 'ROI Global', en: 'Global ROI' },
-  calculatedDynamically:  { es: 'Calculado dinámicamente', en: 'Dynamically calculated' },
-  investment:             { es: 'Inversión', en: 'Investment' },
-
-  // Predictive analytics
-  predictiveAnalytics:  { es: 'Analítica predictiva', en: 'Predictive analytics' },
-  kwPriceProjection:    { es: 'Proyección del precio kW', en: 'kW price projection' },
-  peakGenMonth:         { es: 'Mes de mayor generación', en: 'Peak generation month' },
-  avoidedCarbon:        { es: 'Carbono evitado', en: 'Avoided carbon' },
-
-  // Trend
-  rising:       { es: 'Alza Fuerte', en: 'Strong Rise' },
-  risingMod:    { es: 'Alza Moderada', en: 'Moderate Rise' },
-  falling:      { es: 'Baja Significativa', en: 'Significant Drop' },
-  fallingMod:   { es: 'Baja Leve', en: 'Slight Drop' },
-  equal:        { es: 'Estable', en: 'Stable' },
-
-  // Limits
-  maxProjectsReached: { es: 'Máximo de proyectos alcanzado', en: 'Maximum projects reached' },
-  limitIs20:          { es: 'El límite es de 20 proyectos', en: 'The limit is 20 projects' },
-
-  // Solar Engineering (IEC 61724 standard)
-  specificYield:         { es: 'Rendimiento Específico', en: 'Specific Yield' },
-  peakSunHours:          { es: 'Horas Sol Pico (HSP)', en: 'Peak Sun Hours (PSH)' },
-  dailyGeneration:       { es: 'Gen. Diaria Promedio', en: 'Avg Daily Generation' },
-  dailyConsumption:      { es: 'Consumo Diario Prom.', en: 'Avg Daily Usage' },
-  plantHealth:           { es: 'Estado Operativo', en: 'Plant Health' },
-  healthOptimo:          { es: 'Óptimo', en: 'Optimal' },
-  healthNormal:          { es: 'Normal', en: 'Normal' },
-  healthAttention:       { es: 'Revisar', en: 'Check' },
-  meterResetNotice:      { es: 'Reinicio Medidor Red', en: 'Grid Meter Reset' },
-  performanceRatio:      { es: 'Performance Ratio (PR)', en: 'Performance Ratio (PR)' },
+  // Header & Kiosk
+  filterByYear: { es: 'Filtrar por año', en: 'Filter by year' },
+  report: { es: 'Reporte', en: 'Report' },
+  kioskMode: { es: 'Modo Presentación', en: 'Presentation Mode' },
+  kioskActivated: { es: 'Modo Presentación Activado', en: 'Presentation Mode Activated (ESC to exit)' },
+  liveKiosk: { es: 'Kiosk en vivo', en: 'Live Kiosk' },
+  autoRotateViews: { es: 'Auto-Rotar Vistas', en: 'Auto-Rotate Views' },
+  exitPresentation: { es: 'Salir de Presentación', en: 'Exit Presentation' },
 
   // Dashboard Tabs
-  tabOverview:           { es: 'Telemetría & Balance', en: 'Telemetry & Balance' },
-  tabFinance:            { es: 'Finanzas & Retorno', en: 'Finance & ROI' },
-  tabAudit:              { es: 'Historial Cloud', en: 'Cloud Historical Log' },
+  tabOverview: { es: 'Telemetría & Balance', en: 'Telemetry & Balance' },
+  tabFinance: { es: 'Finanzas & Simulador 25A', en: 'Finance & 25Y Simulator' },
+  tabAudit: { es: 'Historial Cloud', en: 'Cloud Log' },
 
-  // Enhanced features
-  exportCsv:             { es: 'Exportar CSV', en: 'Export CSV' },
-  importCsv:             { es: 'Importar CSV', en: 'Import CSV' },
-  executiveReport:       { es: 'Reporte Ejecutivo', en: 'Executive Report' },
-  kioskMode:             { es: 'Modo Presentación', en: 'Presentation Mode' },
-  exportData:            { es: 'Exportar Datos', en: 'Export Data' },
-  searchProjects:        { es: 'Buscar proyecto por nombre, ubicación o capacidad...', en: 'Search projects by name, location or capacity...' },
-  searchRecords:         { es: 'Buscar por período, fecha o lecturas...', en: 'Search by period, date or readings...' },
-  paybackProgress:       { es: 'Progreso de Retorno de Inversión', en: 'Investment Payback Progress' },
-  recovered:             { es: 'Recuperado', en: 'Recovered' },
-  remaining:             { es: 'Restante', en: 'Remaining' },
-  treesEquivalent:       { es: 'Árboles Plantados Eq.', en: 'Equiv. Trees Planted' },
-  estimatedNextMonth:    { es: 'Ahorro Próximo Mes', en: 'Next Month Savings' },
-  livePreview:           { es: 'Vista Previa en Vivo', en: 'Live Calculation Preview' },
-  calculatedConsumption: { es: 'Consumo Red Calc.', en: 'Calc. Grid Usage' },
-  calculatedSolar:       { es: 'Gen. Solar Calc.', en: 'Calc. Solar Gen.' },
-  calculatedSavings:     { es: 'Ahorro Estimado', en: 'Estimated Savings' },
-  inverterResetNotice:   { es: 'Reinicio de Inversor', en: 'Inverter Reset' },
-  confirmTitle:          { es: 'Confirmar Acción', en: 'Confirm Action' },
-  confirmDelete:         { es: '¿Deseas eliminar este elemento permanentemente?', en: 'Do you want to permanently delete this item?' },
-  confirmBtn:            { es: 'Eliminar', en: 'Delete' },
-  cancelBtn:             { es: 'Cancelar', en: 'Cancel' },
-  systemOnline:          { es: 'Sistema En Línea', en: 'System Online' },
-  allYears:              { es: 'Todos los Años', en: 'All Years' },
-  baseReadingTag:        { es: 'Lectura Inicial Base', en: 'Initial Base Reading' },
+  // KPIs & Telemetry
+  plantHealth: { es: 'Salud Operativa', en: 'Plant Health' },
+  healthOptimo: { es: 'Óptimo', en: 'Optimal' },
+  healthNormal: { es: 'Normal', en: 'Normal' },
+  healthAttention: { es: 'Revisar', en: 'Check' },
+  specificYieldShort: { es: 'Rendimiento (Yf)', en: 'Specific Yield (Yf)' },
+  peakSunHours: { es: 'Horas Sol Pico (HSP)', en: 'Peak Sun Hours (PSH)' },
+  performanceRatio: { es: 'Performance Ratio (PR)', en: 'Performance Ratio (PR)' },
+  dailyGenRate: { es: 'Gen. Media Diaria', en: 'Daily Gen Rate' },
+  periodSavings: { es: 'Ahorro Período', en: 'Period Savings' },
+  netEconomicSavings: { es: 'Ahorro económico neto', en: 'Net economic savings' },
+  solarProduction: { es: 'Producción Solar', en: 'Solar Production' },
+  grossTotalGen: { es: 'Generación total bruta', en: 'Gross total generation' },
+  solarAutonomy: { es: 'Autonomía Solar', en: 'Solar Autonomy' },
+  last3RecordsAvg: { es: 'Promedio últimos 3 registros', en: 'Last 3 records average' },
+  gridTariffVar: { es: 'Var. Tarifa Red', en: 'Grid Tariff Var.' },
+  momFluctuation: { es: 'Fluctuación intermensual', en: 'Month-over-month fluctuation' },
+  momShort: { es: 'vs ant.', en: 'MoM' },
+  energyBalanceTitle: { es: 'Balance Energético (Red vs Solar)', en: 'Energy Balance (Grid vs Solar)' },
+  energyBalanceDesc: {
+    es: 'Comparativa mensual de energía consumida de la red vs generación fotovoltaica',
+    en: 'Monthly comparison of grid consumption vs PV production',
+  },
+  barView: { es: 'Vista de Barras', en: 'Bar View' },
+  lineView: { es: 'Vista de Líneas', en: 'Line View' },
+  energyMix: { es: 'Mix Energético', en: 'Energy Mix' },
+  cumulativeSolarShare: { es: 'Participación solar acumulada', en: 'Cumulative solar share' },
+  solarPv: { es: 'Solar Fotovoltaica', en: 'Solar PV' },
+  gridPower: { es: 'Red Eléctrica', en: 'Grid Power' },
+  totalConsumed: { es: 'Consumo Total', en: 'Total Consumed' },
+  perfHspTitle: { es: 'Rendimiento & Horas Sol Pico (HSP)', en: 'Plant Performance & Peak Sun Hours (PSH)' },
+  perfHspDesc: {
+    es: 'Estándar IEC 61724 (referencias: Óptimo 4.0, Mínimo 3.2)',
+    en: 'IEC 61724 Standard (Target: 4.0 Optimal, 3.2 Min)',
+  },
+  kwTariffFluctTitle: { es: 'Fluctuación de Tarifa kW (COP)', en: 'kW Tariff Fluctuation (COP)' },
+  kwTariffFluctDesc: {
+    es: 'Evolución del costo facturado por kWh en la red eléctrica',
+    en: 'Evolution of billed grid electricity tariff per kWh',
+  },
+
+  // Finance Tab
+  roiPanelTitle: { es: 'Retorno de Inversión & Amortización', en: 'Return on Investment & Payback' },
+  roiPanelDesc: {
+    es: 'Cálculo dinámico basado en generación solar real vs tarifas de red',
+    en: 'Dynamically calculated from real solar production vs grid tariffs',
+  },
+  activePayback: { es: 'Amortización Activa', en: 'Active Payback' },
+  amortized: { es: 'Amortizado', en: 'Amortized' },
+  paybackProgress: { es: 'Progreso de Amortización', en: 'Payback Progress' },
+  totalInvestment: { es: 'Inversión Total', en: 'Total Invested' },
+  avgMonthlySavings: { es: 'Ahorro Mensual Prom.', en: 'Avg Monthly Savings' },
+  estPaybackTime: { es: 'Tiempo Estimado', en: 'Est. Payback Time' },
+  yearsShort: { es: 'Años', en: 'Yrs' },
+  totalSaved: { es: 'Ahorro Acumulado', en: 'Total Saved' },
+  historicalPaybackCurve: {
+    es: 'Curva Histórica de Amortización vs Capital Invertido',
+    en: 'Historical Payback Curve vs Invested Capital',
+  },
+  breakevenHint: { es: 'Punto de corte = Recuperación completa', en: 'Intersection = 100% Breakeven' },
+  econometricTitle: {
+    es: 'Pronóstico Econométrico & Analítica Tarifaria',
+    en: 'Econometric Forecasting & Tariff Intelligence',
+  },
+  econometricDesc: {
+    es: 'Modelo ponderado WLS + regresión exponencial con banda de confianza 90%',
+    en: 'Weighted WLS model + exponential regression with 90% confidence band',
+  },
+  confidenceBadge: { es: 'R² {r2}% Confianza', en: 'R² {r2}% Confidence' },
+  nextMonthEstTariff: { es: 'Tarifa Estimada Próx. Mes', en: 'Next Month Est. Tariff' },
+  bandLabel: { es: 'Banda', en: 'Band' },
+  trendAndCagr: { es: 'Tendencia & Inflación (CAGR)', en: 'Trend & Inflation (CAGR)' },
+  sixMonthForecast: { es: 'Proyección a 6 Meses', en: '6-Month Forecast' },
+  midTermHorizon: { es: 'Horizonte medio plazo', en: 'Mid-term horizon' },
+  estNextMonthSavings: { es: 'Ahorro Estimado Próx. Mes', en: 'Est. Next Month Savings' },
+  basedOnExpectedGen: { es: 'Basado en producción esperada', en: 'Based on expected generation' },
+  peakHistorical: { es: 'Pico Histórico:', en: 'Peak Gen Month:' },
+  avoidedCo2Label: { es: 'CO₂ Evitado:', en: 'Avoided CO₂:' },
+  equivTrees: { es: 'Eq. {trees} árboles plantados', en: 'Eq. {trees} trees planted' },
+  simTitle: {
+    es: 'Simulador Financiero Interactivo & Proyección a 25 Años',
+    en: 'Interactive Financial Simulator & 25-Year Projection',
+  },
+  simDesc: {
+    es: 'Modelado de flujo de caja descontado (VPN / TIR / LCOE) con degradación e inflación dinámicas',
+    en: 'Discounted cashflow valuation (NPV / IRR / LCOE) with dynamic degradation & inflation',
+  },
+  annualTariffInflation: { es: 'Inflación Tarifaria Anual', en: 'Annual Tariff Inflation' },
+  annualPanelDeg: { es: 'Degradación Anual Paneles', en: 'Annual Panel Degradation' },
+  discountRateWacc: { es: 'Tasa de Descuento (WACC)', en: 'Discount Rate (WACC)' },
+  resetBase: { es: 'Base', en: 'Reset' },
+  grossSavings25y: { es: 'Ahorro Bruto 25 Años', en: '25-Yr Gross Savings' },
+  cumulativeCashflow: { es: 'Flujo acumulado', en: 'Cumulative cashflow' },
+  npvLabel: { es: 'Valor Presente Neto (VPN)', en: 'Net Present Value (NPV)' },
+  discountedAtWacc: { es: 'Descontado al WACC', en: 'Discounted at WACC' },
+  irrLabel: { es: 'Tasa Interna (TIR / IRR)', en: 'Internal Rate (IRR)' },
+  effectiveAnnualReturn: { es: 'Rentabilidad efectiva anual', en: 'Effective annual return' },
+  breakevenYear: { es: 'Punto de Equilibrio', en: 'Breakeven Year' },
+  inYearsFromStart: { es: 'En {n} años desde el inicio', en: 'In {n} years from start' },
+  beyondHorizon: { es: 'Fuera del horizonte', en: 'Beyond horizon' },
+  projected25yRoi: { es: 'ROI Proyectado 25A', en: 'Projected 25Y ROI' },
+  returnOnCapex: { es: 'Múltiplo sobre CAPEX', en: 'Return on total CAPEX' },
+  lcoeLabel: { es: 'Costo Nivelado (LCOE)', en: 'Levelized Cost (LCOE)' },
+  solarCostPerKwh: { es: 'Costo solar por kWh', en: 'Solar cost per kWh' },
+  totalGen25y: { es: 'Generación 25A', en: '25-Yr Total Gen' },
+  cleanEnergyLifetime: { es: 'Energía limpia total', en: 'Clean energy lifetime' },
+  view25yBreakdown: {
+    es: 'Ver flujo de caja detallado año por año (25 años)',
+    en: 'View detailed 25-year annual cashflow breakdown',
+  },
+  yearCol: { es: 'Año', en: 'Year' },
+  genKwhCol: { es: 'Generación (kWh)', en: 'Generation (kWh)' },
+  annualSavingsCol: { es: 'Ahorro Anual', en: 'Annual Savings' },
+  cumulatedSavingsCol: { es: 'Ahorro Acumulado', en: 'Cumulated' },
+  netBalanceCol: { es: 'Balance Neto', en: 'Net Balance' },
+
+  // Audit Tab & Modals
+  cloudHistoricalReadings: { es: 'Registro Histórico Cloud', en: 'Cloud Historical Readings' },
+  searchRecordsPlaceholder: { es: 'Buscar período o fecha...', en: 'Search period or date...' },
+  importCsv: { es: 'Importar CSV', en: 'Import CSV' },
+  periodDateCol: { es: 'Período / Fecha', en: 'Period / Date' },
+  readingsGridSolarCol: { es: 'Lecturas Red / Solar', en: 'Readings Grid / Solar' },
+  gridUsageCol: { es: 'Consumo Red', en: 'Grid Usage' },
+  solarGenCol: { es: 'Gen. Solar', en: 'Solar Gen' },
+  yieldCol: { es: 'Rendimiento (Yf)', en: 'Yield (Yf)' },
+  kwTariffCol: { es: 'Tarifa kW', en: 'kW Tariff' },
+  savingsCol: { es: 'Ahorro', en: 'Savings' },
+  noReadingsFound: { es: 'No hay registros', en: 'No readings found' },
+  noReadingsMatch: {
+    es: 'No encontramos lecturas para este período o búsqueda.',
+    en: 'No records match the current filter or search query.',
+  },
+  initialBaseReadingTag: { es: 'Lectura Inicial Base (t₀)', en: 'Initial Base Reading (t₀)' },
+  baseRefDesc: {
+    es: 'Punto de referencia inicial para el cálculo de deltas mensuales',
+    en: 'Baseline reference point for monthly delta calculations',
+  },
+  baseTariff: { es: 'Tarifa base', en: 'Base tariff' },
+  pvEfficiency: { es: 'Eficiencia Fotovoltaica (IEC 61724)', en: 'PV Efficiency (IEC 61724)' },
+  dailyBreakdown: { es: 'Desglose Diario ({days} días)', en: 'Daily Breakdown ({days} days)' },
+  ecoImpact: { es: 'Impacto Económico & Ecológico', en: 'Economic & Eco Impact' },
+  newRecord: { es: 'Nuevo Registro', en: 'New Record' },
+  newCloudRecord: { es: 'Nuevo Registro Cloud', en: 'New Cloud Record' },
+  editCloudRecord: { es: 'Editar Registro Cloud', en: 'Edit Cloud Record' },
+  readingDate: { es: 'Fecha de Lectura', en: 'Reading Date' },
+  gridReading: { es: 'Lectura Red (Medidor)', en: 'Grid Reading' },
+  solarReading: { es: 'Lectura Solar (Inversor)', en: 'Solar Reading' },
+  pricePerKw: { es: 'Precio por kW (COP)', en: 'Price per kW (COP)' },
+  inverterResetTitle: { es: 'Reinicio de inversor (Nuevo equipo solar)', en: 'Inverter reset (New solar equipment)' },
+  inverterResetDesc: {
+    es: 'Marca si cambiaste el inversor y la lectura reinició desde 0.',
+    en: 'Check if inverter was replaced and reading started from 0.',
+  },
+  meterResetTitle: { es: 'Reinicio de medidor de red (Cambio por operador)', en: 'Grid meter reset (Utility replacement)' },
+  meterResetDesc: {
+    es: 'Marca si la empresa de energía reemplazó el medidor de red.',
+    en: 'Check if utility company replaced the grid meter.',
+  },
+  liveCalcTitle: { es: 'Cálculo en tiempo real', en: 'Real-time calculation' },
+  saveToCloud: { es: 'Guardar en la Nube', en: 'Save to Cloud' },
+  recordSaved: { es: 'Registro guardado exitosamente', en: 'Record saved successfully' },
+  recordDeleted: { es: 'Registro eliminado exitosamente', en: 'Record deleted successfully' },
+  deleteRecordTitle: { es: 'Eliminar Registro Solar', en: 'Delete Solar Record' },
+  deleteRecordMsg: {
+    es: '¿Confirmas que deseas eliminar el registro de {fecha}? Esta acción recalculará los balances del período.',
+    en: 'Are you sure you want to delete the record for {fecha}? This will recalculate period balances.',
+  },
+  deleteRecordBtn: { es: 'Eliminar Registro', en: 'Delete Record' },
+
+  // CSV Modal
+  csvImportTitle: { es: 'Importar Historial desde CSV', en: 'Import Readings from CSV' },
+  csvImportHelp: {
+    es: 'Carga un archivo CSV con columnas de Fecha (YYYY-MM-DD), Lectura Red, Lectura Solar y Tarifa kW.',
+    en: 'Upload a CSV file containing Date (YYYY-MM-DD), Grid Reading, Solar Reading, and kW Tariff.',
+  },
+  downloadCsvTemplate: { es: 'Descargar Plantilla CSV', en: 'Download CSV Template' },
+  chooseCsvFile: { es: 'Seleccionar archivo .CSV', en: 'Choose .CSV file' },
+  utf8CsvHint: { es: 'Codificación UTF-8, delimitado por comas', en: 'UTF-8 encoded, comma separated' },
+  detectedRecords: { es: 'Registros detectados:', en: 'Detected records:' },
+  importAndSync: { es: 'Importar y Sincronizar con la Nube', en: 'Import & Sync to Cloud' },
+  csvExportSuccess: { es: 'Reporte CSV descargado correctamente', en: 'CSV Report downloaded successfully' },
+  csvNoData: { es: 'No hay lecturas registradas para exportar', en: 'No readings available to export' },
+  importingRecords: { es: 'Importando {count} registros...', en: 'Importing {count} records...' },
+  importedRecords: { es: '{count} registros importados exitosamente', en: '{count} records imported successfully' },
+
+  // Executive Report
+  execReportTitle: { es: 'Informe Ejecutivo de Planta Solar', en: 'Solar Plant Executive Report' },
+  printSavePdf: { es: 'Imprimir / Guardar PDF', en: 'Print / Save PDF' },
+
+  // Trend & Misc
+  gridMeter: { es: 'Medidor de red', en: 'Grid meter' },
+  solarInverter: { es: 'Inversor solar', en: 'Solar inverter' },
+  costPerKw: { es: 'Costo por kW', en: 'Cost per kW' },
+  investment: { es: 'Inversión', en: 'Investment' },
+  rising: { es: 'Alza Fuerte', en: 'Strong Rise' },
+  risingMod: { es: 'Alza Moderada', en: 'Moderate Rise' },
+  falling: { es: 'Baja Significativa', en: 'Significant Drop' },
+  fallingMod: { es: 'Baja Leve', en: 'Slight Drop' },
+  equal: { es: 'Estable', en: 'Stable' },
+  maxProjectsReached: { es: 'Máximo de proyectos alcanzado', en: 'Maximum projects reached' },
+
+  // Solarman
+  solarmanAuthTitle: { es: 'Conexión Remota con Solarman PV', en: 'Solarman PV Remote Monitoring Connection' },
+  solarmanAuthSubtitle: {
+    es: 'Ingresa tus credenciales de Solarman para vincular e inspeccionar en vivo los inversores de {project}',
+    en: 'Enter your Solarman credentials to link and inspect live inverter telemetry for {project}',
+  },
+  solarmanShaBadge: { es: 'Hash SHA-256 Seguro', en: 'Secure SHA-256 Hash' },
+  solarmanOnDemandTitle: { es: 'Credenciales Bajo Demanda', en: 'On-Demand Credentials' },
+  solarmanOnDemandDesc: {
+    es: 'Tu contraseña se convierte en hash SHA-256 localmente. El App Secret se gestiona únicamente en el servidor proxy.',
+    en: 'Your password is hashed locally via SHA-256. The App Secret is handled strictly on the proxy server.',
+  },
+  solarmanMultiPlantTitle: { es: 'Soporte Multi-Planta por Proyecto', en: 'Multi-Plant Project Binding' },
+  solarmanMultiPlantDesc: {
+    es: 'Cada proyecto de la app se vincula a su planta específica de Solarman o puedes cambiarla con un botón.',
+    en: 'Each project binds to its own Solarman station or lets you switch stations anytime.',
+  },
+  solarmanEmail: { es: 'Correo de Cuenta Solarman', en: 'Solarman Account Email' },
+  solarmanPassword: { es: 'Contraseña de Solarman', en: 'Solarman Password' },
+  solarmanRegion: { es: 'Servidor Regional Solarman', en: 'Solarman Regional Server' },
+  solarmanOrgId: { es: 'ID Organización Business (Opcional)', en: 'Business Org ID (Optional)' },
+  solarmanOrgHint: { es: 'Dejar vacío para cuentas Solarman Smart', en: 'Leave empty for Solarman Smart accounts' },
+  solarmanSessionNotice: {
+    es: 'Por seguridad, el token solo vive en la sesión actual de esta pestaña.',
+    en: 'For security, the token is kept only for this tab session.',
+  },
+  solarmanConnectBtn: { es: 'Conectar con Solarman Cloud', en: 'Connect to Solarman Cloud' },
+  solarmanDemoBtn: { es: 'Probar Modo Demo Multi-Planta', en: 'Try Multi-Plant Demo Mode' },
+  solarmanAuthErrTitle: { es: 'Error de conexión con Solarman', en: 'Solarman Connection Error' },
+  solarmanConnected: { es: 'Conectado a Solarman Cloud exitosamente', en: 'Connected to Solarman Cloud successfully' },
+  solarmanDemoActivated: {
+    es: 'Modo Demo Multi-Planta activado (actualiza cada 15s)',
+    en: 'Multi-Plant Demo Mode activated (updates every 15s)',
+  },
+  solarmanDisconnected: { es: 'Cuenta de Solarman desconectada', en: 'Solarman account disconnected' },
+  solarmanUpdated: { es: 'Telemetría de Solarman actualizada', en: 'Solarman telemetry updated' },
+  solarmanNewPacket: { es: '¡Nuevo paquete del inversor recibido desde Solarman!', en: 'New inverter packet received from Solarman!' },
+  solarmanSelectPlantFor: { es: 'Seleccionar Planta Solarman para: {project}', en: 'Select Solarman Plant for: {project}' },
+  solarmanBackToMonitor: { es: 'Volver al Monitor', en: 'Back to Monitor' },
+  solarmanSwitchAccount: { es: 'Cambiar Cuenta', en: 'Switch Account' },
+  solarmanNoStations: { es: 'No se encontraron plantas en esta cuenta', en: 'No stations found in this account' },
+  solarmanNoStationsDesc: {
+    es: 'Verifica que tu usuario tenga plantas asignadas en Solarman o cambia la región del servidor.',
+    en: 'Check that your user has assigned stations in Solarman or switch server region.',
+  },
+  solarmanBoundPlant: { es: 'Planta Vinculada:', en: 'Bound Plant:' },
+  solarmanLastPacket: { es: 'Último reporte del inversor:', en: 'Last inverter packet:' },
+  solarmanAutoSync: { es: 'Sincronización automática activa', en: 'Auto-sync active' },
+  solarmanDevice: { es: 'Equipo:', en: 'Device:' },
+  solarmanSwitchPlantBtn: { es: 'Cambiar Planta ({count})', en: 'Switch Plant ({count})' },
+  solarmanRefreshNow: { es: 'Actualizar Ahora', en: 'Refresh Now' },
+  solarmanUseInRecord: { es: 'Usar {kwh} kWh en Registro', en: 'Use {kwh} kWh in Record' },
+  solarmanSyncingTitle: {
+    es: 'Sincronizando telemetría remota con Solarman Cloud...',
+    en: 'Synchronizing remote telemetry with Solarman Cloud...',
+  },
+  solarmanSyncingDesc: {
+    es: 'Consultando datos recientes para {project}',
+    en: 'Fetching latest values for {project}',
+  },
+  solarmanHistoryTitle: { es: 'Curva de Operación & Historial del Día', en: 'Daily Telemetry & Parameter History' },
+  solarmanHistoryDesc: {
+    es: 'Explora potencia PV, consumo, batería, temperatura y voltajes de strings por fecha',
+    en: 'Inspect PV power, load, battery, inverter temperature & MPPT string voltages by date',
+  },
+  day: { es: 'Día', en: 'Day' },
+  days14: { es: '14 Días', en: '14 Days' },
+  today: { es: 'Hoy', en: 'Today' },
+  yesterday: { es: 'Ayer', en: 'Yesterday' },
+  powerW: { es: 'Potencia (W)', en: 'Power (W)' },
+  batteryTemp: { es: 'Batería & Temp', en: 'Battery & Temp' },
+  stringsV: { es: 'Strings (V)', en: 'Strings (V)' },
 };
 
 /**
- * Retrieve the translation for a given key in the current language.
- * Falls back to the key itself if no translation exists.
- * @param {string} key - Translation key (must exist in `T`)
- * @returns {string} Translated string
+ * Translate a key using an explicit language code and optional variable interpolation.
+ * @param {'es'|'en'} lang
+ * @param {string} key
+ * @param {Object<string, string|number>} [vars]
+ * @returns {string}
  */
-export function t(key) {
+export function translate(lang, key, vars = null) {
   const entry = T[key];
-  if (!entry) return key;
-  return entry[state.lang] || entry.es || key;
+  let str = entry ? (entry[lang] || entry.es || key) : key;
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) {
+      str = str.replaceAll(`{${k}}`, String(v ?? ''));
+    }
+  }
+  return str;
+}
+
+/**
+ * Retrieve the translation for a given key in the current language (`state.lang`).
+ * @param {string} key
+ * @param {Object<string, string|number>} [vars]
+ * @returns {string}
+ */
+export function t(key, vars = null) {
+  return translate(state.lang || 'es', key, vars);
 }
 
 /**
  * Get the localised month name for a 1-based month index.
  * @param {number} idx - Month index (1 = January … 12 = December)
- * @returns {string} Month name in the current language
+ * @param {'es'|'en'} [lang]
+ * @returns {string}
  */
-export function monthName(idx) {
-  const months = MONTHS[state.lang] || MONTHS.es;
+export function monthName(idx, lang = state.lang) {
+  const months = MONTHS[lang] || MONTHS.es;
   return months[(idx - 1 + 12) % 12] || '';
 }

@@ -96,19 +96,14 @@ export function renderEnergyChart(data) {
 // Energy Mix (Doughnut)
 // ---------------------------------------------------------------------------
 
-export function renderMixChart(data) {
-  const ctx = getCtx('chart-mix');
+export function renderMixChart(data, canvasOrId = 'chart-mix') {
+  const ctx = getCtx(canvasOrId);
   if (!ctx) return;
 
   const solar = data.reduce((s, d) => s + (d.prodBruta || 0), 0);
   const grid = data.reduce((s, d) => s + (d.consumoRed || 0), 0);
   const total = solar + grid;
   const share = total > 0 ? (solar / total) * 100 : 0;
-
-  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  setText('mix-solar-val', `${fDec(solar, 0)} kWh`);
-  setText('mix-grid-val', `${fDec(grid, 0)} kWh`);
-  setText('mix-total-val', `${fDec(total, 0)} kWh`);
 
   state.charts['chart-mix'] = new Chart(ctx, {
     type: 'doughnut',
@@ -404,49 +399,20 @@ export function renderPaybackChart() {
 // 25-Year Projection Chart
 // ---------------------------------------------------------------------------
 
-export function renderProjectionChart() {
-  const ctx = getCtx('chart-proyeccion');
+export function renderProjectionChart(simOverride = null, canvasOrId = 'chart-proyeccion') {
+  const ctx = getCtx(canvasOrId);
   if (!ctx) return;
 
-  const sim = calcFinancialSimulation(state.processedData, state.investments, state.simParams);
+  const sim = simOverride || calcFinancialSimulation(state.processedData, state.investments, state.simParams);
   const {
     labels,
     genData,
     savingsData,
     cumulatedSavings,
     investmentLine,
-    tableRows,
     breakevenIdx,
     breakevenYear,
-    finalCum,
-    totalGen,
-    totalInvestment,
-    roi25,
-    npv,
-    irr,
-    lcoe,
-    assumptions,
   } = sim;
-
-  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  setText('proj-total-savings', fCOP(finalCum));
-  setText('proj-breakeven', breakevenYear || '—');
-  setText('proj-breakeven-sub', breakevenYear
-    ? `${L('En', 'In')} ${breakevenIdx + 1} ${L('años desde el inicio', 'years from start')}`
-    : L('Fuera del horizonte', 'Beyond horizon'));
-  setText('proj-roi', totalInvestment > 0 ? `${roi25 > 0 ? '+' : ''}${fDec(roi25, 0)}%` : '—');
-  setText('proj-total-gen', `${compact(totalGen)} kWh`);
-  setText('proj-npv', totalInvestment > 0 ? fCOP(npv) : '—');
-  setText('proj-irr', irr !== null && irr !== undefined ? `${fDec(irr, 1)}%` : '—');
-  setText('proj-lcoe', lcoe > 0 ? `${fCOP(lcoe)}/kWh` : '—');
-
-  // Update assumption chips & slider labels
-  setText('sim-val-inflation', `${fDec(assumptions.inflation, 1)}%`);
-  setText('sim-val-degradation', `${fDec(assumptions.degradation, 2)}%`);
-  setText('sim-val-wacc', `${fDec(assumptions.discountRate, 1)}%`);
-  setText('sim-chip-deg', `${L('Deg', 'Deg')}: ${fDec(assumptions.degradation, 2)}%/${L('año', 'yr')}`);
-  setText('sim-chip-inf', `${L('Inf', 'Inf')}: ${fDec(assumptions.inflation, 1)}%/${L('año', 'yr')}`);
-  setText('sim-chip-wacc', `WACC: ${fDec(assumptions.discountRate, 1)}%`);
 
   state.charts['chart-proyeccion'] = new Chart(ctx, {
     type: 'line',
@@ -534,23 +500,6 @@ export function renderProjectionChart() {
       markerPlugin(breakevenIdx, `${L('Retorno', 'Payback')} ${breakevenYear || ''}`.trim(), C.solar),
     ],
   });
-
-  const tbody = document.getElementById('tabla-proyeccion-body');
-  if (tbody) {
-    tbody.innerHTML = tableRows
-      .map(
-        (r, i) =>
-          `<tr${i === breakevenIdx ? ' style="background:var(--solar-subtle);"' : ''}>
-            <td class="cell-primary">${r.year}${i === breakevenIdx ? ' <span class="badge-reset" style="background:var(--solar-subtle);color:var(--solar);border-color:var(--solar-glow);margin-left:var(--space-2xs);"><i class="fa-solid fa-flag-checkered"></i> ROI</span>' : ''}</td>
-            <td class="text-right" style="color:var(--ai);">${fDec(r.gen, 0)} kWh</td>
-            <td class="text-right" style="color:var(--accent);">${fCOP(r.savings)}</td>
-            <td class="text-right" style="color:var(--solar);font-weight:700;">${fCOP(r.cumSavings)}</td>
-            <td class="text-right" style="color:var(--warning);">${fCOP(r.investment)}</td>
-            <td class="text-right" style="color:${r.netPosition >= 0 ? 'var(--solar)' : 'var(--muted-light)'};font-weight:600;">${r.netPosition >= 0 ? '+' : ''}${fCOP(r.netPosition)}</td>
-          </tr>`,
-      )
-      .join('');
-  }
 }
 
 // ---------------------------------------------------------------------------

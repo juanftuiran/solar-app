@@ -12,6 +12,7 @@ import {
   setProjectStationBinding,
   setProjectDeviceBinding,
 } from "./storage.js";
+import { getAccessToken } from "../supabase.js";
 import { findSuggestedStationForProject } from "./matcher.js";
 import { parseDeviceCurrentData } from "./parser.js";
 import { buildDemoStations, populateDemoTelemetry } from "./demo.js";
@@ -23,9 +24,19 @@ let _visibilityHandler = null;
 export { callProxy, ensureValidToken };
 
 async function callProxy(payload) {
+  const supabaseJwt = await getAccessToken();
+  if (!supabaseJwt) {
+    const err = new Error('Tu sesión de Supabase expiró. Inicia sesión nuevamente.');
+    err.code = 401;
+    throw err;
+  }
+
   const res = await fetch('/api/solarman', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${supabaseJwt}`,
+    },
     body: JSON.stringify(payload),
   });
   const data = await res.json().catch(() => ({}));
@@ -39,25 +50,19 @@ async function callProxy(payload) {
 }
 
 /**
- * Authenticate with Solarman Open API and store session.
+ * Authenticate with Solarman Open API and store session in sessionStorage (token only, no secrets/hashes).
  * @param {Object} params
  * @param {string} params.email
  * @param {string} params.password
- * @param {string} [params.appId]
- * @param {string} [params.appSecret]
  * @param {'global'|'intl'} [params.region='global']
  * @param {string} [params.orgId]
- * @param {boolean} [params.remember=true]
- * @returns {Promise<Object>} Session object with access_token
+ * @returns {Promise<Object>} Session object with accessToken
  */
 export async function authenticateSolarman({
   email,
   password,
-  appId = '',
-  appSecret = '',
   region = 'global',
   orgId = '',
-  remember = true,
 }) {
   const passwordSha256 = await sha256Client(password);
 
@@ -66,8 +71,6 @@ export async function authenticateSolarman({
     region,
     email: email.trim(),
     passwordSha256,
-    appId: appId.trim(),
-    appSecret: appSecret.trim(),
     orgId: orgId ? String(orgId).trim() : undefined,
   });
 
@@ -79,17 +82,13 @@ export async function authenticateSolarman({
   const sessionObj = {
     isDemo: false,
     email: email.trim(),
-    passwordSha256,
-    appId: appId.trim(),
-    appSecret: appSecret.trim(),
     region,
     orgId: orgId ? String(orgId).trim() : '',
-    remember,
     accessToken: data.access_token,
     tokenExpiresAt: Date.now() + expiresInSec * 1000,
   };
 
-  saveSolarmanSession(sessionObj, remember);
+  saveSolarmanSession(sessionObj);
   return sessionObj;
 }
 
@@ -103,11 +102,10 @@ export function activateDemoSolarmanSession(activeProject) {
     isDemo: true,
     email: 'demo.ingenieria@solarmanpv.com',
     region: 'global',
-    remember: false,
     accessToken: 'demo_token_solarman_v4',
     tokenExpiresAt: Date.now() + 86400 * 1000,
   };
-  saveSolarmanSession(sessionObj, false);
+  saveSolarmanSession(sessionObj);
   if (activeProject?.id) {
     const demoStations = buildDemoStations(activeProject);
     setProjectStationBinding(activeProject.id, demoStations[0], demoStations[0]._defaultSn);
@@ -116,7 +114,7 @@ export function activateDemoSolarmanSession(activeProject) {
 }
 
 /**
- * Ensure we have a valid token (re-authenticating with stored SHA-256 hash if expired).
+ * Ensure we have a valid non-expired token; if expired, clear session and prompt re-auth.
  */
 async function ensureValidToken() {
   const session = getSolarmanSession();
@@ -125,18 +123,9 @@ async function ensureValidToken() {
 
   const isExpired = session.tokenExpiresAt && Date.now() > session.tokenExpiresAt - 60000;
   if (!session.accessToken || isExpired) {
-    const data = await callProxy({
-      action: 'token',
-      region: session.region || 'global',
-      email: session.email,
-      passwordSha256: session.passwordSha256,
-      appId: session.appId,
-      appSecret: session.appSecret,
-      orgId: session.orgId || undefined,
-    });
-    session.accessToken = data.access_token;
-    session.tokenExpiresAt = Date.now() + (Number(data.expires_in) || 5184000) * 1000;
-    saveSolarmanSession(session, session.remember !== false);
+    stopSolarmanLiveSync();
+    clearSolarmanSession();
+    throw new Error('Tu token de Solarman expiró. Ingresa nuevamente tu contraseña para continuar.');
   }
   return session;
 }

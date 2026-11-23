@@ -668,7 +668,7 @@ dialog.modal-dialog[open]:where(:not([data-closing]))::backdrop {
 .btn-primary,
 .btn-solar {
   background: var(--solar-strong);
-  color: #04130d;
+  color: var(--color-accent-ink);
   border-color: var(--solar-strong);
   box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
@@ -682,7 +682,7 @@ dialog.modal-dialog[open]:where(:not([data-closing]))::backdrop {
 /* Accent Cyan Button (e.g. Login Action) */
 .btn-accent {
   background: var(--accent-strong);
-  color: #04130d;
+  color: var(--color-accent-ink);
   border-color: var(--accent-strong);
   box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
@@ -865,7 +865,7 @@ dialog.modal-dialog[open]:where(:not([data-closing]))::backdrop {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--muted);
+  color: var(--text-secondary);
 }
 .sidebar-project-name,
 .sidebar-plant-name {
@@ -904,7 +904,7 @@ dialog.modal-dialog[open]:where(:not([data-closing]))::backdrop {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--muted);
+  color: var(--text-secondary);
   padding: 0.75rem 0.85rem 0.25rem;
 }
 
@@ -988,7 +988,7 @@ dialog.modal-dialog[open]:where(:not([data-closing]))::backdrop {
 }
 .sidebar-user-role {
   font-size: 0.72rem;
-  color: var(--muted);
+  color: var(--text-secondary);
 }
 
 /* Mobile Sidebar Overlay & Toggle */
@@ -1074,12 +1074,18 @@ dialog.modal-dialog[open]:where(:not([data-closing]))::backdrop {
   font-size: 0.75rem;
   color: var(--muted-light);
 }
-.header-breadcrumbs a {
+.header-breadcrumbs a,
+.header-breadcrumbs .breadcrumb-link {
   color: var(--muted-light);
   display: inline-flex;
   align-items: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
-.header-breadcrumbs a:hover {
+.header-breadcrumbs a:hover,
+.header-breadcrumbs .breadcrumb-link:hover {
   color: var(--text-strong);
 }
 .header-breadcrumbs .sep {
@@ -2079,7 +2085,7 @@ tr.expanded .row-chevron {
   place-items: center;
   font-size: 0.78rem;
   font-weight: 700;
-  color: #04130d;
+  color: var(--color-accent-ink);
   background: var(--solar-strong);
 }
 @media (max-width: 640px) {
@@ -2430,7 +2436,7 @@ tr.expanded .row-chevron {
 }
 .auth-hero-foot {
   font-size: 0.75rem;
-  color: var(--muted);
+  color: var(--text-secondary);
   padding-top: 2rem;
 }
 
@@ -2479,7 +2485,19 @@ tr.expanded .row-chevron {
   gap: 1.25rem;
   flex-wrap: wrap;
   font-size: 0.75rem;
-  color: var(--muted);
+  color: var(--text-secondary);
+}
+.auth-trust > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.auth-brand-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-strong);
+  letter-spacing: -0.02em;
+  display: block;
 }
 .auth-trust i {
   margin-right: 0.35rem;
@@ -2606,7 +2624,7 @@ tr.expanded .row-chevron {
   place-items: center;
   font-weight: 700;
   font-size: 0.78rem;
-  color: #04130d;
+  color: var(--color-accent-ink);
   background: var(--accent);
   flex-shrink: 0;
 }
@@ -2727,7 +2745,7 @@ tr.expanded .row-chevron {
   align-items: center;
   gap: 0.5rem;
   margin-top: 1.25rem;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 0.75rem;
   letter-spacing: 0.02em;
   font-weight: 500;
@@ -2956,8 +2974,8 @@ tr.expanded .row-chevron {
 
 @media print {
   body {
-    background: #ffffff !important;
-    color: #0f172a !important;
+    background: var(--print-bg) !important;
+    color: var(--print-ink) !important;
   }
   .sidebar, .app-header, .dashboard-tabs-row, .tab-pane, .app-footer, .no-print, .kiosk-bar {
     display: none !important;
@@ -2977,17 +2995,17 @@ tr.expanded .row-chevron {
     overflow: visible !important;
   }
   .exec-report-sheet {
-    background: #ffffff !important;
-    color: #0f172a !important;
+    background: var(--print-bg) !important;
+    color: var(--print-ink) !important;
     border: none !important;
     padding: 0 !important;
   }
   .exec-sheet-title, .exec-kpi-box .val, .exec-stamp-val, .exec-table td, .exec-table th {
-    color: #0f172a !important;
+    color: var(--print-ink) !important;
   }
   .exec-kpi-box {
-    border: 1px solid #cbd5e1 !important;
-    background: #f8fafc !important;
+    border: 1px solid var(--print-border) !important;
+    background: var(--print-surface) !important;
   }
 }
 
@@ -3199,4 +3217,44 @@ tr.expanded .row-chevron {
   ::view-transition-new(*) {
     animation: none !important;
   }
+}
+
+/* ── Loading Skeletons & State Panels ────────────────────────────────────── */
+.state-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.skeleton-card {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.skeleton-line {
+  height: 0.85rem;
+  border-radius: var(--radius-xs);
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+.skeleton-line.w-40 { width: 40%; height: 0.72rem; }
+.skeleton-line.w-55 { width: 55%; }
+.skeleton-line.w-70 { width: 70%; height: 1.15rem; }
+@keyframes skeletonShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line {
+    animation: none;
+  }
+}
+
+.solarman-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
 }

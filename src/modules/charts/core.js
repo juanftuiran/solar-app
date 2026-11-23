@@ -93,13 +93,15 @@ tt.caretPadding = 10;
 
 // ---------------------------------------------------------------------------
 
-function getCtx(canvasId) {
+function getCtx(canvasOrId) {
   syncChartTheme();
-  if (state.charts[canvasId]) {
-    state.charts[canvasId].destroy();
-    delete state.charts[canvasId];
+  const isEl = typeof canvasOrId !== 'string';
+  const key = isEl ? (canvasOrId?.id || 'canvas') : canvasOrId;
+  if (state.charts[key]) {
+    state.charts[key].destroy();
+    delete state.charts[key];
   }
-  const el = document.getElementById(canvasId);
+  const el = isEl ? canvasOrId : document.getElementById(canvasOrId);
   return el ? el.getContext('2d') : null;
 }
 

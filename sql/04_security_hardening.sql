@@ -1,3 +1,4 @@
+-- ⚠️ NO EJECUTAR (HISTÓRICO): consolidado en sql/05_canonical_rls.sql
 -- ============================================================================
 -- JF Solar Cloud — Security Hardening & Solar Telemetry Enhancements (v3.5)
 -- Run this in the Supabase SQL Editor

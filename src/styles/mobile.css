@@ -164,6 +164,10 @@
     z-index: 80;
     left: 1.15rem;
     top: 1.25rem;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
     box-shadow: var(--shadow-sm);
   }
 
@@ -264,7 +268,19 @@
   .header-actions .btn,
   .header-actions .select-pill,
   .header-actions .lang-btn {
-    min-height: 38px;
+    min-height: 44px;
+  }
+
+  .btn-icon,
+  .sidebar-toggle,
+  .modal-close-btn,
+  .toast-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .sidebar-nav-item {
+    min-height: 44px;
   }
 
   .kpi-grid,

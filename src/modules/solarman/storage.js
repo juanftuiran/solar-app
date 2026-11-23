@@ -3,37 +3,55 @@
  * @description Browser persistence for Solarman auth sessions and multi-plant project bindings.
  */
 
-import { AUTH_STORAGE_KEY, BINDINGS_STORAGE_KEY, solarmanRuntime, resetSolarmanRuntime } from "./runtime.js";
+import { AUTH_STORAGE_KEY, BINDINGS_STORAGE_KEY, resetSolarmanRuntime } from './runtime.js';
 
+/**
+ * Retrieve the active Solarman session from sessionStorage only.
+ * Cleans up any legacy localStorage auth payload that might contain sensitive hashes.
+ * @returns {Object|null}
+ */
 export function getSolarmanSession() {
   try {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  } catch {
+    // Ignore
+  }
+  try {
     const sessionRaw = sessionStorage.getItem(AUTH_STORAGE_KEY);
-    if (sessionRaw) return JSON.parse(sessionRaw);
-    const localRaw = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (localRaw) return JSON.parse(localRaw);
-    return null;
+    if (!sessionRaw) return null;
+    const parsed = JSON.parse(sessionRaw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return {
+      isDemo: Boolean(parsed.isDemo),
+      email: parsed.email || '',
+      region: parsed.region || 'global',
+      orgId: parsed.orgId || '',
+      accessToken: parsed.accessToken || '',
+      tokenExpiresAt: parsed.tokenExpiresAt || null,
+      updatedAt: parsed.updatedAt || null,
+    };
   } catch {
     return null;
   }
 }
 
 /**
- * Save Solarman session credentials.
+ * Save Solarman session metadata in sessionStorage only (never secrets or password hashes).
  * @param {Object} sessionData
- * @param {boolean} [remember=true]
  */
-export function saveSolarmanSession(sessionData, remember = true) {
+export function saveSolarmanSession(sessionData) {
   try {
-    const payload = JSON.stringify({
-      ...sessionData,
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    const sanitized = {
+      isDemo: Boolean(sessionData?.isDemo),
+      email: String(sessionData?.email || '').trim(),
+      region: sessionData?.region || 'global',
+      orgId: sessionData?.orgId ? String(sessionData.orgId).trim() : '',
+      accessToken: sessionData?.accessToken || '',
+      tokenExpiresAt: sessionData?.tokenExpiresAt || null,
       updatedAt: Date.now(),
-    });
-    sessionStorage.setItem(AUTH_STORAGE_KEY, payload);
-    if (remember) {
-      localStorage.setItem(AUTH_STORAGE_KEY, payload);
-    } else {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-    }
+    };
+    sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sanitized));
   } catch {
     // Ignore storage quota errors
   }
@@ -43,7 +61,6 @@ export function saveSolarmanSession(sessionData, remember = true) {
  * Disconnect and clear Solarman session credentials.
  */
 export function clearSolarmanSession() {
-  stopSolarmanLiveSync();
   try {
     sessionStorage.removeItem(AUTH_STORAGE_KEY);
     localStorage.removeItem(AUTH_STORAGE_KEY);

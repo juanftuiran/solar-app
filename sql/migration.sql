@@ -1,3 +1,4 @@
+-- ⚠️ NO EJECUTAR DIRECTAMENTE SIN APLICAR DESPUÉS sql/05_canonical_rls.sql
 -- ============================================================================
 -- JF Solar Cloud — Multi-Project Migration Script
 -- Run this in Supabase SQL Editor BEFORE using the updated app

@@ -9,18 +9,18 @@
   <meta name="description" content="JF Solar Cloud Analytics - Monitoreo multi-proyecto de energía solar en tiempo real">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script type="module" src="/src/app.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  </noscript>
+  <script type="module" src="/src/main.jsx"></script>
 </head>
 
-<body data-lang="es">
-  <!-- App container — all views render here dynamically -->
-  <div id="app">
-    <!-- Loader shown while initializing -->
+<body>
+  <div id="root">
     <div id="loader">
       <div class="loader-ring spin"></div>
-      <p class="loader-text pulse">Conectando a DB...</p>
+      <p class="loader-text pulse">Cargando JF Solar Cloud...</p>
     </div>
   </div>
 </body>

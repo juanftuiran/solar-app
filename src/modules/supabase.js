@@ -7,18 +7,35 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('[supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variables.');
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+if (!isSupabaseConfigured) {
+  console.error('[supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variables.');
 }
 
-/** @type {import('@supabase/supabase-js').SupabaseClient} */
-export const sb = createClient(
-  supabaseUrl || 'https://qoauvsouetyuqqplbfak.supabase.co',
-  supabaseAnonKey || 'sb_publishable_gPLFAn4uk3YzcbPiMbBPYA_bGRvncMz',
-);
+/** @type {import('@supabase/supabase-js').SupabaseClient|null} */
+export const sb = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
+
+function requireClient() {
+  if (!sb) {
+    throw new Error('Supabase no está configurado. Define VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.');
+  }
+  return sb;
+}
+
+/**
+ * Retrieve the current authenticated user's JWT access token for backend proxy calls.
+ * @returns {Promise<string|null>}
+ */
+export async function getAccessToken() {
+  const session = await getSession();
+  return session?.access_token || null;
+}
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -32,7 +49,8 @@ export const sb = createClient(
  */
 export async function signIn(email, password) {
   try {
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    const client = requireClient();
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
     if (error) return { user: null, error };
     return { user: data.user, error: null };
   } catch (err) {
@@ -46,6 +64,7 @@ export async function signIn(email, password) {
  * @returns {Promise<void>}
  */
 export async function signOut() {
+  if (!sb) return;
   try {
     await sb.auth.signOut();
   } catch (err) {
@@ -58,6 +77,7 @@ export async function signOut() {
  * @returns {Promise<Object|null>} Session object or null
  */
 export async function getSession() {
+  if (!sb) return null;
   try {
     const { data } = await sb.auth.getSession();
     return data?.session ?? null;
@@ -77,6 +97,7 @@ export async function getSession() {
  * @returns {Promise<'admin'|'observer'|null>}
  */
 export async function getUserRole(email) {
+  if (!sb) return null;
   try {
     const { data, error } = await sb
       .from('user_roles')
@@ -98,85 +119,104 @@ export async function getUserRole(email) {
 /**
  * Get all projects accessible to the given user.
  * Admins receive ALL projects; non-admins only those linked via `project_members` or owned.
+ * Uses `project_portfolio_stats` view to avoid downloading full telemetry tables.
  * @param {string} userId - Auth user id
  * @param {boolean} [isGlobalAdmin=false] - Whether user has global superadmin privileges
  * @returns {Promise<Array<Object>>}
  */
 export async function getUserProjects(userId, isGlobalAdmin = false) {
-  try {
-    const { data: allProjects, error: projError } = await sb
-      .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false });
+  const client = requireClient();
 
-    if (projError) {
-      console.warn('[supabase] getUserProjects – projects table error:', projError.message);
-      return [];
-    }
+  const { data: allProjects, error: projError } = await client
+    .from('projects')
+    .select('*')
+    .order('created_at', { ascending: false });
 
-    if (!allProjects || allProjects.length === 0) return [];
-
-    let accessibleProjects = [];
-
-    if (isGlobalAdmin) {
-      accessibleProjects = allProjects.map((p) => ({ ...p, _role: 'admin' }));
-    } else {
-      const { data: memberships, error: memError } = await sb
-        .from('project_members')
-        .select('project_id, role')
-        .eq('user_id', userId);
-
-      if (memError) {
-        console.warn('[supabase] getUserProjects – project_members error:', memError.message);
-      }
-
-      const memberProjectMap = new Map((memberships || []).map((m) => [m.project_id, m.role]));
-
-      accessibleProjects = allProjects
-        .filter((p) => p.owner_id === userId || memberProjectMap.has(p.id))
-        .map((p) => {
-          const role = p.owner_id === userId ? 'admin' : (memberProjectMap.get(p.id) || 'observer');
-          return { ...p, _role: role };
-        });
-    }
-
-    if (accessibleProjects.length === 0) return [];
-
-    // Enrich projects with phase counts and reading status in parallel
-    const projectIds = accessibleProjects.map((p) => p.id);
-    const [invRes, readRes] = await Promise.all([
-      sb.from('project_investments').select('project_id, investment_cop').in('project_id', projectIds),
-      sb.from('solar_readings').select('project_id, fecha').in('project_id', projectIds),
-    ]);
-
-    const invCountMap = new Map();
-    const invSumMap = new Map();
-    for (const inv of (invRes.data || [])) {
-      invCountMap.set(inv.project_id, (invCountMap.get(inv.project_id) || 0) + 1);
-      invSumMap.set(inv.project_id, (invSumMap.get(inv.project_id) || 0) + (parseFloat(inv.investment_cop) || 0));
-    }
-
-    const readCountMap = new Map();
-    const lastDateMap = new Map();
-    for (const r of (readRes.data || [])) {
-      readCountMap.set(r.project_id, (readCountMap.get(r.project_id) || 0) + 1);
-      const prevDate = lastDateMap.get(r.project_id);
-      if (!prevDate || (r.fecha && r.fecha > prevDate)) {
-        lastDateMap.set(r.project_id, r.fecha);
-      }
-    }
-
-    return accessibleProjects.map((p) => ({
-      ...p,
-      _investmentCount: invCountMap.get(p.id) || 0,
-      _totalInvested: invSumMap.get(p.id) || 0,
-      _readingCount: readCountMap.get(p.id) || 0,
-      _lastReadingDate: lastDateMap.get(p.id) || null,
-    }));
-  } catch (err) {
-    console.error('[supabase] getUserProjects error:', err);
-    return [];
+  if (projError) {
+    console.error('[supabase] getUserProjects – projects table error:', projError.message);
+    throw new Error(projError.message || 'No se pudieron cargar los proyectos.');
   }
+
+  if (!allProjects || allProjects.length === 0) return [];
+
+  let accessibleProjects = [];
+
+  if (isGlobalAdmin) {
+    accessibleProjects = allProjects.map((p) => ({ ...p, _role: 'admin' }));
+  } else {
+    const { data: memberships, error: memError } = await client
+      .from('project_members')
+      .select('project_id, role')
+      .eq('user_id', userId);
+
+    if (memError) {
+      console.warn('[supabase] getUserProjects – project_members error:', memError.message);
+    }
+
+    const memberProjectMap = new Map((memberships || []).map((m) => [m.project_id, m.role]));
+
+    accessibleProjects = allProjects
+      .filter((p) => p.owner_id === userId || memberProjectMap.has(p.id))
+      .map((p) => {
+        const role = p.owner_id === userId ? 'admin' : (memberProjectMap.get(p.id) || 'observer');
+        return { ...p, _role: role };
+      });
+  }
+
+  if (accessibleProjects.length === 0) return [];
+
+  const projectIds = accessibleProjects.map((p) => p.id);
+
+  // Prefer aggregated view `project_portfolio_stats` from sql/05_canonical_rls.sql
+  const { data: statsRows, error: statsError } = await client
+    .from('project_portfolio_stats')
+    .select('project_id, investment_count, total_invested, reading_count, last_reading_date')
+    .in('project_id', projectIds);
+
+  if (!statsError && Array.isArray(statsRows)) {
+    const statsMap = new Map(statsRows.map((row) => [row.project_id, row]));
+    return accessibleProjects.map((p) => {
+      const s = statsMap.get(p.id);
+      return {
+        ...p,
+        _investmentCount: Number(s?.investment_count) || 0,
+        _totalInvested: Number(s?.total_invested) || 0,
+        _readingCount: Number(s?.reading_count) || 0,
+        _lastReadingDate: s?.last_reading_date || null,
+      };
+    });
+  }
+
+  // Fallback when `project_portfolio_stats` has not been applied yet in Supabase
+  const [invRes, readRes] = await Promise.all([
+    client.from('project_investments').select('project_id, investment_cop').in('project_id', projectIds),
+    client.from('solar_readings').select('project_id, fecha').in('project_id', projectIds),
+  ]);
+
+  const invCountMap = new Map();
+  const invSumMap = new Map();
+  for (const inv of (invRes.data || [])) {
+    invCountMap.set(inv.project_id, (invCountMap.get(inv.project_id) || 0) + 1);
+    invSumMap.set(inv.project_id, (invSumMap.get(inv.project_id) || 0) + (parseFloat(inv.investment_cop) || 0));
+  }
+
+  const readCountMap = new Map();
+  const lastDateMap = new Map();
+  for (const r of (readRes.data || [])) {
+    readCountMap.set(r.project_id, (readCountMap.get(r.project_id) || 0) + 1);
+    const prevDate = lastDateMap.get(r.project_id);
+    if (!prevDate || (r.fecha && r.fecha > prevDate)) {
+      lastDateMap.set(r.project_id, r.fecha);
+    }
+  }
+
+  return accessibleProjects.map((p) => ({
+    ...p,
+    _investmentCount: invCountMap.get(p.id) || 0,
+    _totalInvested: invSumMap.get(p.id) || 0,
+    _readingCount: readCountMap.get(p.id) || 0,
+    _lastReadingDate: lastDateMap.get(p.id) || null,
+  }));
 }
 
 /**
@@ -434,21 +474,17 @@ export async function getUserProjectRole(projectId, userId) {
  * @returns {Promise<Array<Object>>}
  */
 export async function getProjectInvestments(projectId) {
-  try {
-    const { data, error } = await sb
-      .from('project_investments')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('start_date', { ascending: true });
-    if (error) {
-      console.warn('[supabase] getProjectInvestments error:', error.message);
-      return [];
-    }
-    return data || [];
-  } catch (err) {
-    console.error('[supabase] getProjectInvestments error:', err);
-    return [];
+  const client = requireClient();
+  const { data, error } = await client
+    .from('project_investments')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('start_date', { ascending: true });
+  if (error) {
+    console.error('[supabase] getProjectInvestments error:', error.message);
+    throw new Error(error.message || 'No se pudieron cargar las fases de inversión.');
   }
+  return data || [];
 }
 
 /**
@@ -535,23 +571,19 @@ export async function deleteInvestment(investmentId) {
  * @returns {Promise<Array<Object>>}
  */
 export async function fetchProjectReadings(projectId) {
-  try {
-    const { data, error } = await sb
-      .from('solar_readings')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('year', { ascending: true })
-      .order('monthIdx', { ascending: true })
-      .order('fecha', { ascending: true });
-    if (error) {
-      console.error('[supabase] fetchProjectReadings error:', error);
-      return [];
-    }
-    return data || [];
-  } catch (err) {
-    console.error('[supabase] fetchProjectReadings error:', err);
-    return [];
+  const client = requireClient();
+  const { data, error } = await client
+    .from('solar_readings')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('year', { ascending: true })
+    .order('monthIdx', { ascending: true })
+    .order('fecha', { ascending: true });
+  if (error) {
+    console.error('[supabase] fetchProjectReadings error:', error);
+    throw new Error(error.message || 'No se pudieron cargar las lecturas solares.');
   }
+  return data || [];
 }
 
 /**

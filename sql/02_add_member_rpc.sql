@@ -1,3 +1,4 @@
+-- ⚠️ NO EJECUTAR (HISTÓRICO): reemplazado por sql/05_canonical_rls.sql
 -- Función segura para agregar miembros buscando su user_id por email.
 -- Debes ejecutar esto en el SQL Editor de Supabase.
 

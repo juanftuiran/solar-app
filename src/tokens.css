@@ -126,6 +126,12 @@
   --color-warn: var(--warning);
   --color-bad: var(--danger);
   --color-focus: var(--border-focus);
+
+  /* Print Tokens */
+  --print-bg: #ffffff;
+  --print-ink: #0f172a;
+  --print-surface: #f8fafc;
+  --print-border: #cbd5e1;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -213,4 +219,10 @@
   --color-warn: var(--warning);
   --color-bad: var(--danger);
   --color-focus: var(--border-focus);
+
+  /* Print Tokens */
+  --print-bg: #ffffff;
+  --print-ink: #0f172a;
+  --print-surface: #f8fafc;
+  --print-border: #cbd5e1;
 }

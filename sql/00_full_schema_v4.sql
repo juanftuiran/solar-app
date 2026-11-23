@@ -1,4 +1,9 @@
 -- =============================================================================
+-- ⚠️ NO EJECUTAR (HISTÓRICO / NO APLICABLE)
+-- Este archivo describe un esquema alternativo (`solar_projects`, roles
+-- `owner`/`editor`/`viewer`) que NO coincide con la aplicación actual.
+-- Usa `sql/05_canonical_rls.sql` como script canónico.
+-- =============================================================================
 -- JF SOLAR ENTERPRISE v4.0 — CONSOLIDATED IDEMPOTENT SCHEMA & RLS
 -- =============================================================================
 -- Safe to run on both fresh Supabase databases and existing v2/v3 installations.
