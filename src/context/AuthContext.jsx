@@ -18,21 +18,11 @@ export function AuthProvider({ children }) {
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
   const [authError, setAuthError] = useState(null);
 
-  const hydrateUser = useCallback(async (sessionUser) => {
-    if (!sessionUser) {
-      state.user = null;
-      state.isAdmin = false;
-      setUser(null);
-      setIsAdmin(false);
-      return null;
-    }
-    const role = await getUserRole(sessionUser.email);
-    const admin = role === 'admin';
+  const applyUserState = useCallback((sessionUser, adminFlag) => {
     state.user = sessionUser;
-    state.isAdmin = admin;
+    state.isAdmin = adminFlag;
     setUser(sessionUser);
-    setIsAdmin(admin);
-    return { user: sessionUser, isAdmin: admin };
+    setIsAdmin(adminFlag);
   }, []);
 
   useEffect(() => {
@@ -42,11 +32,32 @@ export function AuthProvider({ children }) {
     }
 
     let cancelled = false;
+
+    // IMPORTANT: Never await Supabase DB queries inside onAuthStateChange in supabase-js v2;
+    // doing so deadlocks getSession()/signInWithPassword() on the internal auth lock.
+    const { data: listener } = sb.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      const nextUser = session?.user || null;
+      state.user = nextUser;
+      setUser(nextUser);
+      if (!nextUser) {
+        state.isAdmin = false;
+        setIsAdmin(false);
+      }
+    });
+
     (async () => {
       try {
         const session = await getSession();
-        if (!cancelled) {
-          await hydrateUser(session?.user || null);
+        if (cancelled) return;
+        const sessionUser = session?.user || null;
+        if (sessionUser) {
+          const role = await getUserRole(sessionUser.email);
+          if (!cancelled) {
+            applyUserState(sessionUser, role === 'admin');
+          }
+        } else {
+          applyUserState(null, false);
         }
       } catch (err) {
         if (!cancelled) {
@@ -57,16 +68,27 @@ export function AuthProvider({ children }) {
       }
     })();
 
-    const { data: listener } = sb.auth.onAuthStateChange(async (_event, session) => {
-      if (cancelled) return;
-      await hydrateUser(session?.user || null);
-    });
-
     return () => {
       cancelled = true;
       listener?.subscription?.unsubscribe?.();
     };
-  }, [hydrateUser]);
+  }, [applyUserState]);
+
+  // Keep global admin flag synced if user changes via auth event after mount
+  useEffect(() => {
+    if (!authReady || !user?.email) return undefined;
+    let cancelled = false;
+    getUserRole(user.email).then((role) => {
+      if (!cancelled) {
+        const admin = role === 'admin';
+        state.isAdmin = admin;
+        setIsAdmin(admin);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, user?.email]);
 
   const signIn = useCallback(async (email, password) => {
     setAuthError(null);
@@ -74,16 +96,18 @@ export function AuthProvider({ children }) {
     if (result.error || !result.user) {
       return { user: null, error: result.error || new Error('Invalid credentials') };
     }
-    const hydrated = await hydrateUser(result.user);
-    return { user: hydrated?.user || result.user, isAdmin: hydrated?.isAdmin || false, error: null };
-  }, [hydrateUser]);
+    const role = await getUserRole(result.user.email);
+    const admin = role === 'admin';
+    applyUserState(result.user, admin);
+    return { user: result.user, isAdmin: admin, error: null };
+  }, [applyUserState]);
 
   const signOut = useCallback(async () => {
     stopSolarmanLiveSync();
     clearSolarmanSession();
     await sbSignOut();
-    await hydrateUser(null);
-  }, [hydrateUser]);
+    applyUserState(null, false);
+  }, [applyUserState]);
 
   const value = useMemo(() => ({
     isConfigured: isSupabaseConfigured,
