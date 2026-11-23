@@ -13,6 +13,7 @@ import { renderDataTable, renderTableRows } from "./dashboard/auditTab.js";
 import { renderRecordModal, bindModalLivePreview } from "./dashboard/recordModal.js";
 import { renderCsvImportModal, bindCsvImporter } from "./dashboard/csvModal.js";
 import { renderExecutiveReportModal, openExecutiveReportModal } from "./dashboard/executiveReport.js";
+import { closeDialog } from "../components/modal.js";
 
 export { renderTableRows, openExecutiveReportModal };
 
@@ -288,18 +289,9 @@ export function init(callbacks) {
 
   // Close record modal
   const closeRecordBtn = document.getElementById('close-record-modal');
-  if (closeRecordBtn) {
-    closeRecordBtn.addEventListener('click', () => {
-      document.getElementById('add-record-modal')?.classList.add('hidden');
-    });
-  }
   const recordModal = document.getElementById('add-record-modal');
-  if (recordModal) {
-    recordModal.addEventListener('click', (e) => {
-      if (e.target.id === 'add-record-modal') {
-        recordModal.classList.add('hidden');
-      }
-    });
+  if (closeRecordBtn && recordModal) {
+    closeRecordBtn.addEventListener('click', () => closeDialog(recordModal));
   }
 
   // Segmented Chart Toggle buttons

@@ -17,6 +17,10 @@ function loadPrefs() {
 }
 
 const savedPrefs = loadPrefs();
+const systemThemeQuery = typeof window !== 'undefined' && window.matchMedia
+  ? window.matchMedia('(prefers-color-scheme: dark)')
+  : null;
+const initialTheme = savedPrefs.theme || (systemThemeQuery && !systemThemeQuery.matches ? 'light' : 'dark');
 
 /** @type {Object} Mutable application state */
 export const state = {
@@ -27,7 +31,9 @@ export const state = {
   /** @type {'es'|'en'} Active UI language */
   lang: savedPrefs.lang || 'es',
   /** @type {'dark'|'light'} Active UI color theme */
-  theme: savedPrefs.theme || 'dark',
+  theme: initialTheme,
+  /** @type {boolean} Whether user explicitly chose a theme override */
+  hasManualTheme: Boolean(savedPrefs.theme),
 
   // Multi-project
   /** @type {Array<Object>} All projects the user can access */

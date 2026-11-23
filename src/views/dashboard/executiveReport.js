@@ -7,16 +7,17 @@ import { state } from "../../modules/state.js";
 import { fCOP, fDec, fKwh, fPct, fYield, fHsp } from "../../modules/formatters.js";
 import { calcFinancialSimulation, calcKPIs, calcProjections } from "../../modules/analytics.js";
 import { escapeHTML } from "../../modules/utils.js";
+import { openDialog, closeDialog } from "../../components/modal.js";
 
 export function renderExecutiveReportModal() { return _renderExecutiveReportModal(); }
 
 function _renderExecutiveReportModal() {
   return `
-    <div id="exec-report-modal" class="modal-overlay hidden">
+    <dialog id="exec-report-modal" class="modal-dialog" closedby="any" aria-labelledby="exec-report-modal-title">
       <div class="modal-box exec-report-modal-box">
         <div class="modal-header no-print">
-          <h2 class="modal-title">
-            <div class="icon-tile sm solar"><i class="fa-solid fa-file-pdf"></i></div>
+          <h2 class="modal-title" id="exec-report-modal-title">
+            <div class="icon-tile sm solar" aria-hidden="true"><i class="fa-solid fa-file-pdf"></i></div>
             <div>
               <span class="lang-es">Informe Ejecutivo de Planta Solar</span>
               <span class="lang-en">Solar Plant Executive Report</span>
@@ -24,18 +25,18 @@ function _renderExecutiveReportModal() {
           </h2>
           <div style="display:flex;align-items:center;gap:.5rem;">
             <button id="btn-print-exec-report" type="button" class="btn btn-solar btn-sm">
-              <i class="fa-solid fa-print"></i>
+              <i class="fa-solid fa-print" aria-hidden="true"></i>
               <span class="lang-es">Imprimir / Guardar PDF</span>
               <span class="lang-en">Print / Save PDF</span>
             </button>
-            <button id="close-exec-report-modal" class="modal-close-btn" type="button" aria-label="Close">
-              <i class="fa-solid fa-xmark"></i>
+            <button id="close-exec-report-modal" class="modal-close-btn" type="button" aria-label="Cerrar">
+              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
           </div>
         </div>
         <div id="exec-report-content"></div>
       </div>
-    </div>
+    </dialog>
   `;
 }
 
@@ -181,10 +182,10 @@ export function openExecutiveReportModal() {
     </div>
   `;
 
-  modal.classList.remove('hidden');
+  openDialog(modal);
 
   document.getElementById('close-exec-report-modal')?.addEventListener('click', () => {
-    modal.classList.add('hidden');
+    closeDialog(modal);
   });
   document.getElementById('btn-print-exec-report')?.addEventListener('click', () => {
     window.print();

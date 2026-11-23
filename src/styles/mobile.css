@@ -43,7 +43,7 @@
   font-size: 0.82rem;
   font-weight: 600;
   color-scheme: dark;
-  transition: border-color var(--t-fast);
+  transition: border-color var(--transition-fast);
 }
 
 :root[data-theme="light"] .sm-date-input {
@@ -421,6 +421,13 @@
   }
 
   /* Modals act like sleek bottom-anchored mobile sheets */
+  dialog.modal-dialog {
+    margin: auto 0.5rem 0.5rem;
+    width: calc(100vw - 1rem);
+    max-width: calc(100vw - 1rem);
+    max-height: 92dvh;
+  }
+
   .modal-overlay {
     padding: 0.5rem;
     align-items: flex-end;

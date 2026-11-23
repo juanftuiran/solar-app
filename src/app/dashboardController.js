@@ -28,7 +28,7 @@ import {
   CHART_COLORS,
 } from "../modules/charts.js";
 import { renderTableRows } from "../views/dashboardView.js";
-import { showConfirmModal } from "../components/modal.js";
+import { showConfirmModal, openDialog, closeDialog } from "../components/modal.js";
 import { showToast, setText } from "./ui.js";
 
 export async function reloadProjectData() {
@@ -182,7 +182,7 @@ function _setDeltaBadge(elId, val, invertColors = false, suffix = '%') {
   const el = document.getElementById(elId);
   if (!el) return;
   if (val === null || val === undefined || Number.isNaN(val)) {
-    el.innerHTML = '';
+    el.replaceChildren();
     return;
   }
   const num = parseFloat(val);
@@ -205,7 +205,7 @@ function _renderAnomalyAlerts(alerts) {
   if (!container) return;
   if (!alerts || alerts.length === 0) {
     container.classList.add('hidden');
-    container.innerHTML = '';
+    container.replaceChildren();
     return;
   }
   container.classList.remove('hidden');
@@ -352,7 +352,7 @@ export function openRecordModal(action = 'new', id = null) {
   }
 
   document.getElementById('new-lectura-red')?.dispatchEvent(new Event('input'));
-  modal.classList.remove('hidden');
+  openDialog(modal);
 }
 
 export async function handleSaveRecord(dataOrEvent) {
@@ -386,7 +386,7 @@ export async function handleSaveRecord(dataOrEvent) {
   try {
     const result = await upsertRecord(rec);
     if (!result) throw new Error('Error al guardar registro en la BD.');
-    document.getElementById('add-record-modal')?.classList.add('hidden');
+    await closeDialog(document.getElementById('add-record-modal'));
     await reloadProjectData();
     renderDashboardData();
     showToast(state.lang === 'es' ? 'Registro guardado exitosamente' : 'Record saved successfully', 'success');

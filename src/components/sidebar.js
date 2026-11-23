@@ -25,8 +25,9 @@ export function renderSidebar(activeView) {
         class="sidebar-nav-item ${isActive ? 'active' : ''}"
         data-view="${item.id}"
         type="button"
+        ${isActive ? 'aria-current="page"' : ''}
       >
-        <i class="fa-solid ${item.icon}"></i>
+        <i class="fa-solid ${item.icon}" aria-hidden="true"></i>
         <span class="lang-es">${item.labelEs}</span>
         <span class="lang-en">${item.labelEn}</span>
       </button>
@@ -39,9 +40,11 @@ export function renderSidebar(activeView) {
       id="sidebar-toggle"
       class="sidebar-toggle"
       type="button"
-      aria-label="Toggle sidebar"
+      aria-label="Alternar menú lateral"
+      aria-expanded="false"
+      aria-controls="sidebar-panel"
     >
-      <i class="fa-solid fa-bars" id="sidebar-toggle-icon"></i>
+      <i class="fa-solid fa-bars" id="sidebar-toggle-icon" aria-hidden="true"></i>
     </button>
 
     <!-- Mobile overlay -->
@@ -133,6 +136,7 @@ export function initSidebar(onNavigate) {
     toggle.addEventListener('click', () => {
       const isOpen = panel.classList.toggle('sidebar--open');
       overlay?.classList.toggle('visible', isOpen);
+      toggle.setAttribute('aria-expanded', String(isOpen));
       const icon = document.getElementById('sidebar-toggle-icon');
       if (icon) {
         icon.className = isOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars';
@@ -148,9 +152,11 @@ export function initSidebar(onNavigate) {
 function _closeMobileSidebar() {
   const panel = document.getElementById('sidebar-panel');
   const overlay = document.getElementById('sidebar-overlay');
+  const toggle = document.getElementById('sidebar-toggle');
   const icon = document.getElementById('sidebar-toggle-icon');
   if (panel) panel.classList.remove('sidebar--open');
   if (overlay) overlay.classList.remove('visible');
+  if (toggle) toggle.setAttribute('aria-expanded', 'false');
   if (icon) icon.className = 'fa-solid fa-bars';
 }
 

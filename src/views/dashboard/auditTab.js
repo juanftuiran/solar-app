@@ -29,11 +29,11 @@ export function renderTableRows(data, isAdmin = false, baseRecord = null) {
       ? `
         <td style="text-align:center;">
           <div class="cell-actions">
-            <button class="edit-btn btn btn-ghost btn-xs btn-icon" data-id="${baseRecord.id}" title="Editar lectura base">
-              <i class="fa-solid fa-pen"></i>
+            <button class="edit-btn btn btn-ghost btn-xs btn-icon" data-id="${baseRecord.id}" title="Editar lectura base" aria-label="Editar lectura base">
+              <i class="fa-solid fa-pen" aria-hidden="true"></i>
             </button>
-            <button class="del-btn btn btn-danger-outline btn-xs btn-icon" data-id="${baseRecord.id}" data-fecha="${baseRecord.fecha}" title="Eliminar lectura base">
-              <i class="fa-solid fa-trash"></i>
+            <button class="del-btn btn btn-danger-outline btn-xs btn-icon" data-id="${baseRecord.id}" data-fecha="${baseRecord.fecha}" title="Eliminar lectura base" aria-label="Eliminar lectura base">
+              <i class="fa-solid fa-trash" aria-hidden="true"></i>
             </button>
           </div>
         </td>
@@ -89,11 +89,11 @@ export function renderTableRows(data, isAdmin = false, baseRecord = null) {
       ? `
         <td style="text-align:center;">
           <div class="cell-actions">
-            <button class="edit-btn btn btn-ghost btn-xs btn-icon" data-id="${row.id}" title="Editar">
-              <i class="fa-solid fa-pen"></i>
+            <button class="edit-btn btn btn-ghost btn-xs btn-icon" data-id="${row.id}" title="Editar" aria-label="Editar lectura ${row.fecha}">
+              <i class="fa-solid fa-pen" aria-hidden="true"></i>
             </button>
-            <button class="del-btn btn btn-danger-outline btn-xs btn-icon" data-id="${row.id}" data-fecha="${row.fecha}" title="Eliminar">
-              <i class="fa-solid fa-trash"></i>
+            <button class="del-btn btn btn-danger-outline btn-xs btn-icon" data-id="${row.id}" data-fecha="${row.fecha}" title="Eliminar" aria-label="Eliminar lectura ${row.fecha}">
+              <i class="fa-solid fa-trash" aria-hidden="true"></i>
             </button>
           </div>
         </td>

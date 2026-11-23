@@ -648,7 +648,7 @@ export function calcKPIs(viewData, allData, investments, plantCapacityKw = null)
 
   if (!viewData || viewData.length === 0) return defaults;
 
-  const sortedViewData = [...viewData].sort((a, b) => {
+  const sortedViewData = viewData.toSorted((a, b) => {
     if (a.year !== b.year) return a.year - b.year;
     if ((a.monthIdx || 0) !== (b.monthIdx || 0)) return (a.monthIdx || 0) - (b.monthIdx || 0);
     return (a.fecha || '').localeCompare(b.fecha || '');

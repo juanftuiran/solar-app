@@ -6,6 +6,7 @@
 
 import { state } from '../modules/state.js';
 import { renderTimeline } from '../components/investmentTimeline.js';
+import { openDialog, closeDialog } from '../components/modal.js';
 
 /**
  * Render the project settings or investments page HTML.
@@ -225,16 +226,16 @@ export function render(mode = state.currentView || 'settings') {
       ${isInvestmentsFocus ? investmentsCardHTML + settingsCardHTML : settingsCardHTML + investmentsCardHTML}
 
       <!-- ═══ Add/Edit Phase Modal ═══ -->
-      <div id="phase-modal" class="modal-overlay hidden">
+      <dialog id="phase-modal" class="modal-dialog" closedby="any" aria-labelledby="phase-modal-title">
         <div class="modal-box" style="max-width:28rem;">
           <div class="modal-header">
-            <h2 class="modal-title">
-              <div class="icon-tile sm solar"><i class="fa-solid fa-layer-group"></i></div>
+            <h2 class="modal-title" id="phase-modal-title">
+              <div class="icon-tile sm solar" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></div>
               <span class="lang-es" id="phase-modal-title-es">Nueva Fase de Inversión</span>
               <span class="lang-en" id="phase-modal-title-en">New Investment Phase</span>
             </h2>
-            <button id="close-phase-modal" class="modal-close-btn" type="button" aria-label="Close">
-              <i class="fa-solid fa-xmark"></i>
+            <button id="close-phase-modal" class="modal-close-btn" type="button" aria-label="Cerrar">
+              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
           </div>
 
@@ -298,7 +299,7 @@ export function render(mode = state.currentView || 'settings') {
             </button>
           </form>
         </div>
-      </div>
+      </dialog>
 
     </div>
   `;
@@ -364,12 +365,6 @@ export function init(callbacks) {
   if (closePhaseBtn) {
     closePhaseBtn.addEventListener('click', _closePhaseModal);
   }
-  const phaseModal = document.getElementById('phase-modal');
-  if (phaseModal) {
-    phaseModal.addEventListener('click', (e) => {
-      if (e.target.id === 'phase-modal') _closePhaseModal();
-    });
-  }
 
   document.querySelectorAll('.timeline-edit-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -419,11 +414,11 @@ function _openPhaseModal(phase) {
     if (idEl) idEl.value = '';
   }
 
-  modal.classList.remove('hidden');
+  openDialog(modal);
 }
 
 function _closePhaseModal() {
-  document.getElementById('phase-modal')?.classList.add('hidden');
+  closeDialog(document.getElementById('phase-modal'));
 }
 
 function _escapeAttr(str) {

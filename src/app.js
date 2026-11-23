@@ -31,8 +31,8 @@ import {
   resetSolarmanRuntime,
   stopSolarmanLiveSync,
 } from './modules/solarman.js';
-import { showModal, closeModal as closeGlobalModal } from './components/modal.js';
-import { showToast, applyTheme, toggleKioskMode } from './app/ui.js';
+import { showModal, closeModal as closeGlobalModal, closeDialog } from './components/modal.js';
+import { showToast, applyTheme, toggleKioskMode, initFormAriaSync } from './app/ui.js';
 import { handleExportCsv } from './app/csvExport.js';
 import {
   registerProjectCallbacks,
@@ -69,19 +69,37 @@ async function _loadDashboardDeps() {
   };
 }
 
+async function _withViewTransition(fn) {
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (!document.startViewTransition || reduceMotion) {
+    await fn();
+    return;
+  }
+  const transition = document.startViewTransition(() => fn());
+  try {
+    await transition.finished;
+  } catch {
+    // Ignore skipped transitions
+  }
+}
+
 // ── Theme & Language ──────────────────────────────────────────────────────────
 async function toggleTheme() {
-  applyTheme(state.theme === 'light' ? 'dark' : 'light');
-  if (state.currentView === 'projects') {
-    app().innerHTML = projectSelectorView.render();
-    projectSelectorView.init(handleSelectProject, handleCreateProject, handleLogout);
-  } else if (state.activeProject) {
-    await renderDashboardView(state.currentView || 'dashboard');
-  }
+  state.hasManualTheme = true;
+  await _withViewTransition(async () => {
+    applyTheme(state.theme === 'light' ? 'dark' : 'light');
+    if (state.currentView === 'projects') {
+      app().innerHTML = projectSelectorView.render();
+      projectSelectorView.init(handleSelectProject, handleCreateProject, handleLogout);
+    } else if (state.activeProject) {
+      await renderDashboardView(state.currentView || 'dashboard');
+    }
+  });
 }
 
 async function changeLang(lang, flagCode, text) {
   state.lang = lang;
+  document.documentElement.lang = lang;
   document.body.setAttribute('data-lang', lang);
   savePrefs();
 
@@ -118,28 +136,36 @@ async function navigate(view, opts = {}) {
 
   switch (view) {
     case 'login':
-      app().innerHTML = loginView.render();
-      loginView.init(handleLogin);
+      await _withViewTransition(() => {
+        app().innerHTML = loginView.render();
+        loginView.init(handleLogin);
+        initFormAriaSync();
+      });
       break;
 
     case 'projects':
       await loadProjects();
-      app().innerHTML = projectSelectorView.render();
-      projectSelectorView.init(handleSelectProject, handleCreateProject, handleLogout);
+      await _withViewTransition(() => {
+        app().innerHTML = projectSelectorView.render();
+        projectSelectorView.init(handleSelectProject, handleCreateProject, handleLogout);
+        initFormAriaSync();
+      });
       break;
 
     case 'dashboard':
       if (opts.projectId) {
         await loadProjectData(opts.projectId);
       }
-      await renderDashboardView('dashboard');
+      await _withViewTransition(() => renderDashboardView('dashboard'));
+      initFormAriaSync();
       break;
 
     case 'settings':
     case 'investments':
     case 'members':
     case 'solarman':
-      await renderDashboardView(view);
+      await _withViewTransition(() => renderDashboardView(view));
+      initFormAriaSync();
       break;
 
     default:
@@ -432,7 +458,7 @@ window.__openRecordModal = async (action, id) => {
   const { dashCtrl } = await _loadDashboardDeps();
   dashCtrl.openRecordModal(action, id);
 };
-window.__closeRecordModal = () => document.getElementById('add-record-modal')?.classList.add('hidden');
+window.__closeRecordModal = () => closeDialog(document.getElementById('add-record-modal'));
 window.__handleToggleChartMode = async (k, m) => {
   const { dashCtrl } = await _loadDashboardDeps();
   dashCtrl.handleToggleChartMode(k, m);
@@ -463,8 +489,17 @@ window.__handleExportCsv = handleExportCsv;
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  document.documentElement.lang = state.lang || 'es';
   document.body.setAttribute('data-lang', state.lang || 'es');
   applyTheme(state.theme || 'dark');
+  initFormAriaSync();
+
+  const colorSchemeMedia = window.matchMedia?.('(prefers-color-scheme: dark)');
+  colorSchemeMedia?.addEventListener('change', (e) => {
+    if (!state.hasManualTheme) {
+      applyTheme(e.matches ? 'dark' : 'light');
+    }
+  });
 
   try {
     const session = await getSession();

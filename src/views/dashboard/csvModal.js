@@ -5,24 +5,25 @@
 
 import { state } from "../../modules/state.js";
 import { fCOP, fDec } from "../../modules/formatters.js";
+import { openDialog, closeDialog } from "../../components/modal.js";
 
 export function renderCsvImportModal() { return _renderCsvImportModal(); }
 export function bindCsvImporter(onImportCsv) { return _bindCsvImporter(onImportCsv); }
 
 function _renderCsvImportModal() {
   return `
-    <div id="csv-import-modal" class="modal-overlay hidden">
+    <dialog id="csv-import-modal" class="modal-dialog" closedby="any" aria-labelledby="csv-modal-title">
       <div class="modal-box" style="max-width:34rem;">
         <div class="modal-header">
-          <h2 class="modal-title">
-            <div class="icon-tile sm solar"><i class="fa-solid fa-file-csv"></i></div>
+          <h2 class="modal-title" id="csv-modal-title">
+            <div class="icon-tile sm solar" aria-hidden="true"><i class="fa-solid fa-file-csv"></i></div>
             <div>
               <span class="lang-es">Importar Historial desde CSV</span>
               <span class="lang-en">Import Readings from CSV</span>
             </div>
           </h2>
-          <button id="close-csv-modal" class="modal-close-btn" type="button" aria-label="Close">
-            <i class="fa-solid fa-xmark"></i>
+          <button id="close-csv-modal" class="modal-close-btn" type="button" aria-label="Cerrar">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </div>
 
@@ -73,13 +74,13 @@ function _renderCsvImportModal() {
           </div>
 
           <button type="button" id="btn-confirm-csv-import" class="btn btn-solar btn-lg btn-block" disabled>
-            <i class="fa-solid fa-database"></i>
+            <i class="fa-solid fa-database" aria-hidden="true"></i>
             <span class="lang-es">Importar y Sincronizar con la Nube</span>
             <span class="lang-en">Import & Sync to Cloud</span>
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   `;
 }
 
@@ -100,17 +101,12 @@ function _bindCsvImporter(onImportCsv) {
       const previewWrap = document.getElementById('csv-preview-wrap');
       if (previewWrap) previewWrap.classList.add('hidden');
       if (confirmBtn) confirmBtn.disabled = true;
-      modal.classList.remove('hidden');
+      openDialog(modal);
     });
   }
 
   if (closeBtn && modal) {
-    closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
-  }
-  if (modal) {
-    modal.addEventListener('click', (e) => {
-      if (e.target.id === 'csv-import-modal') modal.classList.add('hidden');
-    });
+    closeBtn.addEventListener('click', () => closeDialog(modal));
   }
 
   if (templateBtn) {
@@ -149,7 +145,7 @@ function _bindCsvImporter(onImportCsv) {
       if (!_parsedCsvRecords.length) return;
       confirmBtn.disabled = true;
       await onImportCsv(_parsedCsvRecords);
-      modal?.classList.add('hidden');
+      closeDialog(modal);
     });
   }
 }

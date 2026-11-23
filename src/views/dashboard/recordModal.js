@@ -11,17 +11,17 @@ export function bindModalLivePreview() { return _bindModalLivePreview(); }
 
 function _renderRecordModal() {
   return `
-    <div id="add-record-modal" class="modal-overlay hidden">
+    <dialog id="add-record-modal" class="modal-dialog" closedby="any" aria-labelledby="record-modal-title">
       <div class="modal-box" style="max-width:30rem;">
         <!-- Header -->
         <div class="modal-header">
-          <h2 class="modal-title">
-            <div class="icon-tile sm accent"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+          <h2 class="modal-title" id="record-modal-title">
+            <div class="icon-tile sm accent" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></div>
             <span class="lang-es" id="modal-title-es">Nuevo Registro Cloud</span>
             <span class="lang-en" id="modal-title-en">New Cloud Record</span>
           </h2>
-          <button id="close-record-modal" class="modal-close-btn" type="button" aria-label="Close">
-            <i class="fa-solid fa-xmark"></i>
+          <button id="close-record-modal" class="modal-close-btn" type="button" aria-label="Cerrar">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </div>
 
@@ -48,7 +48,7 @@ function _renderRecordModal() {
                 <span class="lang-es">Lectura Red (Medidor)</span>
                 <span class="lang-en">Grid Reading</span>
               </label>
-              <input type="number" id="new-lectura-red" step="0.01" placeholder="Ej: 14500" required>
+              <input type="number" id="new-lectura-red" step="0.01" inputmode="decimal" placeholder="Ej: 14500" required>
             </div>
             <div class="field">
               <label for="new-lectura-solar">
@@ -56,7 +56,7 @@ function _renderRecordModal() {
                 <span class="lang-es">Lectura Solar (Inversor)</span>
                 <span class="lang-en">Solar Reading</span>
               </label>
-              <input type="number" id="new-lectura-solar" step="0.01" placeholder="Ej: 8200" required>
+              <input type="number" id="new-lectura-solar" step="0.01" inputmode="decimal" placeholder="Ej: 8200" required>
             </div>
           </div>
 
@@ -66,7 +66,7 @@ function _renderRecordModal() {
               <span class="lang-es">Precio por kW (COP)</span>
               <span class="lang-en">Price per kW (COP)</span>
             </label>
-            <input type="number" id="new-precio" step="0.01" placeholder="Ej: 950.50" required>
+            <input type="number" id="new-precio" step="0.01" inputmode="decimal" placeholder="Ej: 950.50" required>
           </div>
 
           <!-- Hardware Reset Checkboxes -->
@@ -131,13 +131,13 @@ function _renderRecordModal() {
           </div>
 
           <button type="submit" id="btn-save" class="btn btn-solar btn-lg btn-block" style="margin-top:.25rem;">
-            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
             <span class="lang-es">Guardar en la Nube</span>
             <span class="lang-en">Save to Cloud</span>
           </button>
         </form>
       </div>
-    </div>
+    </dialog>
   `;
 }
 
