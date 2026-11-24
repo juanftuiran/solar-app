@@ -3,15 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="dark light">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('jf_solar_prefs_v4');
+        var prefs = raw ? JSON.parse(raw) : {};
+        var savedScheme = localStorage.getItem('color-scheme') || prefs.theme || '';
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var resolved = savedScheme === 'light' || savedScheme === 'dark'
+          ? savedScheme
+          : (prefersDark ? 'dark' : 'light');
+        var meta = document.querySelector('meta[name="color-scheme"]');
+        if (meta) {
+          meta.content = savedScheme === 'light' || savedScheme === 'dark' ? savedScheme : 'light dark';
+        }
+        document.documentElement.setAttribute('data-theme', resolved);
+      } catch (e) {}
+    })();
+  </script>
   <title>JF Solar - Cloud Analytics</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070b12'/%3E%3Cpath d='M7 22h18l-2-10H9L7 22zm4-7h10m-11 3.5h12M16 12v10' stroke='%2310b981' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23090d14'/%3E%3Cpath d='M7 22h18l-2-10H9L7 22zm4-7h10m-11 3.5h12M16 12v10' stroke='%2310b981' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
   <meta name="description" content="JF Solar Cloud Analytics - Monitoreo multi-proyecto de energía solar en tiempo real">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   </noscript>
   <script type="module" src="/src/main.jsx"></script>
 </head>

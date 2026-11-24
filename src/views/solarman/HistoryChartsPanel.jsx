@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { fDec } from '../../modules/formatters.js';
 import { getLocalDateISO, shiftISODate } from '../../modules/utils.js';
-import { renderSolarmanDailyChart, renderSolarmanPeriodBarsChart } from '../../modules/charts.js';
+import { renderSolarmanDailyChart, renderSolarmanPeriodBarsChart } from '../../modules/charts/solarmanCharts.js';
 import { useApp } from '../../context/AppContext.jsx';
 import ChartCanvas from '../../components/ChartCanvas.jsx';
 
@@ -288,10 +288,11 @@ export default function HistoryChartsPanel({
         )}
         <ChartCanvas
           id="chart-solarman-daily"
-          renderFn={() =>
+          ariaLabel={t('solarmanHistoryTitle')}
+          renderFn={(canvas) =>
             isMonth
-              ? renderSolarmanPeriodBarsChart(runtime.monthlyHistoryPoints || [])
-              : renderSolarmanDailyChart(runtime.dailyHistoryPoints || [], metric, runtime.deviceData)
+              ? renderSolarmanPeriodBarsChart(runtime.monthlyHistoryPoints || [], canvas)
+              : renderSolarmanDailyChart(runtime.dailyHistoryPoints || [], metric, runtime.deviceData, canvas)
           }
           deps={[isMonth, points, metric, runtime.deviceData, theme, lang]}
         />

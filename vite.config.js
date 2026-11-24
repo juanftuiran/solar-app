@@ -124,15 +124,17 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    base: '/',
     plugins: [react(), solarmanLocalProxyPlugin()],
     build: {
       outDir: 'dist',
       rollupOptions: {
         output: {
           manualChunks: {
-            'vendor-react': ['react', 'react-dom'],
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
             'vendor-supabase': ['@supabase/supabase-js'],
             'vendor-charts': ['chart.js'],
+            'vendor-icons': ['lucide-react'],
           },
         },
       },

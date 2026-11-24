@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Radio } from 'lucide-react';
+import { Power, Radio } from 'lucide-react';
+import { useOutletContext } from 'react-router-dom';
 import {
   activateDemoSolarmanSession,
   authenticateSolarman,
@@ -15,11 +16,30 @@ import { getLocalDateISO } from '../modules/utils.js';
 import { useApp } from '../context/AppContext.jsx';
 import { useProject } from '../context/ProjectContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import StatePanel from '../components/StatePanel.jsx';
 import AuthGate from './solarman/AuthGate.jsx';
 import StationPicker from './solarman/StationPicker.jsx';
 import LiveMonitor from './solarman/LiveMonitor.jsx';
 
-export default function SolarmanView({ onPushReadingToCloud }) {
+function resolveInitialPhase(projectId) {
+  const session = getSolarmanSession();
+  if (!session) return 'auth';
+  if (
+    projectId &&
+    solarmanRuntime.loadedProjectId === projectId &&
+    solarmanRuntime.activeStation &&
+    solarmanRuntime.deviceData &&
+    !solarmanRuntime.showStationPicker
+  ) {
+    return 'live';
+  }
+  return 'loading';
+}
+
+export default function SolarmanView({ onPushReadingToCloud: propPushReading }) {
+  const outletCtx = useOutletContext() || {};
+  const onPushReadingToCloud = propPushReading || outletCtx.onPushReadingToCloud;
+
   const { t } = useApp();
   const { activeState, isProjectAdmin } = useProject();
   const { showToast } = useToast();
@@ -27,9 +47,30 @@ export default function SolarmanView({ onPushReadingToCloud }) {
   const project = activeState.project;
   const projectRef = useRef(project);
   projectRef.current = project;
+  const reqIdRef = useRef(0);
 
+  const [phase, setPhase] = useState(() => resolveInitialPhase(project?.id));
   const [, setTick] = useState(0);
   const bump = useCallback(() => setTick((n) => n + 1), []);
+
+  const handleAuthOrApiError = useCallback((err) => {
+    const msg = err?.message || t('networkErrorDesc');
+    solarmanRuntime.loading = false;
+    solarmanRuntime.error = msg;
+    const isExpiredOrUnauthorized =
+      err?.code === 401 ||
+      /expir[oó]|session|token.*inv[aá]lid|no hay sesi[oó]n/i.test(msg);
+    if (isExpiredOrUnauthorized) {
+      stopSolarmanLiveSync();
+      clearSolarmanSession();
+      solarmanRuntime.error = msg;
+      setPhase('auth');
+    } else {
+      setPhase('error');
+    }
+    bump();
+    showToast(`${t('error')}: ${msg}`, 'error');
+  }, [bump, showToast, t]);
 
   const beginLiveSync = useCallback(() => {
     startSolarmanLiveSync({
@@ -50,55 +91,181 @@ export default function SolarmanView({ onPushReadingToCloud }) {
     });
   }, [bump, showToast, t]);
 
+  const loadTelemetry = useCallback(async (targetProject) => {
+    const session = getSolarmanSession();
+    if (!session) {
+      setPhase('auth');
+      return;
+    }
+    if (!targetProject?.id) return;
+
+    const reqId = ++reqIdRef.current;
+    setPhase('loading');
+    solarmanRuntime.loading = true;
+    solarmanRuntime.error = null;
+    bump();
+
+    try {
+      await syncProjectSolarmanTelemetry(targetProject);
+      if (reqId !== reqIdRef.current) return;
+
+      if (solarmanRuntime.showStationPicker || !solarmanRuntime.activeStation) {
+        solarmanRuntime.loading = false;
+        setPhase('picking');
+        bump();
+        return;
+      }
+
+      await fetchSolarmanDailyHistory(targetProject, solarmanRuntime.selectedDate, {
+        range: solarmanRuntime.historyRange,
+      });
+      if (reqId !== reqIdRef.current) return;
+
+      solarmanRuntime.loading = false;
+      setPhase('live');
+      bump();
+      beginLiveSync();
+    } catch (err) {
+      if (reqId !== reqIdRef.current) return;
+      handleAuthOrApiError(err);
+    }
+  }, [beginLiveSync, bump, handleAuthOrApiError]);
+
   useEffect(() => {
     const session = getSolarmanSession();
-    if (!session || !project?.id) return undefined;
+    if (!session) {
+      setPhase('auth');
+      return undefined;
+    }
+    if (!project?.id) return undefined;
 
-    let cancelled = false;
-    (async () => {
-      try {
-        if (solarmanRuntime.loadedProjectId !== project.id || !solarmanRuntime.deviceData) {
-          solarmanRuntime.loading = true;
-          bump();
-          await syncProjectSolarmanTelemetry(project);
-          await fetchSolarmanDailyHistory(project, solarmanRuntime.selectedDate, {
-            range: solarmanRuntime.historyRange,
-          });
-          solarmanRuntime.loading = false;
-        }
-        if (!cancelled) {
-          bump();
-          beginLiveSync();
-        }
-      } catch (err) {
-        solarmanRuntime.loading = false;
-        solarmanRuntime.error = err.message;
-        if (!cancelled) {
-          bump();
-          showToast(`${t('error')}: ${err.message}`, 'error');
-        }
-      }
-    })();
+    if (
+      solarmanRuntime.loadedProjectId === project.id &&
+      solarmanRuntime.activeStation &&
+      solarmanRuntime.deviceData &&
+      !solarmanRuntime.showStationPicker
+    ) {
+      setPhase('live');
+      beginLiveSync();
+    } else {
+      loadTelemetry(project);
+    }
 
     return () => {
-      cancelled = true;
+      reqIdRef.current += 1;
       stopSolarmanLiveSync();
     };
-  }, [project?.id, beginLiveSync, bump, showToast, t]);
+  }, [project?.id, beginLiveSync, loadTelemetry]);
 
   const handleConnect = async (creds) => {
+    const reqId = ++reqIdRef.current;
     try {
       solarmanRuntime.error = null;
       await authenticateSolarman(creds);
+      if (reqId !== reqIdRef.current) return;
+      setPhase('loading');
       solarmanRuntime.loading = true;
       bump();
+
       await syncProjectSolarmanTelemetry(project);
+      if (reqId !== reqIdRef.current) return;
+
+      if (solarmanRuntime.showStationPicker || !solarmanRuntime.activeStation) {
+        solarmanRuntime.loading = false;
+        setPhase('picking');
+        bump();
+        showToast(t('solarmanConnected'), 'success');
+        return;
+      }
+
       await fetchSolarmanDailyHistory(project, solarmanRuntime.selectedDate, { force: true });
+      if (reqId !== reqIdRef.current) return;
+
       solarmanRuntime.loading = false;
+      setPhase('live');
       bump();
       showToast(t('solarmanConnected'), 'success');
       beginLiveSync();
     } catch (err) {
+      if (reqId !== reqIdRef.current) return;
+      solarmanRuntime.loading = false;
+      solarmanRuntime.error = err.message;
+      setPhase('auth');
+      bump();
+      showToast(`${t('error')}: ${err.message}`, 'error');
+    }
+  };
+
+  const handleActivateDemo = async () => {
+    const reqId = ++reqIdRef.current;
+    try {
+      solarmanRuntime.error = null;
+      activateDemoSolarmanSession(project);
+      setPhase('loading');
+      solarmanRuntime.loading = true;
+      bump();
+      await syncProjectSolarmanTelemetry(project);
+      if (reqId !== reqIdRef.current) return;
+      await fetchSolarmanDailyHistory(project, solarmanRuntime.selectedDate, { force: true });
+      if (reqId !== reqIdRef.current) return;
+      solarmanRuntime.loading = false;
+      setPhase('live');
+      bump();
+      showToast(t('solarmanDemoActivated'), 'info');
+      beginLiveSync();
+    } catch (err) {
+      if (reqId !== reqIdRef.current) return;
+      handleAuthOrApiError(err);
+    }
+  };
+
+  const handleDisconnect = () => {
+    reqIdRef.current += 1;
+    stopSolarmanLiveSync();
+    clearSolarmanSession();
+    setPhase('auth');
+    bump();
+    showToast(t('solarmanDisconnected'), 'info');
+  };
+
+  const handleSelectStation = async (stationId) => {
+    const reqId = ++reqIdRef.current;
+    try {
+      solarmanRuntime.error = null;
+      solarmanRuntime.loading = true;
+      solarmanRuntime.showStationPicker = false;
+      setPhase('loading');
+      bump();
+
+      await syncProjectSolarmanTelemetry(project, stationId, null);
+      if (reqId !== reqIdRef.current) return;
+
+      await fetchSolarmanDailyHistory(project, solarmanRuntime.selectedDate, { force: true });
+      if (reqId !== reqIdRef.current) return;
+
+      solarmanRuntime.loading = false;
+      setPhase('live');
+      bump();
+      beginLiveSync();
+    } catch (err) {
+      if (reqId !== reqIdRef.current) return;
+      handleAuthOrApiError(err);
+    }
+  };
+
+  const handleSelectDevice = async (deviceSn) => {
+    const reqId = ++reqIdRef.current;
+    try {
+      solarmanRuntime.loading = true;
+      bump();
+      await syncProjectSolarmanTelemetry(project, solarmanRuntime.activeStation?.id, deviceSn);
+      if (reqId !== reqIdRef.current) return;
+      await fetchSolarmanDailyHistory(project, solarmanRuntime.selectedDate, { force: true });
+      if (reqId !== reqIdRef.current) return;
+      solarmanRuntime.loading = false;
+      bump();
+    } catch (err) {
+      if (reqId !== reqIdRef.current) return;
       solarmanRuntime.loading = false;
       solarmanRuntime.error = err.message;
       bump();
@@ -106,75 +273,20 @@ export default function SolarmanView({ onPushReadingToCloud }) {
     }
   };
 
-  const handleActivateDemo = async () => {
-    try {
-      solarmanRuntime.error = null;
-      activateDemoSolarmanSession(project);
-      solarmanRuntime.loading = true;
-      bump();
-      await syncProjectSolarmanTelemetry(project);
-      await fetchSolarmanDailyHistory(project, solarmanRuntime.selectedDate, { force: true });
-      solarmanRuntime.loading = false;
-      bump();
-      showToast(t('solarmanDemoActivated'), 'info');
-      beginLiveSync();
-    } catch (err) {
-      solarmanRuntime.loading = false;
-      solarmanRuntime.error = err.message;
-      bump();
-    }
-  };
-
-  const handleDisconnect = () => {
-    stopSolarmanLiveSync();
-    clearSolarmanSession();
-    bump();
-    showToast(t('solarmanDisconnected'), 'info');
-  };
-
-  const handleSelectStation = async (stationId) => {
-    try {
-      solarmanRuntime.error = null;
-      solarmanRuntime.loading = true;
-      solarmanRuntime.showStationPicker = false;
-      bump();
-      await syncProjectSolarmanTelemetry(project, stationId, null);
-      await fetchSolarmanDailyHistory(project, solarmanRuntime.selectedDate, { force: true });
-      solarmanRuntime.loading = false;
-      bump();
-      beginLiveSync();
-    } catch (err) {
-      solarmanRuntime.loading = false;
-      solarmanRuntime.error = err.message;
-      bump();
-    }
-  };
-
-  const handleSelectDevice = async (deviceSn) => {
-    try {
-      solarmanRuntime.loading = true;
-      bump();
-      await syncProjectSolarmanTelemetry(project, solarmanRuntime.activeStation?.id, deviceSn);
-      await fetchSolarmanDailyHistory(project, solarmanRuntime.selectedDate, { force: true });
-      solarmanRuntime.loading = false;
-      bump();
-    } catch (err) {
-      solarmanRuntime.loading = false;
-      solarmanRuntime.error = err.message;
-      bump();
-    }
-  };
-
   const handleManualRefresh = async () => {
+    const reqId = ++reqIdRef.current;
     try {
       solarmanRuntime.loading = true;
       bump();
       await syncProjectSolarmanTelemetry(project, solarmanRuntime.activeStation?.id, solarmanRuntime.activeDeviceSn);
+      if (reqId !== reqIdRef.current) return;
       await fetchSolarmanDailyHistory(project, solarmanRuntime.selectedDate, { force: true });
+      if (reqId !== reqIdRef.current) return;
       solarmanRuntime.loading = false;
       bump();
       showToast(t('solarmanUpdated'), 'success');
     } catch (err) {
+      if (reqId !== reqIdRef.current) return;
       solarmanRuntime.loading = false;
       solarmanRuntime.error = err.message;
       bump();
@@ -204,7 +316,8 @@ export default function SolarmanView({ onPushReadingToCloud }) {
   };
 
   const session = getSolarmanSession();
-  if (!session) {
+
+  if (phase === 'auth' || !session) {
     return (
       <AuthGate
         project={project}
@@ -215,7 +328,7 @@ export default function SolarmanView({ onPushReadingToCloud }) {
     );
   }
 
-  if (solarmanRuntime.loading && !solarmanRuntime.deviceData && !solarmanRuntime.showStationPicker) {
+  if (phase === 'loading') {
     return (
       <div id="solarman-view" className="stack">
         <div className="card section-card" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
@@ -229,7 +342,26 @@ export default function SolarmanView({ onPushReadingToCloud }) {
     );
   }
 
-  if (solarmanRuntime.showStationPicker || !solarmanRuntime.activeStation) {
+  if (phase === 'error') {
+    return (
+      <div id="solarman-view" className="stack">
+        <StatePanel
+          variant="error"
+          title={t('solarmanAuthErrTitle')}
+          description={solarmanRuntime.error || t('networkErrorDesc')}
+          onRetry={() => loadTelemetry(project)}
+          action={(
+            <button type="button" className="btn btn-ghost" onClick={handleDisconnect}>
+              <Power size={15} aria-hidden="true" />
+              <span>{t('solarmanSwitchAccount')}</span>
+            </button>
+          )}
+        />
+      </div>
+    );
+  }
+
+  if (phase === 'picking' || !solarmanRuntime.activeStation) {
     return (
       <StationPicker
         project={project}
@@ -239,6 +371,7 @@ export default function SolarmanView({ onPushReadingToCloud }) {
         onSelectStation={handleSelectStation}
         onCancelPicker={() => {
           solarmanRuntime.showStationPicker = false;
+          setPhase(solarmanRuntime.activeStation ? 'live' : 'loading');
           bump();
         }}
         onDisconnect={handleDisconnect}
@@ -255,6 +388,7 @@ export default function SolarmanView({ onPushReadingToCloud }) {
       onSelectDevice={handleSelectDevice}
       onOpenStationPicker={() => {
         solarmanRuntime.showStationPicker = true;
+        setPhase('picking');
         bump();
       }}
       onManualRefresh={handleManualRefresh}

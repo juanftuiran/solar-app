@@ -3,7 +3,7 @@
  * @description Custom Chart.js plugins (empty-state, crosshair highlight, reference lines, markers, donut center).
  */
 
-import { Chart, C, hexToRgba } from "./core.js";
+import { Chart, C, L, hexToRgba } from "./core.js";
 
 export const emptyStatePlugin = {
   id: 'emptyState',
@@ -20,10 +20,10 @@ export const emptyStatePlugin = {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = C.muted;
-    ctx.font = "600 13px 'Inter', sans-serif";
-    ctx.fillText(opts?.text || L('Sin datos para este período', 'No data for this period'), cx, cy - 8);
+    ctx.font = "600 13px 'Plus Jakarta Sans', 'Inter', sans-serif";
+    ctx.fillText(opts?.text || L('Sin datos para este período', 'No data for this period'), cx, cy - 9);
     ctx.fillStyle = C.dim;
-    ctx.font = "500 11px 'Inter', sans-serif";
+    ctx.font = "500 11.5px 'Inter', sans-serif";
     ctx.fillText(opts?.hint || L('Agrega registros para ver la analítica', 'Add readings to see analytics'), cx, cy + 12);
     ctx.restore();
   },
@@ -46,7 +46,7 @@ export const hoverHighlightPlugin = {
     if (isBar) {
       const count = chart.data.labels?.length || 1;
       const w = (chartArea.right - chartArea.left) / count;
-      ctx.fillStyle = 'rgba(148, 163, 184, 0.06)';
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.08)';
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(x - w / 2 + 2, chartArea.top, w - 4, chartArea.bottom - chartArea.top, 6);
       else ctx.rect(x - w / 2 + 2, chartArea.top, w - 4, chartArea.bottom - chartArea.top);
@@ -80,13 +80,13 @@ export function referenceLinesPlugin(lines) {
         ctx.beginPath();
         ctx.setLineDash([5, 5]);
         ctx.lineWidth = 1;
-        ctx.strokeStyle = hexToRgba(line.color, 0.6);
+        ctx.strokeStyle = hexToRgba(line.color, 0.55);
         ctx.moveTo(chartArea.left, py);
         ctx.lineTo(chartArea.right, py);
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.font = "700 10px 'Inter', sans-serif";
-        const tw = ctx.measureText(line.label).width + 10;
+        const tw = ctx.measureText(line.label).width + 12;
         ctx.fillStyle = hexToRgba(line.color, 0.16);
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(chartArea.right - tw, py - 9, tw, 18, 9);
@@ -117,7 +117,7 @@ export function markerPlugin(index, label, color) {
       ctx.setLineDash([3, 4]);
       ctx.lineWidth = 1.25;
       ctx.strokeStyle = hexToRgba(color, 0.75);
-      ctx.moveTo(x, chartArea.top + 14);
+      ctx.moveTo(x, chartArea.top + 16);
       ctx.lineTo(x, chartArea.bottom);
       ctx.stroke();
       ctx.setLineDash([]);
@@ -127,13 +127,13 @@ export function markerPlugin(index, label, color) {
       left = Math.max(chartArea.left, Math.min(left, chartArea.right - tw));
       ctx.fillStyle = color;
       ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(left, chartArea.top, tw, 18, 9);
-      else ctx.rect(left, chartArea.top, tw, 18);
+      if (ctx.roundRect) ctx.roundRect(left, chartArea.top, tw, 19, 9.5);
+      else ctx.rect(left, chartArea.top, tw, 19);
       ctx.fill();
-      ctx.fillStyle = '#04130d';
+      ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(label, left + tw / 2, chartArea.top + 9);
+      ctx.fillText(label, left + tw / 2, chartArea.top + 9.5);
       ctx.restore();
     },
   };
@@ -154,7 +154,7 @@ export function doughnutCenterPlugin(getText) {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = C.text;
-      ctx.font = "800 26px 'Inter', sans-serif";
+      ctx.font = "800 26px 'Plus Jakarta Sans', 'Inter', sans-serif";
       ctx.fillText(value, x, y - 6);
       ctx.fillStyle = C.muted;
       ctx.font = "600 10px 'Inter', sans-serif";
@@ -163,8 +163,3 @@ export function doughnutCenterPlugin(getText) {
     },
   };
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-

@@ -755,16 +755,16 @@
 }
 .data-table td { padding-top: 0.6rem; padding-bottom: 0.6rem; }
 
-/* ── 11. Light mode: depth through tone, not white glare ────────────────── */
+/* ── 11. Light mode: Crisp Porcelain & Login / Sidebar / Input Refinements ── */
 :root[data-theme="light"] body {
   background-color: var(--bg);
   background-image:
-    radial-gradient(60rem 32rem at 85% -10%, rgba(3, 105, 161, 0.08), transparent 60%),
-    radial-gradient(50rem 30rem at -10% 110%, rgba(4, 120, 87, 0.08), transparent 60%);
+    radial-gradient(60rem 32rem at 85% -10%, rgba(2, 132, 199, 0.06), transparent 60%),
+    radial-gradient(50rem 30rem at -10% 110%, rgba(5, 150, 105, 0.06), transparent 60%);
 }
 :root[data-theme="light"] .sidebar {
   background: var(--bg-elevated);
-  border-right-color: var(--border-medium);
+  border-right-color: var(--border);
 }
 :root[data-theme="light"] .card,
 :root[data-theme="light"] .ai-panel,
@@ -772,25 +772,215 @@
 :root[data-theme="light"] .solar-health-strip,
 :root[data-theme="light"] .content-area > .app-header {
   background: var(--surface);
-  border-color: var(--border-medium);
+  border-color: var(--border);
 }
 :root[data-theme="light"] .dashboard-tabs {
   background: var(--bg-subtle);
-  border-color: var(--border-medium);
+  border-color: var(--border);
 }
 :root[data-theme="light"] .tab-btn.active {
   background: var(--surface-solid);
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 :root[data-theme="light"] .kpi-card::before { opacity: 0.85; }
-:root[data-theme="light"] .roi-ring-inner { box-shadow: inset 0 2px 6px rgba(15, 23, 42, 0.14); }
+:root[data-theme="light"] .roi-ring-inner { box-shadow: inset 0 2px 6px rgba(15, 23, 42, 0.08); }
 :root[data-theme="light"] .sim-slider::-webkit-slider-thumb {
   background: var(--surface-solid);
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.30);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
 }
 :root[data-theme="light"] input:not([type="range"]):not([type="checkbox"]),
 :root[data-theme="light"] select,
 :root[data-theme="light"] textarea {
-  background-color: var(--surface-1);
+  background-color: #ffffff;
   border-color: var(--border-medium);
+}
+
+/* ── 12. Input Action Wrapper, Validation & Search SVG Alignment ─────────── */
+.input-with-action {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-with-action input {
+  padding-right: 2.75rem;
+}
+.input-with-action .input-action-btn {
+  position: absolute;
+  right: 0.35rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-xs);
+}
+.input-with-action .input-action-btn:hover {
+  background: var(--bg-subtle);
+}
+.field-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--danger);
+  margin-top: 0.15rem;
+}
+.search-input-wrap svg {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted-light);
+  pointer-events: none;
+}
+
+/* ── 13. Sidebar Nav Count Pill & Links ─────────────────────────────────── */
+.sidebar-count-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.2rem;
+  padding: 0 0.4rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.sidebar-nav-item.active .sidebar-count-pill {
+  background: var(--accent-subtle);
+  border-color: var(--accent-glow);
+  color: var(--accent);
+}
+
+/* ── 14. Modern Login Showcase & Auth Layout ────────────────────────────── */
+.auth-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.auth-hero {
+  background:
+    radial-gradient(48rem 28rem at 15% 15%, var(--solar-subtle), transparent 62%),
+    radial-gradient(42rem 28rem at 90% 85%, var(--accent-subtle), transparent 60%),
+    var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  padding: 2.75rem 3.25rem;
+}
+.auth-grid-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(var(--border-medium) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.65), transparent 88%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.65), transparent 88%);
+}
+.auth-hero-top {
+  position: relative;
+  z-index: 1;
+}
+.auth-hero-foot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.auth-preview-card {
+  margin-top: 1.75rem;
+  max-width: 29rem;
+  padding: 1.1rem 1.25rem 0.9rem;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border-medium);
+  box-shadow: var(--shadow-md), var(--inner-highlight);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.auth-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.auth-preview-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.auth-preview-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+.auth-preview-kpi {
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-sm);
+  background: var(--inset-bg);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.auth-preview-kpi .lbl {
+  font-size: 0.68rem;
+  color: var(--muted-light);
+  font-weight: 600;
+}
+.auth-preview-kpi .val {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.auth-preview-chart {
+  height: 76px;
+  width: 100%;
+}
+.auth-preview-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.auth-panel {
+  position: relative;
+  flex-direction: column;
+  background:
+    radial-gradient(36rem 24rem at 50% 0%, var(--accent-subtle), transparent 65%),
+    var(--bg);
+}
+.auth-topbar {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.auth-card {
+  padding: 2rem 1.85rem;
+  max-width: 26rem;
+  box-shadow: var(--shadow-md), var(--inner-highlight);
+}
+.auth-title {
+  font-family: var(--font-display);
+}
+@media (min-width: 980px) {
+  .auth-mobile-brand {
+    display: none;
+  }
+}
+
+.solarman-auth-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
 }

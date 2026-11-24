@@ -4,6 +4,31 @@ import { monthName as rawMonthName, translate } from '../modules/i18n.js';
 
 const AppContext = createContext(null);
 
+function getSystemTheme() {
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function readStoredSchemeOverride() {
+  try {
+    const scheme = localStorage.getItem('color-scheme');
+    if (scheme === 'light' || scheme === 'dark') return scheme;
+    const raw = localStorage.getItem('jf_solar_prefs_v4');
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed?.theme === 'light' || parsed?.theme === 'dark') return parsed.theme;
+  } catch {
+    // Ignore storage errors
+  }
+  return null;
+}
+
+function syncDocumentColorScheme(resolvedTheme, manualOverride) {
+  document.documentElement.setAttribute('data-theme', resolvedTheme);
+  const meta = document.querySelector('meta[name="color-scheme"]');
+  if (meta) {
+    meta.content = manualOverride ? resolvedTheme : 'light dark';
+  }
+}
+
 export function AppProvider({ children }) {
   const [lang, setLangState] = useState(state.lang || 'es');
   const [theme, setThemeState] = useState(state.theme || 'dark');
@@ -28,8 +53,8 @@ export function AppProvider({ children }) {
   }, [lang]);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    syncDocumentColorScheme(theme, hasManualTheme);
+  }, [theme, hasManualTheme]);
 
   useEffect(() => {
     const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
@@ -44,6 +69,27 @@ export function AppProvider({ children }) {
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, [hasManualTheme]);
+
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key !== 'color-scheme' && e.key !== 'jf_solar_prefs_v4') return;
+      const stored = readStoredSchemeOverride();
+      if (stored) {
+        state.hasManualTheme = true;
+        state.theme = stored;
+        setHasManualTheme(true);
+        setThemeState(stored);
+      } else {
+        const sys = getSystemTheme();
+        state.hasManualTheme = false;
+        state.theme = sys;
+        setHasManualTheme(false);
+        setThemeState(sys);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   useEffect(() => {
     document.body.classList.toggle('kiosk-mode', kioskMode);
@@ -64,15 +110,34 @@ export function AppProvider({ children }) {
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setHasManualTheme(true);
-    state.hasManualTheme = true;
-    setThemeState((prev) => {
-      const next = prev === 'light' ? 'dark' : 'light';
-      state.theme = next;
+    const systemTheme = getSystemTheme();
+    const target = theme === 'light' ? 'dark' : 'light';
+
+    if (target === systemTheme) {
+      // Returning to OS preference: remove stored override
+      setHasManualTheme(false);
+      state.hasManualTheme = false;
+      state.theme = systemTheme;
+      setThemeState(systemTheme);
+      try {
+        localStorage.removeItem('color-scheme');
+      } catch {
+        // Ignore storage errors
+      }
       savePrefs();
-      return next;
-    });
-  }, []);
+    } else {
+      setHasManualTheme(true);
+      state.hasManualTheme = true;
+      state.theme = target;
+      setThemeState(target);
+      try {
+        localStorage.setItem('color-scheme', target);
+      } catch {
+        // Ignore storage errors
+      }
+      savePrefs();
+    }
+  }, [theme]);
 
   const toggleKioskMode = useCallback((forceState) => {
     setKioskModeState((prev) => {
@@ -128,6 +193,7 @@ export function AppProvider({ children }) {
     lang,
     setLang,
     theme,
+    hasManualTheme,
     toggleTheme,
     kioskMode,
     toggleKioskMode,
@@ -146,6 +212,7 @@ export function AppProvider({ children }) {
     lang,
     setLang,
     theme,
+    hasManualTheme,
     toggleTheme,
     kioskMode,
     toggleKioskMode,

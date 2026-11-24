@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import {
   AlertTriangle,
   Building2,
+  Eye,
+  EyeOff,
   FlaskConical,
   Globe,
   Info,
@@ -19,6 +21,7 @@ export default function AuthGate({ project, error, onConnect, onActivateDemo }) 
   const { t } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
   const [region, setRegion] = useState('global');
   const [orgId, setOrgId] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -78,8 +81,11 @@ export default function AuthGate({ project, error, onConnect, onActivateDemo }) 
               <input
                 type="email"
                 id="sm-email"
+                name="solarmanEmail"
                 required
+                spellCheck={false}
                 autoComplete="username"
+                enterKeyHint="next"
                 placeholder="usuario@ejemplo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -91,15 +97,28 @@ export default function AuthGate({ project, error, onConnect, onActivateDemo }) 
                 <Lock size={14} className="text-solar" aria-hidden="true" />
                 <span>{t('solarmanPassword')}</span>
               </label>
-              <input
-                type="password"
-                id="sm-password"
-                required
-                autoComplete="current-password"
-                placeholder="••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <div className="input-with-action">
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  id="sm-password"
+                  name="solarmanPassword"
+                  required
+                  autoComplete="current-password"
+                  enterKeyHint="done"
+                  placeholder="••••••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="input-action-btn"
+                  aria-label={t('togglePasswordVisibility')}
+                  aria-pressed={showPass}
+                  onClick={() => setShowPass((v) => !v)}
+                >
+                  {showPass ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -114,8 +133,8 @@ export default function AuthGate({ project, error, onConnect, onActivateDemo }) 
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
               >
-                <option value="global">Global / Américas (globalapi.solarmanpv.com)</option>
-                <option value="intl">Internacional / Legacy (api.solarmanpv.com)</option>
+                <option value="global">Global / Américas · globalapi.solarmanpv.com</option>
+                <option value="intl">Internacional / Legacy · api.solarmanpv.com</option>
               </select>
             </div>
 
@@ -158,10 +177,10 @@ export default function AuthGate({ project, error, onConnect, onActivateDemo }) 
             <button
               type="button"
               id="btn-solarman-demo"
-              className="btn btn-ghost btn-lg"
+              className="btn btn-ghost btn-sm"
               onClick={onActivateDemo}
             >
-              <FlaskConical size={16} className="text-ai" aria-hidden="true" />
+              <FlaskConical size={15} className="text-ai" aria-hidden="true" />
               <span>{t('solarmanDemoBtn')}</span>
             </button>
           </div>

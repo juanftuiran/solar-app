@@ -122,7 +122,7 @@ export function recordLiveHistoryPoint(collectionTimeSec, parsedOrPowerW) {
 
   const isObj = parsedOrPowerW && typeof parsedOrPowerW === 'object';
   const sum = isObj ? (parsedOrPowerW.summary || {}) : null;
-  const strings = isObj ? (parsedOrPowerW.mpptStrings || []) : [];
+  const strings = isObj ? (parsedOrPowerW.pvStrings || parsedOrPowerW.mpptStrings || []) : [];
 
   existing.push({
     timeLabel,

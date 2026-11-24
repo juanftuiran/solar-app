@@ -1,4 +1,5 @@
 import React, { Fragment, useMemo, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import {
   ChevronRight,
   Cloud,
@@ -19,7 +20,11 @@ import { getBaseRecord } from '../../modules/analytics.js';
 import { useApp } from '../../context/AppContext.jsx';
 import { useProject } from '../../context/ProjectContext.jsx';
 
-export default function AuditTab({ onOpenEditRecord, onDeleteRecord, onOpenCsvModal }) {
+export default function AuditTab({ onOpenEditRecord: propEdit, onDeleteRecord: propDelete, onOpenCsvModal: propCsv }) {
+  const outletCtx = useOutletContext() || {};
+  const onOpenEditRecord = propEdit || outletCtx.onOpenEditRecord;
+  const onDeleteRecord = propDelete || outletCtx.onDeleteRecord;
+  const onOpenCsvModal = propCsv || outletCtx.onOpenCsvModal;
   const { selectedYear, t } = useApp();
   const { activeState, processedData, isProjectAdmin } = useProject();
   const [searchQuery, setSearchQuery] = useState('');
@@ -138,7 +143,7 @@ export default function AuditTab({ onOpenEditRecord, onDeleteRecord, onOpenCsvMo
                       <span style={{ color: 'var(--text)', fontWeight: 700 }}>{(baseRecord.lecturaRed || 0).toFixed(0)}</span>
                       <span style={{ opacity: 0.4, margin: '0 .25rem' }}>/</span>
                       <span style={{ color: 'var(--solar)', fontWeight: 700 }}>{(baseRecord.lecturaSolar || 0).toFixed(0)}</span>
-                      <div className="cell-sub">Red / Solar (t₀)</div>
+                      <div className="cell-sub">Red / Solar · Base</div>
                     </td>
                     <td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '.78rem' }}>
                       {t('baseRefDesc')}

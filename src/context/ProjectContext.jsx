@@ -8,7 +8,7 @@ import {
 } from '../modules/supabase.js';
 import { processData } from '../modules/analytics.js';
 import { clearProjectData, savePrefs, setActiveProject, state } from '../modules/state.js';
-import { resetSolarmanRuntime, solarmanRuntime, stopSolarmanLiveSync } from '../modules/solarman.js';
+import { resetSolarmanRuntime, solarmanRuntime } from '../modules/solarman/runtime.js';
 import { useAuth } from './AuthContext.jsx';
 import { useApp } from './AppContext.jsx';
 import { useToast } from './ToastContext.jsx';
@@ -21,6 +21,12 @@ function sortReadings(readings) {
     if ((a.monthIdx || 0) !== (b.monthIdx || 0)) return (a.monthIdx || 0) - (b.monthIdx || 0);
     return (a.fecha || '').localeCompare(b.fecha || '');
   });
+}
+
+function stopSolarmanSyncLazy() {
+  import('../modules/solarman/sync.js')
+    .then((m) => m.stopSolarmanLiveSync?.())
+    .catch(() => {});
 }
 
 export function ProjectProvider({ children }) {
@@ -43,6 +49,9 @@ export function ProjectProvider({ children }) {
     error: null,
   });
 
+  const activeStateRef = useRef(activeState);
+  activeStateRef.current = activeState;
+
   const projectsReqIdRef = useRef(0);
   const projectDataReqIdRef = useRef(0);
 
@@ -56,7 +65,7 @@ export function ProjectProvider({ children }) {
 
     try {
       const list = await getUserProjects(targetUser.id, targetAdmin);
-      if (reqId !== projectsReqIdRef.current) return null; // stale response guard
+      if (reqId !== projectsReqIdRef.current) return null;
       state.projects = list || [];
       setProjectsState({ status: 'ready', items: list || [], error: null });
       return list || [];
@@ -69,23 +78,42 @@ export function ProjectProvider({ children }) {
     }
   }, [user, isAdmin, t, showToast]);
 
-  const loadProjectData = useCallback(async (projectId, overrideUser = null, overrideIsAdmin = null) => {
+  const loadProjectData = useCallback(async (
+    projectId,
+    overrideUser = null,
+    overrideIsAdmin = null,
+    { force = false } = {},
+  ) => {
     const targetUser = overrideUser || user;
     const targetAdmin = overrideIsAdmin !== null ? overrideIsAdmin : isAdmin;
     if (!projectId || !targetUser) return false;
 
+    const current = activeStateRef.current;
+    if (!force && current.status === 'ready' && current.project?.id === projectId) {
+      return true;
+    }
+
     const reqId = ++projectDataReqIdRef.current;
-    setActiveState((prev) => ({ ...prev, status: 'loading', error: null }));
+    const switchingProject = current.project?.id && current.project.id !== projectId;
+
+    setActiveState((prev) => ({
+      status: 'loading',
+      project: switchingProject ? null : prev.project,
+      role: switchingProject ? null : prev.role,
+      rawData: switchingProject ? [] : prev.rawData,
+      investments: switchingProject ? [] : prev.investments,
+      error: null,
+    }));
 
     if (solarmanRuntime.loadedProjectId && solarmanRuntime.loadedProjectId !== projectId) {
-      stopSolarmanLiveSync();
+      stopSolarmanSyncLazy();
       resetSolarmanRuntime();
     }
 
     try {
       const project = await getProject(projectId);
       if (reqId !== projectDataReqIdRef.current) return false;
-      if (!project) throw new Error('Proyecto no encontrado.');
+      if (!project) throw new Error(t('projectNotFoundDesc'));
 
       const role = targetAdmin ? 'admin' : await getUserProjectRole(projectId, targetUser.id);
       if (reqId !== projectDataReqIdRef.current) return false;
@@ -117,6 +145,7 @@ export function ProjectProvider({ children }) {
       const msg = err?.message || t('networkErrorDesc');
       setActiveState((prev) => ({
         ...prev,
+        project: switchingProject ? null : prev.project,
         status: 'error',
         error: msg,
       }));
@@ -126,48 +155,48 @@ export function ProjectProvider({ children }) {
   }, [user, isAdmin, t, showToast]);
 
   const reloadReadings = useCallback(async () => {
-    if (!activeState.project?.id) return;
-    const projectId = activeState.project.id;
+    if (!activeStateRef.current.project?.id) return;
+    const projectId = activeStateRef.current.project.id;
     const reqId = ++projectDataReqIdRef.current;
     try {
       const readings = await fetchProjectReadings(projectId);
       if (reqId !== projectDataReqIdRef.current) return;
       const sortedRaw = sortReadings(readings);
       state.rawData = sortedRaw;
-      state.processedData = processData(sortedRaw, activeState.project.capacity_kw);
+      state.processedData = processData(sortedRaw, activeStateRef.current.project.capacity_kw);
       setActiveState((prev) => ({ ...prev, rawData: sortedRaw }));
     } catch (err) {
       showToast(`${t('error')}: ${err.message}`, 'error');
     }
-  }, [activeState.project, t, showToast]);
+  }, [t, showToast]);
 
   const reloadInvestments = useCallback(async () => {
-    if (!activeState.project?.id) return;
+    if (!activeStateRef.current.project?.id) return;
     try {
-      const investments = await getProjectInvestments(activeState.project.id);
+      const investments = await getProjectInvestments(activeStateRef.current.project.id);
       state.investments = investments || [];
       setActiveState((prev) => ({ ...prev, investments: investments || [] }));
     } catch (err) {
       showToast(`${t('error')}: ${err.message}`, 'error');
     }
-  }, [activeState.project, t, showToast]);
+  }, [t, showToast]);
 
   const refreshActiveProject = useCallback(async () => {
-    if (!activeState.project?.id) return;
+    if (!activeStateRef.current.project?.id) return;
     try {
-      const updated = await getProject(activeState.project.id);
+      const updated = await getProject(activeStateRef.current.project.id);
       if (updated) {
-        setActiveProject(updated, activeState.role);
+        setActiveProject(updated, activeStateRef.current.role);
         setActiveState((prev) => ({ ...prev, project: updated }));
       }
     } catch (err) {
       showToast(`${t('error')}: ${err.message}`, 'error');
     }
-  }, [activeState.project, activeState.role, t, showToast]);
+  }, [t, showToast]);
 
   const exitActiveProject = useCallback(() => {
     projectDataReqIdRef.current += 1;
-    stopSolarmanLiveSync();
+    stopSolarmanSyncLazy();
     resetSolarmanRuntime();
     clearProjectData();
     setActiveProject(null, null);

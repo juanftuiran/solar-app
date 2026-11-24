@@ -17,10 +17,19 @@ function loadPrefs() {
 }
 
 const savedPrefs = loadPrefs();
+const storedScheme = (() => {
+  try {
+    const s = localStorage.getItem('color-scheme');
+    if (s === 'light' || s === 'dark') return s;
+  } catch {
+    // Ignore
+  }
+  return savedPrefs.theme === 'light' || savedPrefs.theme === 'dark' ? savedPrefs.theme : null;
+})();
 const systemThemeQuery = typeof window !== 'undefined' && window.matchMedia
   ? window.matchMedia('(prefers-color-scheme: dark)')
   : null;
-const initialTheme = savedPrefs.theme || (systemThemeQuery && !systemThemeQuery.matches ? 'light' : 'dark');
+const initialTheme = storedScheme || (systemThemeQuery && !systemThemeQuery.matches ? 'light' : 'dark');
 
 /** @type {Object} Mutable application state */
 export const state = {
@@ -33,7 +42,7 @@ export const state = {
   /** @type {'dark'|'light'} Active UI color theme */
   theme: initialTheme,
   /** @type {boolean} Whether user explicitly chose a theme override */
-  hasManualTheme: Boolean(savedPrefs.theme),
+  hasManualTheme: Boolean(storedScheme),
 
   // Multi-project
   /** @type {Array<Object>} All projects the user can access */
@@ -92,7 +101,7 @@ export function savePrefs() {
   try {
     const payload = {
       lang: state.lang,
-      theme: state.theme,
+      theme: state.hasManualTheme ? state.theme : undefined,
       lastProjectId: state.activeProject?.id || state.lastProjectId || null,
       selectedYear: state.selectedYear,
       activeTab: state.activeTab,

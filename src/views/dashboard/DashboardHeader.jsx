@@ -9,21 +9,30 @@ import {
   LogOut,
   Moon,
   Plus,
-  Radio,
   Sun,
-  TrendingUp,
   Tv,
   Zap,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { fDec } from '../../modules/formatters.js';
 import { getAvailableYears } from '../../modules/analytics.js';
 import { useApp } from '../../context/AppContext.jsx';
 import { useProject } from '../../context/ProjectContext.jsx';
 
+const SECTION_LABEL_KEYS = {
+  telemetry: 'sectionTelemetry',
+  finance: 'sectionFinance',
+  audit: 'sectionAudit',
+  monitor: 'sectionMonitor',
+  investments: 'sectionInvestments',
+  settings: 'sectionSettings',
+  members: 'sectionMembers',
+};
+
 export default function DashboardHeader({
   headingRef,
-  activeView,
-  onNavigate,
+  activeSection,
+  onLeavePortfolio,
   onOpenNewRecord,
   onOpenExecReport,
   onExportCsv,
@@ -38,6 +47,12 @@ export default function DashboardHeader({
   const project = activeState.project || {};
   const capacityStr = project.capacity_kw ? `${fDec(project.capacity_kw, 1)} kWp` : '';
   const availableYears = getAvailableYears(processedData, activeState.rawData);
+  const showYearFilter = ['telemetry', 'finance', 'audit'].includes(activeSection);
+
+  const rawMonitoringUrl = (project.monitoring_url || '').trim();
+  const normalizedMonitoringUrl = rawMonitoringUrl
+    ? (/^https?:\/\//i.test(rawMonitoringUrl) ? rawMonitoringUrl : `https://${rawMonitoringUrl}`)
+    : '';
 
   useEffect(() => {
     if (!langMenuOpen) return undefined;
@@ -52,21 +67,24 @@ export default function DashboardHeader({
 
   const flagCode = lang === 'en' ? 'us' : 'co';
   const langLabel = lang === 'en' ? 'EN' : 'ES';
+  const sectionTitleKey = SECTION_LABEL_KEYS[activeSection] || 'sectionTelemetry';
 
   return (
     <header className="app-header">
       <div className="header-left">
         <div className="header-breadcrumbs">
-          <button
-            type="button"
+          <Link
+            to="/projects"
             className="breadcrumb-link"
-            onClick={() => onNavigate('projects')}
+            onClick={onLeavePortfolio}
           >
             <Sun size={12} style={{ marginRight: '.25rem' }} aria-hidden="true" />
             <span>{t('portfolio')}</span>
-          </button>
+          </Link>
           <span className="sep" aria-hidden="true"><ChevronRight size={12} /></span>
           <span className="current">{project.name || 'JF Solar Cloud'}</span>
+          <span className="sep hide-sm" aria-hidden="true"><ChevronRight size={12} /></span>
+          <span className="hide-sm" style={{ color: 'var(--text-secondary)' }}>{t(sectionTitleKey)}</span>
         </div>
 
         <div className="header-title-row">
@@ -165,18 +183,20 @@ export default function DashboardHeader({
           )}
         </div>
 
-        <select
-          id="year-filter"
-          className="select-pill"
-          aria-label={t('filterByYear')}
-          value={String(selectedYear || 'all')}
-          onChange={(e) => setSelectedYear(e.target.value)}
-        >
-          <option value="all">{t('allYears')}</option>
-          {availableYears.map((y) => (
-            <option key={y} value={String(y)}>{y}</option>
-          ))}
-        </select>
+        {showYearFilter && (
+          <select
+            id="year-filter"
+            className="select-pill"
+            aria-label={t('filterByYear')}
+            value={String(selectedYear || 'all')}
+            onChange={(e) => setSelectedYear(e.target.value)}
+          >
+            <option value="all">{t('allYears')}</option>
+            {availableYears.map((y) => (
+              <option key={y} value={String(y)}>{y}</option>
+            ))}
+          </select>
+        )}
 
         <button
           id="btn-exec-report"
@@ -214,46 +234,19 @@ export default function DashboardHeader({
 
         <div className="header-divider" />
 
-        {activeView === 'solarman' ? (
-          <button
-            className="btn btn-ghost"
-            type="button"
-            title={t('dashboard')}
-            onClick={() => onNavigate('dashboard')}
+        {normalizedMonitoringUrl && (
+          <a
+            id="btn-monitoring-link"
+            className="btn btn-ghost btn-icon"
+            href={normalizedMonitoringUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={t('monitoringUrl')}
+            aria-label={t('monitoringUrl')}
           >
-            <TrendingUp size={16} className="text-accent" aria-hidden="true" />
-            <span className="hide-sm">{t('dashboard')}</span>
-          </button>
-        ) : (
-          <button
-            className="btn btn-ghost"
-            type="button"
-            title={t('solarmanLive')}
-            onClick={() => onNavigate('solarman')}
-          >
-            <Radio size={16} className="text-solar" aria-hidden="true" />
-            <span className="hide-sm">{t('solarmanLive')}</span>
-          </button>
+            <ExternalLink size={16} aria-hidden="true" />
+          </a>
         )}
-
-        <button
-          id="btn-monitoring-link"
-          className="btn btn-ghost btn-icon"
-          type="button"
-          title={t('monitoringUrl')}
-          aria-label={t('monitoringUrl')}
-          onClick={() => {
-            const rawUrl = (project.monitoring_url || '').trim();
-            if (!rawUrl) {
-              onNavigate('settings');
-              return;
-            }
-            const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
-            window.open(normalizedUrl, '_blank', 'noopener,noreferrer');
-          }}
-        >
-          <ExternalLink size={16} aria-hidden="true" />
-        </button>
 
         <button
           id="btn-dashboard-logout"

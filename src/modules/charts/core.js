@@ -1,11 +1,10 @@
 /**
  * @module charts/core
- * @description Shared Chart.js setup, Obsidian/Daylight theme tokens, gradients, scales & lifecycle helpers.
+ * @description Shared Chart.js setup, Midnight Carbon / Crisp Porcelain theme tokens, gradients, scales & lifecycle helpers.
  */
 
 import Chart from "chart.js/auto";
 import { state } from "../state.js";
-import { fCOP, fDec, fKwh, fPct } from "../formatters.js";
 
 // Theme
 // ---------------------------------------------------------------------------
@@ -15,50 +14,60 @@ export const CHART_COLORS = {
   grid: '#f43f5e',
   accent: '#38bdf8',
   warning: '#f59e0b',
-  ai: '#6366f1',
-  text: '#f8fafc',
-  muted: '#7e8fa6',
-  dim: '#58677d',
+  ai: '#818cf8',
+  text: '#f4f6fb',
+  muted: '#94a3b8',
+  dim: '#64748b',
   gridLine: 'rgba(148, 163, 184, 0.08)',
-  surface: '#0c121e',
+  surface: '#111622',
 };
 const C = CHART_COLORS;
 
 const isEn = () => state.lang === 'en';
 const L = (es, en) => (isEn() ? en : es);
 
+/** Format chart values with localized thousand separators. */
+export function formatChartNumber(n, maxDecimals = 1) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return '0';
+  return new Intl.NumberFormat(isEn() ? 'en-US' : 'es-CO', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxDecimals,
+  }).format(v);
+}
+
 /** Sync chart colors with active theme (dark vs light) */
 export function syncChartTheme() {
   const isLight = state.theme === 'light';
-  C.solar = isLight ? '#047857' : '#10b981';
-  C.solarDeep = isLight ? '#065f46' : '#059669';
-  C.grid = isLight ? '#be123c' : '#f43f5e';
-  C.accent = isLight ? '#0369a1' : '#38bdf8';
-  C.warning = isLight ? '#b45309' : '#f59e0b';
-  C.ai = isLight ? '#4338ca' : '#6366f1';
-  C.text = isLight ? '#090f1a' : '#f8fafc';
-  C.muted = isLight ? '#334155' : '#7e8fa6';
-  C.dim = isLight ? '#475569' : '#58677d';
-  C.gridLine = isLight ? 'rgba(15, 23, 42, 0.11)' : 'rgba(148, 163, 184, 0.08)';
-  C.surface = isLight ? '#e6ebf2' : '#0c121e';
+  C.solar = isLight ? '#059669' : '#10b981';
+  C.solarDeep = isLight ? '#047857' : '#059669';
+  C.grid = isLight ? '#e11d48' : '#f43f5e';
+  C.accent = isLight ? '#0284c7' : '#38bdf8';
+  C.warning = isLight ? '#d97706' : '#f59e0b';
+  C.ai = isLight ? '#4f46e5' : '#818cf8';
+  C.text = isLight ? '#0f172a' : '#f4f6fb';
+  C.muted = isLight ? '#475569' : '#94a3b8';
+  C.dim = isLight ? '#64748b' : '#64748b';
+  C.gridLine = isLight ? 'rgba(15, 23, 42, 0.07)' : 'rgba(148, 163, 184, 0.08)';
+  C.surface = isLight ? '#ffffff' : '#111622';
 
   Chart.defaults.color = C.muted;
   Chart.defaults.plugins.legend.labels.color = C.muted;
   const tt = Chart.defaults.plugins.tooltip;
-  tt.backgroundColor = isLight ? 'rgba(220, 226, 235, 0.98)' : 'rgba(12, 18, 30, 0.94)';
-  tt.titleColor = isLight ? '#090f1a' : '#ffffff';
-  tt.bodyColor = isLight ? '#162032' : '#cbd5e1';
+  tt.backgroundColor = isLight ? 'rgba(255, 255, 255, 0.97)' : 'rgba(13, 17, 26, 0.96)';
+  tt.titleColor = isLight ? '#0f172a' : '#f8fafc';
+  tt.bodyColor = isLight ? '#334155' : '#cbd5e1';
   tt.footerColor = C.muted;
-  tt.borderColor = isLight ? 'rgba(15, 23, 42, 0.18)' : 'rgba(148, 163, 184, 0.2)';
+  tt.borderColor = isLight ? 'rgba(15, 23, 42, 0.12)' : 'rgba(255, 255, 255, 0.12)';
 }
 
 // ---------------------------------------------------------------------------
 // Chart.js global defaults
 // ---------------------------------------------------------------------------
 Chart.defaults.color = C.muted;
-Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif";
+Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif";
 Chart.defaults.font.size = 11.5;
-Chart.defaults.animation.duration = 600;
+Chart.defaults.animation.duration = 480;
 Chart.defaults.animation.easing = 'easeOutQuart';
 Chart.defaults.transitions.resize = { animation: { duration: 0 } };
 
@@ -66,22 +75,22 @@ Chart.defaults.plugins.legend.position = 'top';
 Chart.defaults.plugins.legend.align = 'end';
 Chart.defaults.plugins.legend.labels.usePointStyle = true;
 Chart.defaults.plugins.legend.labels.pointStyle = 'circle';
-Chart.defaults.plugins.legend.labels.boxWidth = 6;
-Chart.defaults.plugins.legend.labels.boxHeight = 6;
-Chart.defaults.plugins.legend.labels.padding = 14;
+Chart.defaults.plugins.legend.labels.boxWidth = 7;
+Chart.defaults.plugins.legend.labels.boxHeight = 7;
+Chart.defaults.plugins.legend.labels.padding = 16;
 Chart.defaults.plugins.legend.labels.color = C.muted;
-Chart.defaults.plugins.legend.labels.font = { size: 11, weight: '600' };
+Chart.defaults.plugins.legend.labels.font = { size: 11.5, weight: '600' };
 
 const tt = Chart.defaults.plugins.tooltip;
-tt.backgroundColor = 'rgba(13, 19, 32, 0.96)';
-tt.titleColor = '#ffffff';
+tt.backgroundColor = 'rgba(13, 17, 26, 0.96)';
+tt.titleColor = '#f8fafc';
 tt.bodyColor = '#cbd5e1';
 tt.footerColor = C.muted;
-tt.borderColor = 'rgba(148, 163, 184, 0.2)';
+tt.borderColor = 'rgba(255, 255, 255, 0.12)';
 tt.borderWidth = 1;
-tt.padding = { x: 12, y: 10 };
+tt.padding = { x: 13, y: 10 };
 tt.cornerRadius = 10;
-tt.boxPadding = 5;
+tt.boxPadding = 6;
 tt.usePointStyle = true;
 tt.titleFont = { size: 12, weight: '700' };
 tt.bodyFont = { size: 12 };
@@ -96,13 +105,19 @@ tt.caretPadding = 10;
 function getCtx(canvasOrId) {
   syncChartTheme();
   const isEl = typeof canvasOrId !== 'string';
-  const key = isEl ? (canvasOrId?.id || 'canvas') : canvasOrId;
-  if (state.charts[key]) {
-    state.charts[key].destroy();
-    delete state.charts[key];
-  }
   const el = isEl ? canvasOrId : document.getElementById(canvasOrId);
-  return el ? el.getContext('2d') : null;
+  if (!el) return null;
+
+  const key = el.id || (typeof canvasOrId === 'string' ? canvasOrId : 'canvas');
+  const existing = Chart.getChart(el);
+  if (existing) {
+    existing.destroy();
+  }
+  if (state.charts[key] && state.charts[key] !== existing) {
+    state.charts[key].destroy();
+  }
+  delete state.charts[key];
+  return el.getContext('2d');
 }
 
 export function hexToRgba(hex, alpha = 1) {
@@ -168,7 +183,7 @@ function yScale({ format = (v) => compact(v), beginAtZero = true, position = 'le
     grid: { color: C.gridLine, drawTicks: false, display: drawGrid },
     border: { display: false, dash: [3, 4] },
     ticks: { color, padding: 10, maxTicksLimit: 6, callback: format },
-    title: title ? { display: true, text: title, color: C.dim, font: { size: 10, weight: '600' } } : { display: false },
+    title: title ? { display: true, text: title, color: C.dim, font: { size: 10.5, weight: '600' } } : { display: false },
   };
 }
 
@@ -177,7 +192,7 @@ function baseOptions(extra = {}) {
     responsive: true,
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
-    layout: { padding: { top: 4, right: 4, left: 0, bottom: 0 } },
+    layout: { padding: { top: 4, right: 6, left: 0, bottom: 0 } },
     ...extra,
   };
 }
@@ -185,11 +200,6 @@ function baseOptions(extra = {}) {
 function tooltipTitleFull(items) {
   return items?.[0]?.label || '';
 }
-
-// ---------------------------------------------------------------------------
-// Energy Chart
-// ---------------------------------------------------------------------------
-
 
 export function destroyAllCharts() {
   for (const key of Object.keys(state.charts)) {

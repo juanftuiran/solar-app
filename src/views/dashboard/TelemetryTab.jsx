@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
@@ -19,14 +20,14 @@ import {
 } from 'lucide-react';
 import { fCOP, fDailyRate, fDec, fHsp, fKwh, fPct, fYield } from '../../modules/formatters.js';
 import { calcKPIs, detectAnomalies } from '../../modules/analytics.js';
+import { CHART_COLORS } from '../../modules/charts/core.js';
 import {
-  CHART_COLORS,
   renderEnergyChart,
   renderMixChart,
   renderPerformanceChart,
   renderPriceChart,
   renderSparkline,
-} from '../../modules/charts.js';
+} from '../../modules/charts/dashboardCharts.js';
 import { useApp } from '../../context/AppContext.jsx';
 import { useProject } from '../../context/ProjectContext.jsx';
 import ChartCanvas from '../../components/ChartCanvas.jsx';
@@ -56,7 +57,9 @@ function DeltaBadge({ value, invertColors = false, suffix = '%' }) {
   );
 }
 
-export default function TelemetryTab({ viewData }) {
+export default function TelemetryTab({ viewData: propViewData }) {
+  const outletCtx = useOutletContext() || {};
+  const viewData = propViewData || outletCtx.viewData || [];
   const { lang, theme, chartModes, setChartMode, t } = useApp();
   const { activeState, processedData } = useProject();
 
@@ -230,7 +233,7 @@ export default function TelemetryTab({ viewData }) {
               <div className="kpi-spark">
                 <ChartCanvas
                   id={`spark-${kpi.id}`}
-                  renderFn={() => renderSparkline(`spark-${kpi.id}`, kpi.series, kpi.chartColor)}
+                  renderFn={(canvas) => renderSparkline(canvas, kpi.series, kpi.chartColor)}
                   deps={[kpi.series, theme]}
                 />
               </div>
@@ -273,7 +276,8 @@ export default function TelemetryTab({ viewData }) {
           <div className="chart-container tall">
             <ChartCanvas
               id="chart-energia"
-              renderFn={() => renderEnergyChart(viewData)}
+              ariaLabel={t('energyBalanceTitle')}
+              renderFn={(canvas) => renderEnergyChart(viewData, canvas)}
               deps={[viewData, energyMode, theme, lang]}
             />
           </div>
@@ -293,7 +297,8 @@ export default function TelemetryTab({ viewData }) {
             <div className="mix-chart">
               <ChartCanvas
                 id="chart-mix"
-                renderFn={() => renderMixChart(viewData)}
+                ariaLabel={t('energyMix')}
+                renderFn={(canvas) => renderMixChart(viewData, canvas)}
                 deps={[viewData, theme, lang]}
               />
             </div>
@@ -331,7 +336,8 @@ export default function TelemetryTab({ viewData }) {
           <div className="chart-container">
             <ChartCanvas
               id="chart-rendimiento"
-              renderFn={() => renderPerformanceChart(viewData)}
+              ariaLabel={t('perfHspTitle')}
+              renderFn={(canvas) => renderPerformanceChart(viewData, canvas)}
               deps={[viewData, capacity, theme, lang]}
             />
           </div>
@@ -370,7 +376,8 @@ export default function TelemetryTab({ viewData }) {
           <div className="chart-container">
             <ChartCanvas
               id="chart-precio"
-              renderFn={() => renderPriceChart(viewData)}
+              ariaLabel={t('kwTariffFluctTitle')}
+              renderFn={(canvas) => renderPriceChart(viewData, canvas)}
               deps={[viewData, priceMode, theme, lang]}
             />
           </div>

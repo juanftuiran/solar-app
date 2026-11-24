@@ -4,34 +4,32 @@
  */
 
 import { state } from "../state.js";
-import { fCOP, fDec, fKwh, fPct } from "../formatters.js";
+import { fCOP, fDec } from "../formatters.js";
 import { calcFinancialSimulation } from "../analytics.js";
-import { t } from "../i18n.js";
 import {
   Chart,
-  CHART_COLORS,
   C,
   L,
   getCtx,
   hexToRgba,
   verticalGradient,
   compact,
+  formatChartNumber,
   xScale,
   yScale,
   baseOptions,
   tooltipTitleFull,
 } from "./core.js";
 import {
-  emptyStatePlugin,
   hoverHighlightPlugin,
   referenceLinesPlugin,
   markerPlugin,
   doughnutCenterPlugin,
 } from "./plugins.js";
 
-export function renderEnergyChart(data) {
-  const ctx = getCtx('chart-energia');
-  if (!ctx) return;
+export function renderEnergyChart(data, canvasOrId = 'chart-energia') {
+  const ctx = getCtx(canvasOrId);
+  if (!ctx) return null;
 
   const labels = data.map((d) => d.label);
   const mode = state.chartModes.energia || 'bar';
@@ -40,13 +38,13 @@ export function renderEnergyChart(data) {
   const ds = (label, values, color) => ({
     label,
     data: values,
-    backgroundColor: isLine ? verticalGradient(color, 0.28, 0) : verticalGradient(color, 0.95, 0.45),
+    backgroundColor: isLine ? verticalGradient(color, 0.24, 0) : verticalGradient(color, 0.92, 0.45),
     hoverBackgroundColor: isLine ? undefined : color,
     borderColor: color,
     borderWidth: isLine ? 2.25 : 0,
     borderRadius: isLine ? 0 : 6,
     borderSkipped: false,
-    maxBarThickness: 26,
+    maxBarThickness: 28,
     categoryPercentage: 0.7,
     barPercentage: 0.85,
     pointRadius: 0,
@@ -58,13 +56,13 @@ export function renderEnergyChart(data) {
     fill: isLine,
   });
 
-  state.charts['chart-energia'] = new Chart(ctx, {
+  const chart = new Chart(ctx, {
     type: mode,
     data: {
       labels,
       datasets: [
-        ds(t('solarInverter'), data.map((d) => d.prodBruta), C.solar),
-        ds(t('gridMeter'), data.map((d) => d.consumoRed), C.grid),
+        ds(L('Energía solar', 'Solar energy'), data.map((d) => d.prodBruta), C.solar),
+        ds(L('Consumo de red', 'Grid consumption'), data.map((d) => d.consumoRed), C.grid),
       ],
     },
     options: baseOptions({
@@ -72,12 +70,14 @@ export function renderEnergyChart(data) {
         tooltip: {
           callbacks: {
             title: tooltipTitleFull,
-            label: (tip) => ` ${tip.dataset.label}: ${fDec(tip.raw, 1)} kWh`,
+            label: (tip) => ` ${tip.dataset.label}: ${formatChartNumber(tip.raw, 1)} kWh`,
             footer: (items) => {
               const item = data[items?.[0]?.dataIndex];
               if (!item) return '';
-              const lines = [`${L('Autonomía', 'Autonomy')}: ${fDec(item.autonomia, 1)}%`];
-              if (item.hsp > 0) lines.push(`${fDec(item.specificYield, 1)} kWh/kWp · ${fDec(item.hsp, 2)} HSP`);
+              const lines = [`${L('Autonomía solar', 'Solar autonomy')}: ${fDec(item.autonomia, 1)}%`];
+              if (item.hsp > 0) {
+                lines.push(`${L('Rendimiento', 'Yield')}: ${formatChartNumber(item.specificYield, 1)} kWh/kWp · ${fDec(item.hsp, 2)} h/día`);
+              }
               return lines;
             },
           },
@@ -85,11 +85,14 @@ export function renderEnergyChart(data) {
       },
       scales: {
         x: xScale(),
-        y: yScale({ format: (v) => `${compact(v)}` , title: 'kWh' }),
+        y: yScale({ format: (v) => `${compact(v)} kWh` }),
       },
     }),
     plugins: [hoverHighlightPlugin],
   });
+
+  state.charts['chart-energia'] = chart;
+  return chart;
 }
 
 // ---------------------------------------------------------------------------
@@ -98,17 +101,17 @@ export function renderEnergyChart(data) {
 
 export function renderMixChart(data, canvasOrId = 'chart-mix') {
   const ctx = getCtx(canvasOrId);
-  if (!ctx) return;
+  if (!ctx) return null;
 
   const solar = data.reduce((s, d) => s + (d.prodBruta || 0), 0);
   const grid = data.reduce((s, d) => s + (d.consumoRed || 0), 0);
   const total = solar + grid;
   const share = total > 0 ? (solar / total) * 100 : 0;
 
-  state.charts['chart-mix'] = new Chart(ctx, {
+  const chart = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: [t('solarInverter'), t('gridMeter')],
+      labels: [L('Energía solar', 'Solar energy'), L('Energía de red', 'Grid energy')],
       datasets: [{
         data: total > 0 ? [solar, grid] : [0, 0],
         backgroundColor: [C.solar, hexToRgba(C.grid, 0.85)],
@@ -131,7 +134,7 @@ export function renderMixChart(data, canvasOrId = 'chart-mix') {
           callbacks: {
             label: (tip) => {
               const pct = total > 0 ? (tip.raw / total) * 100 : 0;
-              return ` ${tip.label}: ${fDec(tip.raw, 0)} kWh (${fDec(pct, 1)}%)`;
+              return ` ${tip.label}: ${formatChartNumber(tip.raw, 0)} kWh (${fDec(pct, 1)}%)`;
             },
           },
         },
@@ -139,30 +142,33 @@ export function renderMixChart(data, canvasOrId = 'chart-mix') {
     },
     plugins: [doughnutCenterPlugin(() => ({ value: `${fDec(share, 0)}%`, label: L('Solar', 'Solar share') }))],
   });
+
+  state.charts['chart-mix'] = chart;
+  return chart;
 }
 
 // ---------------------------------------------------------------------------
 // Price Chart
 // ---------------------------------------------------------------------------
 
-export function renderPriceChart(data) {
-  const ctx = getCtx('chart-precio');
-  if (!ctx) return;
+export function renderPriceChart(data, canvasOrId = 'chart-precio') {
+  const ctx = getCtx(canvasOrId);
+  if (!ctx) return null;
 
   const labels = data.map((d) => d.label);
   const mode = state.chartModes.precio || 'line';
   const isLine = mode === 'line';
   const values = data.map((d) => d.precioKw);
 
-  state.charts['chart-precio'] = new Chart(ctx, {
+  const chart = new Chart(ctx, {
     type: mode,
     data: {
       labels,
       datasets: [
         {
-          label: t('costPerKw'),
+          label: L('Tarifa por kWh', 'Tariff per kWh'),
           data: values,
-          backgroundColor: isLine ? verticalGradient(C.warning, 0.28, 0) : verticalGradient(C.warning, 0.9, 0.4),
+          backgroundColor: isLine ? verticalGradient(C.warning, 0.24, 0) : verticalGradient(C.warning, 0.9, 0.4),
           hoverBackgroundColor: isLine ? undefined : C.warning,
           borderColor: C.warning,
           borderWidth: isLine ? 2.25 : 0,
@@ -205,34 +211,37 @@ export function renderPriceChart(data) {
     }),
     plugins: [hoverHighlightPlugin],
   });
+
+  state.charts['chart-precio'] = chart;
+  return chart;
 }
 
 // ---------------------------------------------------------------------------
-// Performance (HSP) Chart
+// Performance / Peak Sun Hours Chart
 // ---------------------------------------------------------------------------
 
-export function renderPerformanceChart(data) {
-  const ctx = getCtx('chart-rendimiento');
-  if (!ctx) return;
+export function renderPerformanceChart(data, canvasOrId = 'chart-rendimiento') {
+  const ctx = getCtx(canvasOrId);
+  if (!ctx) return null;
 
   const capacity = parseFloat(state.activeProject?.capacity_kw) || 0;
   const labels = data.map((d) => d.label);
   const values = data.map((d) => (capacity > 0 ? parseFloat((d.hsp || 0).toFixed(2)) : 0));
   const colorFor = (v) => (v >= 4 ? C.solar : v >= 3.2 ? C.accent : C.warning);
 
-  state.charts['chart-rendimiento'] = new Chart(ctx, {
+  const chart = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
       datasets: [{
-        label: 'HSP',
+        label: L('Horas de sol pico', 'Peak sun hours'),
         data: values,
         backgroundColor: (c) => {
           const v = c.raw || 0;
           const col = colorFor(v);
-          const { chart } = c;
-          if (!chart.chartArea) return hexToRgba(col, 0.85);
-          const g = chart.ctx.createLinearGradient(0, chart.chartArea.top, 0, chart.chartArea.bottom);
+          const { chart: ch } = c;
+          if (!ch.chartArea) return hexToRgba(col, 0.85);
+          const g = ch.ctx.createLinearGradient(0, ch.chartArea.top, 0, ch.chartArea.bottom);
           g.addColorStop(0, hexToRgba(col, 0.95));
           g.addColorStop(1, hexToRgba(col, 0.35));
           return g;
@@ -249,18 +258,21 @@ export function renderPerformanceChart(data) {
         legend: { display: false },
         emptyState: capacity > 0
           ? {}
-          : { text: L('Capacidad del sistema no configurada', 'System capacity not configured'), hint: L('Define los kWp en Configuración para calcular HSP', 'Set kWp in Settings to compute PSH') },
+          : {
+              text: L('Capacidad del sistema no configurada', 'System capacity not configured'),
+              hint: L('Define los kWp en Configuración para calcular el desempeño', 'Set kWp in Settings to compute performance'),
+            },
         tooltip: {
           callbacks: {
             title: tooltipTitleFull,
-            label: (tip) => ` ${fDec(tip.raw, 2)} ${L('HSP/día', 'PSH/day')}`,
+            label: (tip) => ` ${fDec(tip.raw, 2)} ${L('horas sol pico por día', 'peak sun hours per day')}`,
             footer: (items) => {
               const item = data[items?.[0]?.dataIndex];
               if (!item) return '';
               return [
-                `${L('Rendimiento', 'Yield')}: ${fDec(item.specificYield, 1)} kWh/kWp`,
-                `${L('Gen. diaria', 'Daily gen')}: ${fDec(item.prodDiaria, 1)} kWh/d`,
-                `${L('Período', 'Period')}: ${item.daysInPeriod} ${L('días', 'days')}`,
+                `${L('Rendimiento específico', 'Specific yield')}: ${formatChartNumber(item.specificYield, 1)} kWh/kWp`,
+                `${L('Promedio diario', 'Daily average')}: ${formatChartNumber(item.prodDiaria, 1)} kWh/día`,
+                `${L('Ciclo medido', 'Billing cycle')}: ${item.daysInPeriod} ${L('días', 'days')}`,
               ];
             },
           },
@@ -268,26 +280,29 @@ export function renderPerformanceChart(data) {
       },
       scales: {
         x: xScale(),
-        y: { ...yScale({ format: (v) => fDec(v, 1) }), suggestedMax: 5.5 },
+        y: { ...yScale({ format: (v) => `${fDec(v, 1)} h` }), suggestedMax: 5.5 },
       },
     }),
     plugins: [
       hoverHighlightPlugin,
       referenceLinesPlugin([
-        { value: 4.0, label: L('Óptimo 4.0', 'Optimal 4.0'), color: C.solar },
-        { value: 3.2, label: L('Mín. 3.2', 'Min 3.2'), color: C.warning },
+        { value: 4.0, label: L('Óptimo · 4,0 h', 'Optimal · 4.0 h'), color: C.solar },
+        { value: 3.2, label: L('Mínimo · 3,2 h', 'Min · 3.2 h'), color: C.warning },
       ]),
     ],
   });
+
+  state.charts['chart-rendimiento'] = chart;
+  return chart;
 }
 
 // ---------------------------------------------------------------------------
 // Payback Curve (historical cumulative savings vs invested capital)
 // ---------------------------------------------------------------------------
 
-export function renderPaybackChart() {
-  const ctx = getCtx('chart-payback');
-  if (!ctx) return;
+export function renderPaybackChart(canvasOrId = 'chart-payback') {
+  const ctx = getCtx(canvasOrId);
+  if (!ctx) return null;
 
   const processed = state.processedData || [];
   const investments = (state.investments || []).map((inv) => ({
@@ -297,7 +312,6 @@ export function renderPaybackChart() {
   }));
   const totalInvestment = investments.reduce((s, i) => s + i.amount, 0);
 
-  // Identify earliest installation month among phases that define a start date
   const phasesWithDates = investments.filter((i) => i.month);
   const minInstallMonth = phasesWithDates.length > 0
     ? phasesWithDates.reduce((min, i) => (!min || i.month < min ? i.month : min), '')
@@ -318,13 +332,10 @@ export function renderPaybackChart() {
 
     let invested = 0;
     if (!minInstallMonth) {
-      // If no phases have start dates, treat total investment as the baseline
       invested = totalInvestment;
     } else if (recMonth && recMonth < minInstallMonth) {
-      // Prior to solar plant installation, invested capital is 0
       invested = 0;
     } else {
-      // From installation onwards, take active phases into account and accumulate them
       invested = investments
         .filter((i) => !i.month || i.month <= recMonth || (i.date && d.fecha && i.date <= d.fecha))
         .reduce((s, i) => s + i.amount, 0);
@@ -335,7 +346,7 @@ export function renderPaybackChart() {
 
   const breakevenIdx = cumData.findIndex((v, i) => invData[i] > 0 && v >= invData[i]);
 
-  state.charts['chart-payback'] = new Chart(ctx, {
+  const chart = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
@@ -344,7 +355,7 @@ export function renderPaybackChart() {
           label: L('Ahorro acumulado', 'Cumulative savings'),
           data: cumData,
           borderColor: C.solar,
-          backgroundColor: verticalGradient(C.solar, 0.3, 0),
+          backgroundColor: verticalGradient(C.solar, 0.28, 0),
           fill: true,
           tension: 0.35,
           borderWidth: 2.25,
@@ -393,6 +404,9 @@ export function renderPaybackChart() {
       markerPlugin(breakevenIdx, L('Punto de equilibrio', 'Breakeven'), C.solar),
     ],
   });
+
+  state.charts['chart-payback'] = chart;
+  return chart;
 }
 
 // ---------------------------------------------------------------------------
@@ -401,7 +415,7 @@ export function renderPaybackChart() {
 
 export function renderProjectionChart(simOverride = null, canvasOrId = 'chart-proyeccion') {
   const ctx = getCtx(canvasOrId);
-  if (!ctx) return;
+  if (!ctx) return null;
 
   const sim = simOverride || calcFinancialSimulation(state.processedData, state.investments, state.simParams);
   const {
@@ -414,7 +428,7 @@ export function renderProjectionChart(simOverride = null, canvasOrId = 'chart-pr
     breakevenYear,
   } = sim;
 
-  state.charts['chart-proyeccion'] = new Chart(ctx, {
+  const chart = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
@@ -423,7 +437,7 @@ export function renderProjectionChart(simOverride = null, canvasOrId = 'chart-pr
           label: L('Ahorro acumulado', 'Cumulative savings'),
           data: cumulatedSavings,
           borderColor: C.solar,
-          backgroundColor: verticalGradient(C.solar, 0.26, 0),
+          backgroundColor: verticalGradient(C.solar, 0.24, 0),
           yAxisID: 'yAhorro',
           tension: 0.35,
           pointRadius: 0,
@@ -439,7 +453,7 @@ export function renderProjectionChart(simOverride = null, canvasOrId = 'chart-pr
           label: L('Ahorro anual', 'Annual savings'),
           type: 'bar',
           data: savingsData,
-          backgroundColor: verticalGradient(C.accent, 0.55, 0.12),
+          backgroundColor: verticalGradient(C.accent, 0.52, 0.12),
           hoverBackgroundColor: hexToRgba(C.accent, 0.8),
           borderRadius: 4,
           borderSkipped: false,
@@ -448,7 +462,7 @@ export function renderProjectionChart(simOverride = null, canvasOrId = 'chart-pr
           order: 3,
         },
         {
-          label: t('investment'),
+          label: L('Capital invertido', 'Invested capital'),
           data: investmentLine,
           borderColor: C.warning,
           backgroundColor: 'transparent',
@@ -462,7 +476,7 @@ export function renderProjectionChart(simOverride = null, canvasOrId = 'chart-pr
           order: 1,
         },
         {
-          label: L('Generación (kWh)', 'Generation (kWh)'),
+          label: L('Generación estimada', 'Estimated generation'),
           data: genData,
           borderColor: C.ai,
           backgroundColor: 'transparent',
@@ -482,7 +496,7 @@ export function renderProjectionChart(simOverride = null, canvasOrId = 'chart-pr
         tooltip: {
           callbacks: {
             label: (tip) => {
-              if (tip.dataset.yAxisID === 'yGen') return ` ${tip.dataset.label}: ${fDec(tip.raw, 0)} kWh`;
+              if (tip.dataset.yAxisID === 'yGen') return ` ${tip.dataset.label}: ${formatChartNumber(tip.raw, 0)} kWh`;
               return ` ${tip.dataset.label}: ${fCOP(tip.raw)}`;
             },
           },
@@ -492,7 +506,7 @@ export function renderProjectionChart(simOverride = null, canvasOrId = 'chart-pr
         x: xScale({ short: false }),
         yAhorro: yScale({ format: (v) => `$${compact(v)}` }),
         yAnual: { display: false, beginAtZero: true, grace: '220%' },
-        yGen: { ...yScale({ position: 'right', drawGrid: false, format: (v) => compact(v), color: C.ai }), display: 'auto' },
+        yGen: { ...yScale({ position: 'right', drawGrid: false, format: (v) => `${compact(v)} kWh`, color: C.ai }), display: 'auto' },
       },
     }),
     plugins: [
@@ -500,26 +514,29 @@ export function renderProjectionChart(simOverride = null, canvasOrId = 'chart-pr
       markerPlugin(breakevenIdx, `${L('Retorno', 'Payback')} ${breakevenYear || ''}`.trim(), C.solar),
     ],
   });
+
+  state.charts['chart-proyeccion'] = chart;
+  return chart;
 }
 
 // ---------------------------------------------------------------------------
 // Sparklines (KPI cards)
 // ---------------------------------------------------------------------------
 
-export function renderSparkline(canvasId, values, color) {
-  const ctx = getCtx(canvasId);
-  if (!ctx) return;
+export function renderSparkline(canvasOrId, values, color) {
+  const ctx = getCtx(canvasOrId);
+  if (!ctx) return null;
   const series = (values || []).map((v) => Number(v) || 0);
   if (series.length === 1) series.unshift(series[0]);
 
-  state.charts[canvasId] = new Chart(ctx, {
+  const chart = new Chart(ctx, {
     type: 'line',
     data: {
       labels: series.map((_, i) => i),
       datasets: [{
         data: series,
         borderColor: color,
-        backgroundColor: verticalGradient(color, 0.28, 0),
+        backgroundColor: verticalGradient(color, 0.25, 0),
         fill: true,
         borderWidth: 1.75,
         tension: 0.4,
@@ -531,11 +548,18 @@ export function renderSparkline(canvasId, values, color) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 600 },
+      animation: { duration: 480 },
       events: [],
       layout: { padding: { top: 3, bottom: 2, left: 1, right: 3 } },
       plugins: { legend: { display: false }, tooltip: { enabled: false }, emptyState: false },
       scales: { x: { display: false }, y: { display: false, grace: '8%' } },
     },
   });
+
+  if (typeof canvasOrId === 'string') {
+    state.charts[canvasOrId] = chart;
+  } else if (canvasOrId?.id) {
+    state.charts[canvasOrId.id] = chart;
+  }
+  return chart;
 }

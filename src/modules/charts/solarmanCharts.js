@@ -13,6 +13,7 @@ import {
   getCtx,
   hexToRgba,
   verticalGradient,
+  formatChartNumber,
   xScale,
   yScale,
   baseOptions,
@@ -25,11 +26,17 @@ import { emptyStatePlugin, hoverHighlightPlugin } from './plugins.js';
  * @param {Array<Object>} points
  * @param {'power'|'battery'|'pv'} [metricMode='power']
  * @param {Object|null} [telemetry=null]
+ * @param {HTMLCanvasElement|string} [canvasOrId='chart-solarman-daily']
  */
-export function renderSolarmanDailyChart(points = [], metricMode = 'power', telemetry = null) {
+export function renderSolarmanDailyChart(
+  points = [],
+  metricMode = 'power',
+  telemetry = null,
+  canvasOrId = 'chart-solarman-daily',
+) {
   syncChartTheme();
-  const ctx = getCtx('chart-solarman-daily');
-  if (!ctx) return;
+  const ctx = getCtx(canvasOrId);
+  if (!ctx) return null;
 
   const list = Array.isArray(points) ? points : [];
   const labels = list.map((p) => p.timeLabel || '');
@@ -50,6 +57,7 @@ export function renderSolarmanDailyChart(points = [], metricMode = 'power', tele
     pointHoverBorderWidth: 2,
     yAxisID: opts.yAxisID || 'y',
     spanGaps: true,
+    metricRole: opts.metricRole || null,
   });
 
   let datasets = [];
@@ -61,7 +69,7 @@ export function renderSolarmanDailyChart(points = [], metricMode = 'power', tele
         maxTicksLimit: 9,
       },
     },
-    y: yScale({ format: (v) => `${Math.round(v)} W` }),
+    y: yScale({ format: (v) => `${formatChartNumber(v, 0)} W` }),
   };
 
   if (metricMode === 'battery') {
@@ -71,7 +79,7 @@ export function renderSolarmanDailyChart(points = [], metricMode = 'power', tele
     if (hasSoc) {
       datasets.push(
         makeLine(
-          L('SOC Batería (%)', 'Battery SOC (%)'),
+          L('Carga de batería', 'Battery charge'),
           list.map((p) => p.batterySocPct),
           C.solar,
           { fill: true, alpha: 0.26, yAxisID: 'ySoc' },
@@ -91,7 +99,7 @@ export function renderSolarmanDailyChart(points = [], metricMode = 'power', tele
                   position: 'right',
                   drawGrid: false,
                   beginAtZero: false,
-                  format: (v) => `${fDec(v, 0)}°C`,
+                  format: (v) => `${fDec(v, 0)} °C`,
                   color: C.warning,
                 }),
               },
@@ -108,7 +116,7 @@ export function renderSolarmanDailyChart(points = [], metricMode = 'power', tele
     if (hasTemp) {
       datasets.push(
         makeLine(
-          L('Temp. Inversor (°C)', 'Inverter Temp (°C)'),
+          L('Temperatura del inversor', 'Inverter temperature'),
           list.map((p) => p.tempC),
           C.warning,
           { fill: !hasSoc, alpha: 0.2, yAxisID: 'yTemp' },
@@ -119,39 +127,38 @@ export function renderSolarmanDailyChart(points = [], metricMode = 'power', tele
     const hasPv1 = list.some((p) => p.pv1V !== null && p.pv1V !== undefined);
     const hasPv2 = list.some((p) => p.pv2V !== null && p.pv2V !== undefined && p.pv2V > 0);
     if (hasPv1) {
-      datasets.push(makeLine('String PV1 (V)', list.map((p) => p.pv1V), C.solar, { fill: true, alpha: 0.22 }));
+      datasets.push(makeLine(L('Cadena solar 1', 'Solar string 1'), list.map((p) => p.pv1V), C.solar, { fill: true, alpha: 0.22 }));
     }
     if (hasPv2) {
-      datasets.push(makeLine('String PV2 (V)', list.map((p) => p.pv2V), C.accent, { fill: false }));
+      datasets.push(makeLine(L('Cadena solar 2', 'Solar string 2'), list.map((p) => p.pv2V), C.accent, { fill: false }));
     }
-    scales.y = yScale({ format: (v) => `${Math.round(v)} V` });
+    scales.y = yScale({ format: (v) => `${formatChartNumber(v, 0)} V` });
   } else {
-    // 'power' (default): PV + Load + Grid / Battery
     datasets.push(
       makeLine(
-        L('Generación Solar (W)', 'Solar PV (W)'),
+        L('Potencia solar', 'Solar power'),
         list.map((p) => p.powerW),
         C.solar,
-        { fill: true, alpha: 0.28 },
+        { fill: true, alpha: 0.26, metricRole: 'solar' },
       ),
     );
     if (list.some((p) => (p.loadW || 0) > 0)) {
       datasets.push(
         makeLine(
-          L('Consumo / Carga (W)', 'Load Power (W)'),
+          L('Consumo en planta', 'Plant load'),
           list.map((p) => p.loadW),
           C.accent,
-          { fill: true, alpha: 0.12 },
+          { fill: true, alpha: 0.12, metricRole: 'load' },
         ),
       );
     }
     if (list.some((p) => Math.abs(p.gridW || 0) > 5)) {
       datasets.push(
         makeLine(
-          L('Red Eléctrica (W)', 'Utility Grid (W)'),
+          L('Red eléctrica', 'Utility grid'),
           list.map((p) => p.gridW),
           C.grid,
-          { dash: [5, 4], width: 1.75 },
+          { dash: [5, 4], width: 1.75, metricRole: 'grid' },
         ),
       );
     }
@@ -159,28 +166,28 @@ export function renderSolarmanDailyChart(points = [], metricMode = 'power', tele
     if (isOffGrid && list.some((p) => p.batteryPowerW !== 0)) {
       datasets.push(
         makeLine(
-          L('Batería (W)', 'Battery (W)'),
+          L('Batería', 'Battery'),
           list.map((p) => p.batteryPowerW),
           C.ai,
-          { width: 1.85 },
+          { width: 1.85, metricRole: 'battery' },
         ),
       );
     }
   }
 
-  state.charts['chart-solarman-daily'] = new Chart(ctx, {
+  const chart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
     options: baseOptions({
       plugins: {
         emptyState: list.length
           ? (datasets.length ? {} : {
-              text: L('Sin registros para este parámetro en el día', 'No samples recorded for this parameter'),
-              hint: L('Prueba otro parámetro o selecciona una fecha anterior', 'Try another metric tab or select an earlier date'),
+              text: L('Sin registros para este indicador en el día', 'No samples recorded for this metric'),
+              hint: L('Prueba otra pestaña o selecciona una fecha anterior', 'Try another metric tab or select an earlier date'),
             })
           : {
               text: L('Sin datos horarios registrados para esta fecha', 'No intraday data recorded for this date'),
-              hint: L('Cambia la fecha o espera la próxima trama en vivo del inversor', 'Pick another date or wait for the next live inverter frame'),
+              hint: L('Cambia la fecha o espera la próxima lectura en vivo', 'Pick another date or wait for the next live frame'),
             },
         tooltip: {
           callbacks: {
@@ -190,7 +197,16 @@ export function renderSolarmanDailyChart(points = [], metricMode = 'power', tele
               if (tip.dataset.yAxisID === 'ySoc') return ` ${tip.dataset.label}: ${fDec(v, 0)}%`;
               if (tip.dataset.yAxisID === 'yTemp') return ` ${tip.dataset.label}: ${fDec(v, 1)} °C`;
               if (metricMode === 'pv') return ` ${tip.dataset.label}: ${fDec(v, 1)} V`;
-              return ` ${tip.dataset.label}: ${Math.round(v)} W`;
+              const role = tip.dataset.metricRole;
+              if (role === 'battery' && Math.abs(v) > 0) {
+                const dir = v > 0 ? L('cargando', 'charging') : L('descargando', 'discharging');
+                return ` ${tip.dataset.label}: ${formatChartNumber(Math.abs(v), 0)} W · ${dir}`;
+              }
+              if (role === 'grid' && Math.abs(v) > 0) {
+                const dir = v > 0 ? L('importando', 'importing') : L('exportando', 'exporting');
+                return ` ${tip.dataset.label}: ${formatChartNumber(Math.abs(v), 0)} W · ${dir}`;
+              }
+              return ` ${tip.dataset.label}: ${formatChartNumber(v, 0)} W`;
             },
           },
         },
@@ -199,28 +215,32 @@ export function renderSolarmanDailyChart(points = [], metricMode = 'power', tele
     }),
     plugins: [emptyStatePlugin, hoverHighlightPlugin],
   });
+
+  state.charts['chart-solarman-daily'] = chart;
+  return chart;
 }
 
 /**
  * Render 14-day daily kWh yield & consumption bar summary chart.
  *
  * @param {Array<Object>} bars
+ * @param {HTMLCanvasElement|string} [canvasOrId='chart-solarman-daily']
  */
-export function renderSolarmanPeriodBarsChart(bars = []) {
+export function renderSolarmanPeriodBarsChart(bars = [], canvasOrId = 'chart-solarman-daily') {
   syncChartTheme();
-  const ctx = getCtx('chart-solarman-daily');
-  if (!ctx) return;
+  const ctx = getCtx(canvasOrId);
+  if (!ctx) return null;
 
   const list = Array.isArray(bars) ? bars : [];
   const labels = list.map((r) => r.label);
 
-  state.charts['chart-solarman-daily'] = new Chart(ctx, {
+  const chart = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
       datasets: [
         {
-          label: L('Generación Solar (kWh)', 'Solar Generation (kWh)'),
+          label: L('Energía generada', 'Energy generated'),
           data: list.map((r) => r.generationKwh),
           backgroundColor: verticalGradient(C.solar, 0.92, 0.42),
           hoverBackgroundColor: C.solar,
@@ -231,7 +251,7 @@ export function renderSolarmanPeriodBarsChart(bars = []) {
           barPercentage: 0.85,
         },
         {
-          label: L('Consumo Planta (kWh)', 'Consumption (kWh)'),
+          label: L('Energía consumida', 'Energy consumed'),
           data: list.map((r) => r.consumptionKwh),
           backgroundColor: hexToRgba(C.accent, 0.72),
           hoverBackgroundColor: C.accent,
@@ -249,19 +269,22 @@ export function renderSolarmanPeriodBarsChart(bars = []) {
           ? {}
           : {
               text: L('Sin resumen diario en los últimos 14 días', 'No daily summary in the last 14 days'),
-              hint: L('Vuelve a "Día (Curva Horaria)" para inspeccionar parámetros en vivo', 'Switch back to Intraday view to inspect live telemetry'),
+              hint: L('Vuelve a la vista diaria para inspeccionar telemetría en vivo', 'Switch back to daily view to inspect live telemetry'),
             },
         tooltip: {
           callbacks: {
-            label: (tip) => ` ${tip.dataset.label}: ${fDec(tip.raw, 2)} kWh`,
+            label: (tip) => ` ${tip.dataset.label}: ${formatChartNumber(tip.raw, 2)} kWh`,
           },
         },
       },
       scales: {
         x: xScale({ short: false }),
-        y: yScale({ format: (v) => `${fDec(v, 0)} kWh` }),
+        y: yScale({ format: (v) => `${formatChartNumber(v, 0)} kWh` }),
       },
     }),
     plugins: [emptyStatePlugin, hoverHighlightPlugin],
   });
+
+  state.charts['chart-solarman-daily'] = chart;
+  return chart;
 }

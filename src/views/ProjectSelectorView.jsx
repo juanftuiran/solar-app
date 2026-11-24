@@ -13,6 +13,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useProject } from '../context/ProjectContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useNavigate } from 'react-router-dom';
 import { createProject, getProjectCount } from '../modules/supabase.js';
 import { fCOP, fDec } from '../modules/formatters.js';
 import ProjectCard from '../components/ProjectCard.jsx';
@@ -21,10 +22,11 @@ import { Modal } from '../components/Modal.jsx';
 
 const MAX_PROJECTS = 20;
 
-export default function ProjectSelectorView({ onSelectProject, onLogout }) {
+export default function ProjectSelectorView() {
+  const navigate = useNavigate();
   const { lang, setLang, theme, toggleTheme, t } = useApp();
-  const { user, isAdmin } = useAuth();
-  const { projectsState, loadProjects } = useProject();
+  const { user, isAdmin, signOut } = useAuth();
+  const { projectsState, loadProjects, resetAllProjectState } = useProject();
   const { showToast } = useToast();
 
   const headingRef = useRef(null);
@@ -43,7 +45,16 @@ export default function ProjectSelectorView({ onSelectProject, onLogout }) {
 
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true });
-  }, []);
+    if (user && projectsState.status === 'idle') {
+      loadProjects(user, isAdmin);
+    }
+  }, [user, isAdmin, projectsState.status, loadProjects]);
+
+  const handleLogout = async () => {
+    resetAllProjectState();
+    await signOut();
+    navigate('/login', { replace: true });
+  };
 
   const projects = projectsState.items || [];
   const count = projects.length;
@@ -174,7 +185,7 @@ export default function ProjectSelectorView({ onSelectProject, onLogout }) {
               id="btn-logout-selector"
               type="button"
               className="btn btn-ghost btn-sm"
-              onClick={onLogout}
+              onClick={handleLogout}
             >
               <LogOut size={15} aria-hidden="true" />
               <span>{t('logout')}</span>
@@ -290,7 +301,6 @@ export default function ProjectSelectorView({ onSelectProject, onLogout }) {
                   project={p}
                   role={role}
                   investmentCount={p._investmentCount || 0}
-                  onSelect={onSelectProject}
                 />
               );
             })}

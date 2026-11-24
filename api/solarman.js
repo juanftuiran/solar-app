@@ -25,6 +25,23 @@ function isSha256Hex(str) {
   return typeof str === 'string' && /^[a-f0-9]{64}$/i.test(str.trim());
 }
 
+const UPSTREAM_TIMEOUT_MS = 15000;
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = UPSTREAM_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await globalThis.fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error('Tiempo de espera agotado al conectar con el servidor remoto (15s).');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Resolve allowed CORS origin (never wildcard `*`).
  * @param {string|undefined} requestOrigin
@@ -85,7 +102,7 @@ export async function verifySupabaseJwt(authHeader) {
   }
 
   try {
-    const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    const res = await fetchWithTimeout(`${supabaseUrl}/auth/v1/user`, {
       method: 'GET',
       headers: {
         apikey: supabaseAnonKey,
@@ -179,7 +196,7 @@ export async function processSolarmanRequest(body = {}) {
           payload.orgId = Number(orgId) || orgId;
         }
 
-        const res = await fetch(url.toString(), {
+        const res = await fetchWithTimeout(url.toString(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -195,7 +212,7 @@ export async function processSolarmanRequest(body = {}) {
         const url = new URL(`${baseUrl}/station/v1.0/list`);
         url.searchParams.set('language', language);
 
-        const res = await fetch(url.toString(), {
+        const res = await fetchWithTimeout(url.toString(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -214,7 +231,7 @@ export async function processSolarmanRequest(body = {}) {
         const url = new URL(`${baseUrl}/station/v1.0/realTime`);
         url.searchParams.set('language', language);
 
-        const res = await fetch(url.toString(), {
+        const res = await fetchWithTimeout(url.toString(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -233,7 +250,7 @@ export async function processSolarmanRequest(body = {}) {
         const url = new URL(`${baseUrl}/station/v1.0/device`);
         url.searchParams.set('language', language);
 
-        const res = await fetch(url.toString(), {
+        const res = await fetchWithTimeout(url.toString(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -256,7 +273,7 @@ export async function processSolarmanRequest(body = {}) {
         if (deviceSn) reqBody.deviceSn = String(deviceSn).trim();
         if (deviceId) reqBody.deviceId = Number(deviceId) || deviceId;
 
-        const res = await fetch(url.toString(), {
+        const res = await fetchWithTimeout(url.toString(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -278,7 +295,7 @@ export async function processSolarmanRequest(body = {}) {
         const url = new URL(`${baseUrl}/station/v1.0/history`);
         url.searchParams.set('language', language);
 
-        const res = await fetch(url.toString(), {
+        const res = await fetchWithTimeout(url.toString(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -313,7 +330,7 @@ export async function processSolarmanRequest(body = {}) {
         if (deviceSn) reqBody.deviceSn = String(deviceSn).trim();
         if (deviceId) reqBody.deviceId = Number(deviceId) || deviceId;
 
-        const res = await fetch(url.toString(), {
+        const res = await fetchWithTimeout(url.toString(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

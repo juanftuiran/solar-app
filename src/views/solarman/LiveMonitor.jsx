@@ -109,6 +109,24 @@ export default function LiveMonitor({
 
   return (
     <div id="solarman-view" className="stack">
+      {session?.isDemo && (
+        <div className="anomaly-banner info" role="status">
+          <div className="anomaly-icon" aria-hidden="true"><Radio size={18} /></div>
+          <div className="anomaly-content" style={{ flex: 1 }}>
+            <strong>{lang === 'en' ? 'Demo Simulation Active' : 'Simulación Demo Activa'}</strong>
+            <p>
+              {lang === 'en'
+                ? 'Showing simulated inverter curves for visual exploration. Connect your real Solarman account to read live hardware.'
+                : 'Mostrando datos simulados de prueba para explorar la interfaz. Conecta tu cuenta real de Solarman para leer inversores en vivo.'}
+            </p>
+          </div>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onDisconnect}>
+            <Unplug size={14} aria-hidden="true" />
+            <span>{t('exitDemoMode')}</span>
+          </button>
+        </div>
+      )}
+
       <div className="card solarman-topbar">
         <div className="solarman-topbar-left">
           <div className={`solarman-live-badge ${runtime.justUpdatedPacket ? 'pulse-highlight' : ''}`}>
@@ -343,7 +361,7 @@ export default function LiveMonitor({
             <div className="section-head-title">
               <div className="icon-tile sm solar" aria-hidden="true"><Sun size={16} /></div>
               <div>
-                <h3>{lang === 'en' ? 'DC Strings Telemetry (MPPT Inputs)' : 'Telemetría de Cadenas DC (Strings MPPT)'}</h3>
+                <h3>{lang === 'en' ? 'DC Strings Telemetry · MPPT Inputs' : 'Telemetría de Cadenas DC · Entradas MPPT'}</h3>
                 <p>{lang === 'en' ? 'Live voltage, current and power per PV string input' : 'Voltaje, corriente y potencia instantánea por entrada de paneles'}</p>
               </div>
             </div>
@@ -471,7 +489,7 @@ export default function LiveMonitor({
           <div className="section-head-title">
             <div className="icon-tile sm ai" aria-hidden="true"><ListChecks size={16} /></div>
             <div>
-              <h3>{lang === 'en' ? 'Full Inverter Register Table (Solarman currentData)' : 'Tabla Completa de Registros del Inversor (Solarman currentData)'}</h3>
+              <h3>{lang === 'en' ? 'Full Inverter Register Table' : 'Tabla Completa de Registros del Inversor'}</h3>
               <p>
                 {lang === 'en'
                   ? `All parameters reported by the datalogger in the latest packet (${devData.rawList.length} variables)`

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import {
   Brain,
   ChevronDown,
@@ -20,12 +21,15 @@ import {
 } from 'lucide-react';
 import { fCOP, fDec } from '../../modules/formatters.js';
 import { calcFinancialSimulation, calcKPIs, calcProjections } from '../../modules/analytics.js';
-import { compact, renderPaybackChart, renderProjectionChart } from '../../modules/charts.js';
+import { compact } from '../../modules/charts/core.js';
+import { renderPaybackChart, renderProjectionChart } from '../../modules/charts/dashboardCharts.js';
 import { useApp } from '../../context/AppContext.jsx';
 import { useProject } from '../../context/ProjectContext.jsx';
 import ChartCanvas from '../../components/ChartCanvas.jsx';
 
-export default function FinanceTab({ viewData }) {
+export default function FinanceTab({ viewData: propViewData }) {
+  const outletCtx = useOutletContext() || {};
+  const viewData = propViewData || outletCtx.viewData || [];
   const { lang, theme, simParams, updateSimParams, resetSimParams, t } = useApp();
   const { activeState, processedData } = useProject();
   const [showTable, setShowTable] = useState(false);
@@ -131,7 +135,8 @@ export default function FinanceTab({ viewData }) {
         <div className="chart-container short">
           <ChartCanvas
             id="chart-payback"
-            renderFn={() => renderPaybackChart()}
+            ariaLabel={t('historicalPaybackCurve')}
+            renderFn={(canvas) => renderPaybackChart(canvas)}
             deps={[processedData, investments, theme, lang]}
           />
         </div>
@@ -356,7 +361,8 @@ export default function FinanceTab({ viewData }) {
           <div className="chart-container tall">
             <ChartCanvas
               id="chart-proyeccion"
-              renderFn={() => renderProjectionChart(sim)}
+              ariaLabel={t('simTitle')}
+              renderFn={(canvas) => renderProjectionChart(sim, canvas)}
               deps={[sim, theme, lang]}
             />
           </div>
